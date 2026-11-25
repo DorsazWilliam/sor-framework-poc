@@ -50,7 +50,7 @@ gen/                sqlc.json, openapi.json (commités)
 ui/                 SPA
 deploy/             Dockerfile, idp.json, s3.json
 perf/               harness Playwright
-compose.yaml, sqlc.yaml, pgschema.toml, .squawk.toml
+compose.yaml, sqlc.yaml, .squawk.toml
 ```
 
 Ordre des schemas (sqlc et pgschema) : kernel, base, time, billing, accounting.
@@ -102,13 +102,13 @@ type Module struct { Name string; Register func(r *Registry) }
 r.Table(name, opts...)
     Root()                       // défaut
     ChildOf(root, fkColumn)      // ses commands lockent le root parent
-    Under(root)                  // ses commands tiennent ce root en for share
+    Under(root)                  // ses commands tiennent ce root en for share (toutes ses rows : une seule pour un singleton)
     Anchor(column, reach)        // rows visibles et modifiables si column ∈ reach du principal
     Read(fn) / Write(fn)         // capability ; "" = tout principal authentifié
     Guarded(columns...)          // colonnes hors CRUD générique (posées par des commands dédiées)
     Label(column)                // défaut "name"
     AppendOnly() / NoCRUD()
-    Screen(group)                // écran générique de données de base
+    Group(group)                 // écran générique de données de base dans ce groupe de navigation
 
 r.Action(table, name, conditions...)          // action = AND de conditions de t_p
 r.Command(name, opts...)
@@ -172,7 +172,7 @@ Règles :
 
 - Root d'une command sur une table child = la row parente ; `When`/`Ensure` sont des actions du root
 - CRUD générique : create = `Ensure(editable)` ; update = `When(editable)` + `Ensure(editable)` ; delete = `When(deletable)` et supprime d'abord les rows des tables child
-- CRUD d'une table child : `When(editable)` + `Ensure(editable)` du root
+- CRUD d'une table child : `When(editable)` + `Ensure(editable)` du root ; create sans la FK du root = le défaut de la colonne
 - Chaque statement d'effet est un DML simple (pas de `with` en tête, pas de `returning`). Le kernel l'exécute enveloppé : l'effet et ses events sont un seul statement
 
 ```sql
@@ -187,7 +187,7 @@ returning tbl, row_id, root_table, root_id
 - Les rows retournées = ce que la command a changé : réponse, clés de live, roots à relire, deliveries à envoyer
 - Un effet qui change d'autres roots que les siens les locke d'abord : un statement `select … order by id for update` dans la liste d'effets, exécuté tel quel ; les statements suivants ont un snapshot postérieur au lock (un seul statement qui locke et calcule lirait des valeurs antérieures à l'attente)
 - Erreur de contrainte Postgres (23xxx) → `constraint` avec le nom de la contrainte
-- Budget : ≤ 4 allers-retours DB par command, ≤ 2 par view ; aucun cache de principal
+- Budget : ≤ 4 allers-retours DB par command, ≤ 2 par view ; une command qui enfile des jobs en fait un de plus (un seul `InsertManyTx` River, avant le batch de commit) ; aucun cache de principal
 
 ### Résultats
 
@@ -604,7 +604,7 @@ Fixés avant toute mesure, depuis ce qu'un utilisateur perçoit comme immédiat.
 | B10 | run de facturation, 1 mois, tous les projects : premier progress / fin | 300 ms / 5 s |
 | B11 | impression → PDF affiché | 1.5 s |
 | B12 | commit → autre session à jour (live) | 300 ms |
-| S1 | allers-retours DB : view / command | ≤ 2 / ≤ 4 |
+| S1 | allers-retours DB : view / command / command qui enfile des jobs | ≤ 2 / ≤ 4 / ≤ 5 |
 | S2 | serveur : command activity (p95) | 15 ms |
 | S3 | serveur : `timesheet` / page de grid (p95) | 5 ms / 30 ms |
 

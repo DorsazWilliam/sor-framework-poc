@@ -134,6 +134,38 @@ Journal des choix ouverts tranchés pour ce POC. Chaque entrée : la décision, 
 
 - Archive Parquet, effacement, extensions WASM, webhooks, multi-tenant, OpenTelemetry, session replay : voir SPEC §25
 
+### D24. Formulation des projections, validée avant le code
+
+Expérience sur Postgres 18, 600k activities, avant d'écrire le domaine. Une projection sert la lecture d'une row et l'agrégat de masse avec la même définition si elle respecte deux règles :
+
+- Élagable : `left join` sur clé unique ou `left join … on true` vers une view d'une row ; le planner retire ce que la query n'utilise pas (`sum(duration)` par la view = la table seule)
+- Parallel-safe : aucune sous-requête corrélée dans une colonne. Mesuré : rentabilité sur tout l'historique 2.5 s avec `exists` et sous-requêtes scalaires, 0.6 s avec joins sur clé, containment de multirange et une fonction SQL `parallel safe`
+- 1er ordre : verrous de période lus comme multiranges ; classes d'heures par une fonction appelée seulement quand la durée touche un créneau ; `counted_min` entier
+- 2e ordre : `plan_cache_mode = force_custom_plan` (le plan générique d'une view paramétrée est 4× plus lent et sans parallélisme)
+
+### D25. Pagination par id
+
+- Constat : sauter 5000 rows par `offset` à travers la projection coûte 250 ms, les joins s'exécutent pour les rows sautées
+- Décision : la colonne `id` d'une view est l'identité de sa row ; le kernel pagine sur les ids (seules les colonnes du tri et du filtre sont calculées), puis lit les rows de la page
+- 1er ordre : une page profonde coûte comme la première ; règle générale du wrap, aucune view n'est traitée à part
+
+### D26. Lock d'autres roots : un statement à part
+
+- Constat : en READ COMMITTED, un statement qui locke des rows et calcule depuis la projection lit les valeurs d'avant l'attente du lock
+- Décision : l'effet commence par un `select … for update` par id ; les statements suivants ont un snapshot postérieur. `mark_invoiced` : lock, rattachement, puis gel des valeurs lues dans la projection
+- 1er ordre : le check sur les colonnes figées devient `frozen ⇒ invoice_id`
+
+### D27. Jobs : un aller-retour de plus
+
+- Constat : l'insertion transactionnelle de River (`InsertManyTx`) est un aller-retour à elle seule ; elle ne se met pas dans le batch de commit
+- Décision : ≤ 4 allers-retours pour une command, ≤ 5 pour une command qui enfile des jobs
+- Écarté : écrire dans les tables de River par notre propre SQL (couplage à son schema interne) ; une outbox maison que River viderait (deux files)
+- 1er ordre : le chemin chaud (saisie) n'a pas de reaction et reste à 4
+
+### D28. `Under` sans FK = singleton
+
+- `Under(root)` tient toutes les rows du root supérieur ; exact pour `company`. La forme générale par FK (CASES F5 : invoices sous leur période) est du model, hors slice
+
 ### D23. Budgets
 
 - Fixés depuis la perception (immédiat ≤ 100 ms, frappe ≤ 50 ms), avant mesure : SPEC §23
