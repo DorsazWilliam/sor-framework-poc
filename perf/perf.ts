@@ -61,7 +61,7 @@ async function login(user: string) {
   await page.fill('input[name="username"]', user);
   await page.click('input[type="submit"]');
   await page.waitForURL((u) => u.pathname === "/" && !u.port.startsWith("809"));
-  await page.goto(`${base}/#/accounting`);
+  await page.goto(`${base}/#/entry`);
   await page.waitForSelector("[data-ready]");
   return { ctx, page, user };
 }
@@ -96,8 +96,8 @@ async function measure(page: Page, act: string, selector: string, cond?: string)
 }
 const link = (h: string) => `const a = document.createElement("a"); a.href = ${JSON.stringify(h)}; document.body.append(a); a.click(); a.remove();`;
 const away = async (page: Page) => {
-  await page.evaluate((h) => (location.hash = h), hash("accounting"));
-  await page.waitForSelector('[data-screen="accounting"][data-ready]');
+  await page.evaluate((h) => (location.hash = h), hash("entry"));
+  await page.waitForSelector('[data-screen="entry"][data-ready]');
 };
 // Clicks a link to a screen (from another screen) until the screen shows its data.
 const open = async (page: Page, screen: string, state?: object) => {
@@ -225,7 +225,7 @@ await scenario(
   async () => {
     const page = admin.page;
     await away(page);
-    await page.evaluate((h) => (location.hash = h), hash("validation", { wrap: { filter: [{ col: "id", op: "in", value: toValidate }] } }));
+    await page.evaluate((h) => (location.hash = h), hash("validation", { wrap: { filter: [{ action: "validatable" }, { col: "id", op: "in", value: toValidate }] } }));
     await page.waitForSelector('[data-screen="validation"][data-ready]');
     await page.locator(".grid .row[data-id]").first().waitFor();
     await page.locator(".hrow .checkbox").click();
