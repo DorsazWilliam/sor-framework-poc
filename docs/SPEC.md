@@ -152,6 +152,10 @@ Wrap = `select <cols | group, agg> from (<query>) v where <filter> group by … 
 
 `op` : eq, ne, lt, le, gt, ge, in, contains, null, notnull. `fn` : sum, count, min, max, avg. `limit` ≤ 5000, défaut 200.
 
+- La colonne `id` d'une view est l'identité de sa row, unique dans la view (sélection, commands, drawer)
+- Page d'une view qui a `id`, sans group ni agg : le kernel pagine sur les ids puis lit les rows — `with k as materialized (select id from (<query>) v where … order by … limit … offset …) select v.* from k join (<query>) v using (id) order by …`. Les rows sautées ne paient que les colonnes du tri et du filtre ; le planner retire le reste
+- `plan_cache_mode = force_custom_plan` sur la database : un plan générique ignore la sélectivité des params et perd le parallélisme
+
 ### Command
 
 Même ordre pour humain, agent, reaction et job.
@@ -181,7 +185,7 @@ returning tbl, row_id, root_table, root_id
 ```
 
 - Les rows retournées = ce que la command a changé : réponse, clés de live, roots à relire, deliveries à envoyer
-- Un effet qui change d'autres roots que les siens les locke lui-même : sous-requête `… order by id for update`
+- Un effet qui change d'autres roots que les siens les locke d'abord : un statement `select … order by id for update` dans la liste d'effets, exécuté tel quel ; les statements suivants ont un snapshot postérieur au lock (un seul statement qui locke et calcule lirait des valeurs antérieures à l'attente)
 - Erreur de contrainte Postgres (23xxx) → `constraint` avec le nom de la contrainte
 - Budget : ≤ 4 allers-retours DB par command, ≤ 2 par view ; aucun cache de principal
 
@@ -373,7 +377,7 @@ Sémantique :
 - `day_type` d'une date : 8 si férié journée entière, sinon son jour ISO (1..7)
 - Une classe d'heures = des créneaux (day_type, minutes du jour) ; l'exclusion garantit qu'une minute appartient à une classe au plus
 - Tarif du folder = sa propre colonne ; estimé dépassé = somme des durées réelles du folder > `estimated_min`
-- Valeurs figées : posées par `invoice.mark_invoiced`, effacées par `invoice.back_to_draft` ; check `(invoice_id is null) = (frozen_amount is null)`
+- Valeurs figées : posées par `invoice.mark_invoiced`, effacées par `invoice.back_to_draft` ; check `frozen_amount is null or invoice_id is not null`
 - Le compte d'une invoice = celui de son project
 
 ## 16. Domaine : projections
@@ -387,11 +391,20 @@ Sémantique :
 | billed_min | figé, sinon : always → durée ; sometimes → `billed_min` saisi, à défaut durée ; never → 0 |
 | rate | figé, sinon : user × task, sinon folder, sinon project, sinon task, sinon 0 |
 | amount | figé, sinon `rate × billed_min / 60 × (minutes pondérées par rate_coef) / durée`, arrondi à 2 |
-| counted_min | 0 si la task ne compte pas d'heures ; sinon durée + Σ chevauchement × (hours_coef − 1) |
+| counted_min | 0 si la task ne compte pas d'heures ; sinon durée + Σ chevauchement × (hours_coef − 1), arrondi à la minute (entier) |
 | to_validate | la task le demande, ou la durée touche un créneau d'une classe qui le demande, ou l'estimé du folder est dépassé |
 | conditions | `not_locked`, `not_invoiced`, `not_validated`, `is_validated`, `entry_open` (folder et project ouverts, project non archivé), `task_allowed` |
 
-- `day_profile` (view) : par day_type, multirange des créneaux (`classed`) et de ceux à valider (`validating`) ; le chevauchement n'est calculé que si `span && classed`
+Formulation, validée sur 600k activities avant d'écrire le code (lecture d'une row 0.3 ms, d'un jour 0.5 ms, agrégat sur tout l'historique en plan parallèle) :
+
+- Tout ce qu'une query n'utilise pas doit disparaître de son plan : `left join` sur clé unique, `left join … on true` vers une view d'une row ; jamais de `join` interne ni de `cross join` vers une table
+- Tout doit rester parallel-safe : pas de sous-requête corrélée (`exists`, scalaire, lateral agrégé) dans une colonne ; à la place un join sur clé, une containment de multirange, ou une fonction SQL `stable parallel safe`
+- `day_profile` (view) : par day_type, multirange des créneaux (`classed`) et de ceux à valider (`validating`) ; le chevauchement (`hour_class_extra(day_type, span, coef)`, fonction SQL) n'est calculé que si `span && classed`
+- `not_locked` : la date n'est contenue ni dans le multirange des verrous pour tous (`lock_global`, une row), ni dans celui du user (`lock_user`)
+- `task_allowed` : `left join folder_task` sur sa clé unique
+- Estimé dépassé : `left join folder_spent` (view sur `folder` avec le total en sous-requête) : calculé une fois par folder
+- `cost_rate_span` : auto-jointure + `min`, pas de window function
+- Index de `activity` : `(user_id, date) include (start_tod, duration_min, task_id)`, `(date, id)`, `(folder_id) include (duration_min)`, `(invoice_id) where invoice_id is not null` ; `parallel_workers = 4` sur la table
 - `activity_class` (view) : une row par activity et par classe touchée, plus la part hors classe : minutes, montant ; `activity_cost` : coût par activity = `counted_min × hourly_cost / 60` du `cost_rate` en vigueur à la date
 - `expense_p` : mode effectif ; `user_amount` (figé, sinon 0 si billing_only, quantité × unit_price, ou amount) ; `billed_amount` (figé, sinon 0 si user_only, quantité × billing_unit_price, ou amount)
 - `invoice_p` : account_id, `state` (draft, invoiced), activity_count, services_amount, expenses_amount, total_amount — en draft sur les activities non facturées du project dans la période, facturée sur ses activities rattachées ; `export_state` (none, created, exported, failed) ; conditions `is_draft`, `is_invoiced`, `has_activities`, `not_exported`
@@ -418,7 +431,7 @@ Actions :
 | `activity.unvalidate` | When unvalidatable ; Needs validation ; Reach team | remet à null |
 | `expense.attach_receipt` | On expense ; When + Ensure editable ; Needs expense | receipt_file_id ; reaction → `ocr.read` |
 | `expense.apply_ocr` | On expense ; When editable ; Needs ocr | ocr_amount ; amount s'il est vide |
-| `invoice.mark_invoiced` | When invoiceable ; Ensure billed ; Needs invoice_state | fige activities (lock par id) et expenses, pose invoiced_at/by |
+| `invoice.mark_invoiced` | When invoiceable ; Ensure billed ; Needs invoice_state | 1. lock des activities candidates par id ; 2. `invoice_id` posé ; 3. `frozen_*` des activities rattachées, lues dans `activity_p` ; 4. `frozen_*` de leurs expenses ; 5. invoiced_at/by |
 | `invoice.back_to_draft` | When revertible ; Needs invoice_state | libère expenses et activities, efface invoiced_at/by |
 | `invoice.print` | Needs invoice | aucun ; reaction → `invoice.render` |
 | `invoice.attach_pdf` | Needs invoice | pdf_file_id |
@@ -551,7 +564,8 @@ Repères de mesure : `data-ready` sur la racine d'un écran quand ses données s
 
 ### Labels
 
-- `labels/<lang>.json`, clés plates : `t.<table>`, `c.<colonne>`, `c.<table>.<colonne>`, `v.<view>`, `cmd.<command>`, `cond.<condition>`, `fn.<fn>`, `e.<enum>.<valeur>`, `s.<écran>`, `g.<groupe>`, `constraint.<nom>`, `ui.<clé>`
+- Labels du registry : `labels/<lang>.json`, servis par le serveur, clés plates : `t.<table>`, `c.<colonne>`, `c.<table>.<colonne>`, `v.<view>`, `cmd.<command>`, `cond.<condition>`, `fn.<fn>`, `e.<enum>.<valeur>`, `s.<écran>`, `g.<groupe>`, `constraint.<nom>`
+- Labels du shell et des composants : `ui/src/labels/<lang>.json`, clés `ui.<clé>`, dans le bundle
 - Français par défaut ; langue = `user.lang` ; nombres et dates par `Intl` (`de-CH` pour les nombres)
 - Les labels des éléments créés par l'admin sont leurs colonnes (`name`, `label`)
 
@@ -566,7 +580,7 @@ Repères de mesure : `data-ready` sur la racine d'un écran quand ses données s
 
 ## 22. Déploiement
 
-`compose.yaml` : `db` (postgres:18, volume sur `/var/lib/postgresql`, timezone, `jit=off`), `s3` (SeaweedFS, `weed server -s3`), `idp` (mock-oauth2-server, `deploy/idp.json`), `acct` (`fakeacct`), `app` (`sor up`). Ports : app 8080, idp 8090, s3 8333, acct 8070.
+`compose.yaml` : `db` (postgres:18, volume sur `/var/lib/postgresql`, timezone, `jit=off`, `plan_cache_mode=force_custom_plan`, 4 workers parallèles par gather), `s3` (SeaweedFS, `weed server -s3`), `idp` (mock-oauth2-server, `deploy/idp.json`), `acct` (`fakeacct`), `app` (`sor up`). Ports : app 8080, idp 8090, s3 8333, acct 8070.
 
 Image de l'app : build UI (node) → build Go → debian slim + tesseract (fra, deu, eng) + typst + pgschema.
 
