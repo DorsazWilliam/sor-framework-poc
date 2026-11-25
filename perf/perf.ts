@@ -40,8 +40,9 @@ const helpers = () => {
         return { name: new URL(e.name).pathname.slice(5), db: st.db?.duration ?? 0, rt: parseInt(st.db?.description ?? "0"), app: st.app?.duration ?? 0 };
       });
   w.__until = (cond: () => boolean) =>
-    new Promise<number>((res) => {
+    new Promise<number>((res, rej) => {
       if (cond()) return res(performance.now());
+      setTimeout(() => rej(new Error("timeout (60 s)")), 60000);
       const o = new MutationObserver(() => {
         if (cond()) {
           o.disconnect();
@@ -234,7 +235,7 @@ await scenario(
     return s;
   },
   async () => {
-    toValidate = (await view(admin, "activity_to_validate", { params: { date_from: daysAgo(90), date_to: iso(today) }, limit: 100 })).map((r) => r.id as number);
+    toValidate = (await view(admin, "activity_to_validate", { params: { date_from: daysAgo(90), date_to: iso(today) }, filter: [{ col: "not_invoiced", op: "eq", value: true }], limit: 100 })).map((r) => r.id as number);
     if (toValidate.length < 100) throw new Error(`only ${toValidate.length} activities to validate`);
   },
 );
