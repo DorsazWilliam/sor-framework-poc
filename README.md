@@ -44,6 +44,8 @@ docker compose exec app sor seed perf
 
 Works end to end on a fresh `docker compose up`: keyboard time entry, expenses with receipt OCR, validation, balances, profitability, invoicing (run, PDF, CSV export to the fake accounting server with retry), period locks, master data, history, live updates, MCP.
 
+Also: a dashboard made of tiles (a tile is a wrapped view drawn as a number, bars, a donut, progress bars or a calendar heatmap; hand-made SVG), and a client-side view cache invalidated by the live stream, so navigation and page reloads paint at once.
+
 Known limits:
 
 - Analytic screens over the whole history are slow (0.8 to 1.9 s on 600k activities): rows and totals are two full computations, and balances carry over from the first entry. See [docs/PERF.md](docs/PERF.md).

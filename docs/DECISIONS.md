@@ -273,6 +273,7 @@ Une relecture indépendante du code (2026-11-25) a confirmé le cœur : un seul 
 - Ce qui le rend simple : le registry donne les roots de chaque view et le live donne les roots changés ; une entrée dont aucun root n'a bougé pendant que le stream était connecté est fraîche sans requête
 - Limites choisies : `sessionStorage` plutôt qu'un stockage durable (des données sensibles ne restent pas sur le poste après fermeture de l'onglet) ; vidé à la déconnexion, au changement d'identité et de version du registry
 - Aucun cache côté serveur : la vérité reste unique
+- 2e ordre, trouvé en construisant : le hub du live laissait tomber une clé quand un stream prenait du retard, sans le dire. Avec un cache qui croit ses entrées fraîches, c'est une donnée fausse affichée. Règle : un stream qui manque une clé est fermé, le client se reconnecte et revalide tout
 
 ### D39. Registres du kernel
 

@@ -233,6 +233,7 @@ returning tbl, row_id, root_table, root_id
 - Live : au commit, `pg_notify('sor_live', {"t": root_table, "ids": […], "a": [anchors], "c": command, "e": call})` ; plus de 200 ids → `ids` omis (toute la table)
 - Chaque instance a une connexion `LISTEN` et diffuse aux streams SSE (`GET /api/live`) ; un stream reçoit une clé si la table n'a pas d'anchor ou si `a` ∩ son reach ≠ ∅
 - Le client relance ses views dont les roots contiennent `t` (debounce 50 ms) ; reconnexion = tout relancer ; le serveur ne garde aucun état d'abonnement
+- Un stream ne perd jamais une clé en silence : s'il ne peut pas la recevoir, ou si la connexion `LISTEN` du serveur est rétablie, le stream est fermé ; le navigateur se reconnecte et le client revalide tout. C'est ce qui permet au cache client de tenir une entrée pour fraîche
 - Progress d'un run : update de sa row `run` hors transaction du run, même canal
 - `e` identifie l'invocation qui a commité : un job (run, reaction) a son propre id, distinct de celui de la command qui l'a enfilé ; le client qui a lancé un run reçoit donc son progress
 
@@ -624,6 +625,8 @@ Dashboard par défaut (groupe Analyse), tuiles selon la capability :
 
 Views ajoutées pour ces tuiles : `revenue(date_from, date_to)` (lignes de prestation et de frais avec leur date ; anchor none, needs invoice) et `folder_budget` (folders avec estimé : estimé, consommé ; anchor none, needs any).
 
+Temps serveur par tuile sur 600k activities (une mesure) : 3 à 250 ms ; les plus lourdes agrègent `activity_p` sur l'année (« à valider » 234 ms, « marge par project » 246 ms). Le wrap ne trie pas sur un rapport de deux colonnes : « estimé / consommé » est trié par temps consommé.
+
 ### Cache client
 
 Un seul module (`ui/src/app/cache.svelte.ts`) ; toute lecture de view y passe (grid, lookups, saisie, tuiles).
@@ -636,6 +639,8 @@ Un seul module (`ui/src/app/cache.svelte.ts`) ; toute lecture de view y passe (g
 - Persistance : `sessionStorage` (survit au rafraîchissement, meurt avec l'onglet), avec `me`, `meta` et les labels : au rechargement le shell et l'écran s'affichent depuis le cache, puis tout se revalide
 - Vidé à la déconnexion, sur un 401, quand l'identité change, quand `meta.version` change. Taille bornée, éviction des entrées les plus anciennes ; un quota dépassé désactive la persistance, pas le cache
 - Repères de mesure : `data-ready` = données affichées (du cache ou du serveur) ; `data-fresh` = confirmées par le serveur
+- `history` lit le journal, pas la table dont elle rend l'historique : l'appelant passe le root concerné au cache
+- Mesuré (seed de démo) : retour sur un écran déjà visité 25 ms, sans requête ; rechargement de la page → shell et écran affichés en 130 ms (p95)
 
 ### Écran de saisie (fait main)
 
