@@ -166,6 +166,38 @@ Expérience sur Postgres 18, 600k activities, avant d'écrire le domaine. Une pr
 
 - `Under(root)` tient toutes les rows du root supérieur ; exact pour `company`. La forme générale par FK (CASES F5 : invoices sous leur période) est du model, hors slice
 
+### D29. Plans : views avec leurs valeurs, commands préparées, joins dans l'ordre écrit
+
+- Constat (modules réels, 600k activities) : planifier une view sur `activity_p` (16 relations) coûte 6 à 120 ms ; avec `force_custom_plan` (D24) chaque request le repaie, plus que l'exécution
+- Décision : remplace le réglage global de D24
+  - une view est un statement non nommé : planifiée à chaque exécution avec ses valeurs
+  - les statements d'une command sont préparés : leur forme (lookup par ids) ne dépend pas des valeurs
+  - `join_collapse_limit = 1`, `from_collapse_limit = 1` : l'ordre des joins est celui du SQL (root, puis lookups) ; la recherche d'ordre, qui fait le coût de planification, disparaît
+- 1er ordre : l'auteur d'une projection écrit ses joins dans l'ordre d'exécution ; les plans sont déterministes
+- 2e ordre : les réglages dont le model dépend sont posés sur la database par `sor migrate`, pas par l'environnement
+
+### D30. Pagination par id : lecture par tableau d'ids
+
+- Constat : `k join (<view>) using (id)` est planifié sans `k` (view calculée en entier, 170 ms) ; `where id = any(array(select id from k))` pousse le filtre dans la view (12 ms)
+- Décision : D25 garde son principe, sa forme SQL change
+
+### D31. Une invoice prend les activities facturables
+
+- Constat : le project interne (absences, vacances) recevait une invoice à 0 de 400 lignes à chaque run
+- Décision : une activity dont la task n'est « jamais » facturée n'est candidate d'aucune invoice
+- 1er ordre : `invoice_p`, les candidats du run et les effets de `mark_invoiced` partagent ce prédicat, écrit une fois
+
+### D32. `self` est le reach du kernel
+
+- Constat : intersection agent ∩ humain sur `self` = vide ({agent} ∩ {humain})
+- Décision : `self` n'est pas une donnée du module d'accès ; c'est l'identité effective, posée par le kernel
+- 1er ordre : un agent qui agit pour un humain voit ses rows anchorées `self` (saved views, runs)
+
+### D33. L'id d'invocation vient du client
+
+- En-tête `Sor-Call` : le client reconnaît son écho dans le live sans fenêtre de temps
+- 2e ordre : base de l'idempotence d'une command rejouée (CASES S7), non construite
+
 ### D23. Budgets
 
 - Fixés depuis la perception (immédiat ≤ 100 ms, frappe ≤ 50 ms), avant mesure : SPEC §23

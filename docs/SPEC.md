@@ -73,9 +73,9 @@ Ordre des schemas (sqlc et pgschema) : kernel, base, time, billing, accounting.
 ## 5. Kernel : schema
 
 ```sql
-create function sor_now() returns timestamptz language sql stable as
+create function sor_now() returns timestamptz language sql stable parallel safe as
 $$ select coalesce(nullif(current_setting('sor.now', true), '')::timestamptz, transaction_timestamp()) $$;
-create function sor_today() returns date language sql stable as $$ select sor_now()::date $$;
+create function sor_today() returns date language sql stable parallel safe as $$ select sor_now()::date $$;
 create function sor_diff(o jsonb, n jsonb) returns jsonb language sql immutable as
 $$ select coalesce(jsonb_object_agg(k, jsonb_build_array(o->k, n->k)), '{}'::jsonb)
    from jsonb_object_keys(coalesce(n, o)) k where (o->k) is distinct from (n->k) $$;
@@ -88,11 +88,13 @@ create function sor_append_only() returns trigger ...  -- raise, errcode 23514
 | `event` | at, call uuid, command, principal_id, for_id, tbl, row_id, root_table, root_id, changes jsonb | partitionnée par mois sur `at` ; partitions dans le schema `event_parts` ; index (root_table, root_id, at) |
 | `run` | name, input jsonb, principal_id, for_id, state (queued, running, done, cancelled, failed), total, done, rejected jsonb, error, cancel_requested, created_at, finished_at | root ; anchor principal_id, reach `self` |
 | `saved_view` | owner_id, screen, name, state jsonb ; unique (owner_id, screen, name) | root ; anchor owner_id, reach `self` |
-| `connection` | kind, name, endpoint, secret_name, principal_id, cursor, pulled_at, pull_error | root |
+| `connection` | kind, name, endpoint, secret_name, subject, cursor, pulled_at, pull_error | root ; `subject` = le principal sous lequel elle agit |
 | `delivery` | connection_id, kind, root_table, root_id, payload jsonb, principal_id, created_at | root, append_only |
 | `delivery_result` | delivery_id, at, ok, status, detail | child de delivery, append_only |
 
-`principal_id`, `for_id`, `owner_id` : ids de la table des principals du module base (`user`), sans FK (tampons de log).
+`principal_id`, `for_id`, `owner_id` : ids de la table des principals du module base (`user`), sans FK (tampons de log). Une row qui désigne une identité sous laquelle agir porte son `subject`.
+
+Un module complète une table ou une command du kernel en la déclarant à nouveau : les options s'ajoutent (`r.Table("delivery", Write("accounting_sync"))`, `r.Command("delivery.retry", Needs("invoice"))`).
 
 ## 6. Kernel : déclarations
 
@@ -153,8 +155,10 @@ Wrap = `select <cols | group, agg> from (<query>) v where <filter> group by … 
 `op` : eq, ne, lt, le, gt, ge, in, contains, null, notnull. `fn` : sum, count, min, max, avg. `limit` ≤ 5000, défaut 200.
 
 - La colonne `id` d'une view est l'identité de sa row, unique dans la view (sélection, commands, drawer)
-- Page d'une view qui a `id`, sans group ni agg : le kernel pagine sur les ids puis lit les rows — `with k as materialized (select id from (<query>) v where … order by … limit … offset …) select v.* from k join (<query>) v using (id) order by …`. Les rows sautées ne paient que les colonnes du tri et du filtre ; le planner retire le reste
-- `plan_cache_mode = force_custom_plan` sur la database : un plan générique ignore la sélectivité des params et perd le parallélisme
+- Page d'une view qui a `id`, sans group ni agg : le kernel pagine sur les ids puis lit les rows — `with k as materialized (select id from (<query>) v where … order by … limit … offset …) select v.* from (<query>) v where v.id = any(array(select id from k)) order by …`. Les rows sautées ne paient que les colonnes du tri et du filtre ; la page se lit par clé primaire
+- Plans : une view s'exécute en statement non nommé, planifiée avec ses valeurs (sélectivité des intervalles, parallélisme) ; les statements d'une command (lock, projection par ids, effets) sont préparés et gardent leur plan
+- Ordre des joins = ordre écrit (`join_collapse_limit = 1`, `from_collapse_limit = 1`) : le root d'abord, ses lookups ensuite ; le planner ne cherche pas d'ordre, la planification d'une projection de 16 relations reste sous la milliseconde
+- Les réglages dont le model dépend sont posés sur la database par `sor migrate` (`alter database … set`) : timezone, `jit = off`, limites de collapse, seuils de scan parallèle (`min_parallel_table_scan_size`, `min_parallel_index_scan_size`) ; compose ne porte que les ressources (mémoire, workers)
 
 ### Command
 
@@ -205,9 +209,10 @@ returning tbl, row_id, root_table, root_id
 
 - Authentification : JWT de l'IdP, vérifié par JWKS ; cookie de session HttpOnly SameSite=Strict pour le navigateur (flow authorization code + PKCE côté serveur : `/auth/login`, `/auth/callback`, `/auth/logout`), `Authorization: Bearer` pour agents, CLI et services (client credentials)
 - `sub` → `user.subject` ; sujet inconnu → 403 ; claim `act_for` = sujet de l'humain pour qui l'agent agit
-- Contrat du module base : la query `Principal(@subjects)` rend par sujet `id, kind, name, lang, functions fn[], reach jsonb` (`{"self":[…],"team":[…],"user":[…]}`)
+- Contrat du module base : la query `Principal(@subjects)` rend par sujet `subject, id, kind, name, lang, functions fn[], reach jsonb` (`{"team":[…],"user":[…]}`)
 - Agent pour un humain : fonctions et reach = intersection des deux rows ; `@self` = l'humain ; l'event porte `principal_id` (agent) et `for_id` (humain)
-- Reach, dans le module base : `self` = lui-même ; `team` = ses subordonnés directs (`scope_direct`), tout son arbre (`scope_tree`) ou tous les humains sauf lui (`scope_all`) ; `user` = `self` ∪ `team`
+- `self` est le reach du kernel : l'identité effective (`@self`), l'humain quand un agent agit pour lui ; les autres reach viennent du module base
+- Reach, dans le module base : `team` = ses subordonnés directs (`scope_direct`), tout son arbre (`scope_tree`) ou tous les humains sauf lui (`scope_all`) ; `user` = `self` ∪ `team`
 - Fonctions (enum `fn`) : activity, expense, invoice, invoice_state, period_lock, validation, cost, master_data, scope_direct, scope_tree, scope_all, accounting_sync, ocr ; un groupe `admin` les a toutes ; un principal a l'union de ses groupes
 - Build : `sor check --static` (dans `go generate` et dans le Dockerfile) refuse une query sans `@anchor`, et une query anchorée sans param `reach` ; il refuse aussi un `@needs` hors enum, une query `:exec` sans command, un label fr manquant
 - Donnée sensible = table ou view séparée avec sa capability : `cost_rate`, `activity_cost`, `profitability_cost`
@@ -301,7 +306,8 @@ type Meta = { tables: Table[]; views: View[]; commands: Command[]; screens: Scre
 // POST /api/v/{view}       body: { params?: Record<string, unknown> } & Wrap
 //   200: tableau JSON des rows, tel que produit par Postgres ; avec group/agg : colonnes de group + "<fn>_<col>" ("count" pour count)
 // POST /api/c/{command}    body: create {…colonnes} | update {ids, …colonnes} | delete {ids} | custom {ids, …input} | rootless {…input} | run {…params}
-//   200: { call: string /* = e du live : le client ignore son propre écho */; changed: { table: string; ids: number[] }[];
+//   en-tête optionnel `Sor-Call: <uuid>` : l'id d'invocation choisi par le client ; il le reconnaît dans le live (e) et ignore son propre écho
+//   200: { call: string; changed: { table: string; ids: number[] }[];
 //          ids: number[] /* roots de la command, créés compris */; run?: number }
 // erreurs: application/problem+json { status, title, code, needs?, action?, rejected?: { id: number; conditions: string[]; row: object }[], constraint?, errors? }
 // GET /api/live            SSE, data: { t: string; ids?: number[]; c: string; e: string }
@@ -314,7 +320,7 @@ type Meta = { tables: Table[]; views: View[]; commands: Command[]; screens: Scre
 
 Règles de lecture du contrat :
 
-- Une colonne de view qui porte le nom d'une condition de la table root de la view, et `id`, ne s'affichent pas : elles servent aux boutons et à l'identité
+- Une colonne de view qui porte le nom d'une condition d'une table root lue par la view, et `id`, ne s'affichent pas : elles servent aux boutons et à l'identité
 - Les actions d'une table child sont celles de son root ; le client lit leurs conditions sur la row parente (celle du drawer)
 - `ref` d'une colonne qui n'est pas une FK (tampons `principal_id`, `for_id`, `owner_id`) : déclaré par `r.Ref(colonne, table)` dans le module qui possède la table des principals
 - Tri sur une colonne `ref` = tri sur le label de la table référencée (le wrap joint la table par son `Label`)
@@ -387,6 +393,7 @@ Sémantique :
 - Tarif du folder = sa propre colonne ; estimé dépassé = somme des durées réelles du folder > `estimated_min`
 - Valeurs figées : posées par `invoice.mark_invoiced`, effacées par `invoice.back_to_draft` ; check `frozen_amount is null or invoice_id is not null`
 - Le compte d'une invoice = celui de son project
+- Une invoice prend les activities facturables : non facturées, dans la période, dont la task n'est pas « jamais » ; une activity jamais facturable n'est rattachée à aucune invoice
 
 ## 16. Domaine : projections
 
@@ -588,7 +595,7 @@ Repères de mesure : `data-ready` sur la racine d'un écran quand ses données s
 
 ## 22. Déploiement
 
-`compose.yaml` : `db` (postgres:18, volume sur `/var/lib/postgresql`, timezone, `jit=off`, `plan_cache_mode=force_custom_plan`, 4 workers parallèles par gather), `s3` (SeaweedFS, `weed server -s3`), `idp` (mock-oauth2-server, `deploy/idp.json`), `acct` (`fakeacct`), `app` (`sor up`). Ports : app 8080, idp 8090, s3 8333, acct 8070.
+`compose.yaml` : `db` (postgres:18, volume sur `/var/lib/postgresql`, mémoire et workers parallèles : 4 par gather), `s3` (SeaweedFS, `weed server -s3`), `idp` (mock-oauth2-server, `deploy/idp.json`), `acct` (`fakeacct`), `app` (`sor up`). Ports : app 8080, idp 8090, s3 8333, acct 8070.
 
 Image de l'app : build UI (node) → build Go → debian slim + tesseract (fra, deu, eng) + typst + pgschema.
 
