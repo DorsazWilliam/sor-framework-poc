@@ -2,7 +2,9 @@
 //   npm run perf [-- B1,B3,...]     SOR_URL (default http://localhost:8080), RUNS (default 20), OUT (JSON file)
 // Each scenario runs RUNS + 1 times, the first run is discarded. Times are measured in the page, from the user
 // action (click, key, commit) to the screen's marker (data-ready, data-saved, a displayed row). Server-Timing of
-// every /api/v and /api/c request involved gives the DB time, the round trips and the server time.
+// every /api/v and /api/c request involved gives the DB time, the round trips and the server time; a view request
+// with aggregates and no group is named "<view> totals".
+// Between measures, sessions park on the company screen: every measured user sees it and its data does not change.
 // The dataset stays reusable: what a scenario creates is deleted, in a far-future week for activities.
 import { chromium, type BrowserContext, type Page } from "playwright";
 import { writeFileSync } from "node:fs";
@@ -28,17 +30,27 @@ const perfDay = (n: number) => iso(new Date(perfMonday.getFullYear(), perfMonday
 
 const browser = await chromium.launch();
 
-// In the page: Server-Timing of the API requests since t0, and a wait for a condition checked on every DOM change.
+// In the page: Server-Timing of the API requests started since t0, and a wait for a condition checked on every DOM change.
 const helpers = () => {
-  performance.setResourceTimingBufferSize(100000);
   const w = window as unknown as Record<string, unknown>;
-  w.__requests = (t0: number) =>
-    (performance.getEntriesByType("resource") as PerformanceResourceTiming[])
-      .filter((e) => e.startTime >= t0 && /\/api\/[vc]\//.test(e.name))
-      .map((e) => {
-        const st = Object.fromEntries(e.serverTiming.map((s) => [s.name, s]));
-        return { name: new URL(e.name).pathname.slice(5), db: st.db?.duration ?? 0, rt: parseInt(st.db?.description ?? "0"), app: st.app?.duration ?? 0 };
-      });
+  const log: (Req & { t: number })[] = [];
+  const fetch0 = window.fetch;
+  window.fetch = async (input, init) => {
+    const t = performance.now();
+    const res = await fetch0(input, init);
+    const path = new URL(input instanceof Request ? input.url : String(input), location.href).pathname;
+    if (/^\/api\/[vc]\//.test(path)) {
+      const st = Object.fromEntries((res.headers.get("server-timing") ?? "").split(",").map((m) => {
+        const [n, ...kv] = m.trim().split(";");
+        return [n, Object.fromEntries(kv.map((x) => x.split("=")))];
+      }));
+      const body = typeof init?.body === "string" ? JSON.parse(init.body) : {};
+      const totals = path.startsWith("/api/v/") && body.agg?.length && !body.group?.length ? " totals" : "";
+      log.push({ t, name: path.slice(5) + totals, db: +(st.db?.dur ?? 0), rt: parseInt((st.db?.desc ?? "0").replace('"', "")), app: +(st.app?.dur ?? 0) });
+    }
+    return res;
+  };
+  w.__requests = (t0: number) => log.filter((q) => q.t >= t0).map(({ t, ...q }) => q);
   w.__until = (cond: () => boolean) =>
     new Promise<number>((res, rej) => {
       if (cond()) return res(performance.now());
@@ -61,8 +73,8 @@ async function login(user: string) {
   await page.fill('input[name="username"]', user);
   await page.click('input[type="submit"]');
   await page.waitForURL((u) => u.pathname === "/" && !u.port.startsWith("809"));
-  await page.goto(`${base}/#/entry`);
-  await page.waitForSelector("[data-ready]");
+  await page.goto(`${base}/${hash("company")}`);
+  await page.waitForSelector('[data-screen="company"][data-ready]');
   return { ctx, page, user };
 }
 type Session = Awaited<ReturnType<typeof login>>;
@@ -80,9 +92,8 @@ const hash = (screen: string, state?: object) => `#/${screen}${state ? `?s=${enc
 async function measure(page: Page, act: string, selector: string, cond?: string): Promise<Sample> {
   return page.evaluate(
     async ([act, selector, cond]) => {
-      const w = window as unknown as { __requests: (t0: number) => Req[]; __until: (c: () => boolean) => Promise<number> };
-      performance.clearResourceTimings();
-      const t0 = performance.now();
+      const w = window as unknown as { __requests: (t0: number) => Req[]; __until: (c: () => boolean) => Promise<number>; __t0: number };
+      const t0 = (w.__t0 = performance.now());
       new Function(act)();
       const t1 = await w.__until(() => {
         const el = document.querySelector(selector);
@@ -96,8 +107,8 @@ async function measure(page: Page, act: string, selector: string, cond?: string)
 }
 const link = (h: string) => `const a = document.createElement("a"); a.href = ${JSON.stringify(h)}; document.body.append(a); a.click(); a.remove();`;
 const away = async (page: Page) => {
-  await page.evaluate((h) => (location.hash = h), hash("entry"));
-  await page.waitForSelector('[data-screen="entry"][data-ready]');
+  await page.evaluate((h) => (location.hash = h), hash("company"));
+  await page.waitForSelector('[data-screen="company"][data-ready]');
 };
 // Clicks a link to a screen (from another screen) until the screen shows its data.
 const open = async (page: Page, screen: string, state?: object) => {
@@ -157,7 +168,7 @@ async function saveLine(page: Page, uid: string): Promise<Sample> {
     const el = document.querySelector(`[data-uid="${uid}"]`)!;
     const saved = el.getAttribute("data-saved");
     let t0 = 0;
-    addEventListener("keydown", () => ((t0 = performance.now()), performance.clearResourceTimings()), { capture: true, once: true });
+    addEventListener("keydown", () => (t0 = performance.now()), { capture: true, once: true });
     w.__saved = (w.__until as (c: () => boolean) => Promise<number>)(() => document.querySelector(`[data-uid="${uid}"]`)?.getAttribute("data-saved") !== saved).then(
       async (t1) => (await new Promise((r) => setTimeout(r, 30)), { ms: t1 - t0, requests: (w.__requests as (t: number) => Req[])(t0) }),
     );
@@ -294,15 +305,16 @@ await scenario(
     const start = `[...document.querySelectorAll(".dialog-footer button")].at(-1).click()`;
     const first = await measure(page, start, ".run[data-run-state]", progressed);
     if (i % 2 === 0) {
+      // from the start of the measure of the first progress
       const end = await page.evaluate(async () => {
-        const w = window as unknown as { __until: (c: () => boolean) => Promise<number> };
-        const t = await w.__until(() => !!document.querySelector('.run[data-run-state="done"]'));
-        return t;
+        const w = window as unknown as { __until: (c: () => boolean) => Promise<number>; __t0: number };
+        return (await w.__until(() => !!document.querySelector('.run[data-run-state="done"]'))) - w.__t0;
       });
-      if (i > 0) runEnds.push({ ms: end - (await page.evaluate(() => 0)) + first.ms, requests: [] });
+      if (i > 0) runEnds.push({ ms: end, requests: [] });
     } else {
-      await page.getByRole("button", { name: "Annuler le traitement" }).click();
-      await page.locator('.run[data-run-state="cancelled"]').waitFor();
+      // a short run may end before the cancel: the rerun then finds nothing left
+      await page.evaluate(() => [...document.querySelectorAll<HTMLButtonElement>(".dialog-footer button")].find((b) => b.textContent?.includes("Annuler le traitement"))?.click());
+      await page.locator('.run[data-run-state="cancelled"], .run[data-run-state="done"]').waitFor();
       await page.locator(".dialog-footer button").last().click();
       await startRun(page);
       const rerun = await measure(page, start, '.run[data-run-state="done"]');
@@ -409,7 +421,7 @@ const server = [
   { id: "S1j", what: "DB round trips, command enqueuing jobs (max)", budget: 5, value: maxRt((q) => jobs.test(q.name) || q.name === "c/invoice.run") },
   { id: "S2", what: "server, activity command (p95 ms)", budget: 15, value: appP95((q) => /^c\/activity\./.test(q.name)) },
   { id: "S3t", what: "server, timesheet (p95 ms)", budget: 5, value: appP95((q) => q.name === "v/timesheet") },
-  { id: "S3g", what: "server, grid page activity_grid (p95 ms)", budget: 30, value: appP95((q) => q.name === "v/activity_grid") },
+  { id: "S3g", what: "server, grid page activity_grid, page request (p95 ms)", budget: 30, value: appP95((q) => q.name === "v/activity_grid") },
 ].map((s) => ({ ...s, pass: Number.isFinite(s.value) && s.value <= s.budget }));
 
 writeFileSync(out, JSON.stringify({ at: new Date().toISOString(), base, runs: RUNS, scenarios: rows, server }, null, 2));
