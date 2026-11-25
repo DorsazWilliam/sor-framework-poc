@@ -46,6 +46,15 @@ from (
 ) r
 join folder f on f.id = r.folder_id;
 
+-- name: Revenue :many
+-- Revenue lines of a period, one per activity (services) and one per expense (expenses billed), with their date, project,
+-- folder and user: realized and invoiced amounts as in profitability.
+-- @anchor none
+-- @needs invoice
+select r.date, r.project_id, r.folder_id, r.user_id, r.services_amount, r.expense_billed_amount, r.realized_amount, r.invoiced_amount
+from activity_revenue r
+where r.date between @date_from and @date_to;
+
 -- name: ProfitabilityCost :many
 -- Profitability with the cost (counted minutes times hourly cost) and the margins on services and on balance.
 -- @anchor none

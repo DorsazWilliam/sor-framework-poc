@@ -44,6 +44,15 @@ select a.*
 from activity_p a
 where a.date between @date_from and @date_to and a.user_id = any(@reach::bigint[]);
 
+-- name: FolderBudget :many
+-- Folders having an estimate: estimated and spent (real) durations.
+-- @anchor none
+-- @needs any
+select f.id as folder_id, f.project_id, f.estimated_min, s.spent_min
+from folder f
+left join folder_spent s on s.folder_id = f.id
+where f.estimated_min is not null;
+
 -- name: ActivityClass :many
 -- Split of an activity by hour class, plus the part outside any class.
 -- @anchor user_id user

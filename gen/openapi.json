@@ -10090,7 +10090,7 @@
     },
     "/api/v/connection_delivery": {
       "post": {
-        "description": "Deliveries to a connection, newest first, with their state.",
+        "description": "Deliveries with their connection and state; a connection lists its own by a filter on connection_id.",
         "operationId": "view_connection_delivery",
         "requestBody": {
           "content": {
@@ -10105,6 +10105,7 @@
                         "col": {
                           "enum": [
                             "id",
+                            "connection_id",
                             "root_table",
                             "root_id",
                             "created_at",
@@ -10143,6 +10144,7 @@
                             "col": {
                               "enum": [
                                 "id",
+                                "connection_id",
                                 "root_table",
                                 "root_id",
                                 "created_at",
@@ -10199,6 +10201,7 @@
                         {
                           "enum": [
                             "id",
+                            "connection_id",
                             "root_table",
                             "root_id",
                             "created_at",
@@ -10251,15 +10254,6 @@
                   },
                   "params": {
                     "additionalProperties": false,
-                    "properties": {
-                      "connection_id": {
-                        "format": "int64",
-                        "type": [
-                          "integer",
-                          "null"
-                        ]
-                      }
-                    },
                     "type": "object"
                   },
                   "sort": {
@@ -10300,6 +10294,10 @@
                     "properties": {
                       "attempts": {
                         "description": "Number of attempts.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      "connection_id": {
                         "format": "int64",
                         "type": "integer"
                       },
@@ -10351,6 +10349,7 @@
                     },
                     "required": [
                       "id",
+                      "connection_id",
                       "root_table",
                       "root_id",
                       "created_at",
@@ -14071,6 +14070,219 @@
           }
         },
         "summary": "folder.lookup",
+        "tags": [
+          "views"
+        ]
+      }
+    },
+    "/api/v/folder_budget": {
+      "post": {
+        "description": "Folders having an estimate: estimated and spent (real) durations.",
+        "operationId": "view_folder_budget",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "agg": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "col": {
+                          "enum": [
+                            "folder_id",
+                            "project_id",
+                            "estimated_min",
+                            "spent_min"
+                          ],
+                          "type": "string"
+                        },
+                        "fn": {
+                          "enum": [
+                            "sum",
+                            "count",
+                            "min",
+                            "max",
+                            "avg"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "fn"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "filter": {
+                    "items": {
+                      "oneOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "col": {
+                              "enum": [
+                                "folder_id",
+                                "project_id",
+                                "estimated_min",
+                                "spent_min"
+                              ],
+                              "type": "string"
+                            },
+                            "op": {
+                              "enum": [
+                                "eq",
+                                "ne",
+                                "lt",
+                                "le",
+                                "gt",
+                                "ge",
+                                "in",
+                                "contains",
+                                "null",
+                                "notnull"
+                              ],
+                              "type": "string"
+                            },
+                            "value": {}
+                          },
+                          "required": [
+                            "col",
+                            "op"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "action": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "action"
+                          ],
+                          "type": "object"
+                        }
+                      ]
+                    },
+                    "type": "array"
+                  },
+                  "group": {
+                    "items": {
+                      "enum": [
+                        "folder_id",
+                        "project_id",
+                        "estimated_min",
+                        "spent_min"
+                      ],
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "limit": {
+                    "maximum": 5000,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "offset": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "params": {
+                    "additionalProperties": false,
+                    "type": "object"
+                  },
+                  "sort": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "col": {
+                          "type": "string"
+                        },
+                        "dir": {
+                          "enum": [
+                            "asc",
+                            "desc"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "col"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "estimated_min": {
+                        "description": "Estimated duration; activities of a folder whose real total exceeds it must be validated.",
+                        "format": "int64",
+                        "type": [
+                          "integer",
+                          "null"
+                        ]
+                      },
+                      "folder_id": {
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      "project_id": {
+                        "description": "Project of the folder.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      "spent_min": {
+                        "description": "Sum of the real durations of the folder.",
+                        "format": "int64",
+                        "type": [
+                          "integer",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "folder_id",
+                      "project_id",
+                      "estimated_min",
+                      "spent_min"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Rows"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "folder_budget",
         "tags": [
           "views"
         ]
@@ -19161,6 +19373,296 @@
           }
         },
         "summary": "public_holiday.lookup",
+        "tags": [
+          "views"
+        ]
+      }
+    },
+    "/api/v/revenue": {
+      "post": {
+        "description": "Revenue lines of a period, one per activity (services) and one per expense (expenses billed), with their date, project, folder and user: realized and invoiced amounts as in profitability.",
+        "operationId": "view_revenue",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "agg": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "col": {
+                          "enum": [
+                            "date",
+                            "project_id",
+                            "folder_id",
+                            "user_id",
+                            "services_amount",
+                            "expense_billed_amount",
+                            "realized_amount",
+                            "invoiced_amount"
+                          ],
+                          "type": "string"
+                        },
+                        "fn": {
+                          "enum": [
+                            "sum",
+                            "count",
+                            "min",
+                            "max",
+                            "avg"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "fn"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "filter": {
+                    "items": {
+                      "oneOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "col": {
+                              "enum": [
+                                "date",
+                                "project_id",
+                                "folder_id",
+                                "user_id",
+                                "services_amount",
+                                "expense_billed_amount",
+                                "realized_amount",
+                                "invoiced_amount"
+                              ],
+                              "type": "string"
+                            },
+                            "op": {
+                              "enum": [
+                                "eq",
+                                "ne",
+                                "lt",
+                                "le",
+                                "gt",
+                                "ge",
+                                "in",
+                                "contains",
+                                "null",
+                                "notnull"
+                              ],
+                              "type": "string"
+                            },
+                            "value": {}
+                          },
+                          "required": [
+                            "col",
+                            "op"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "action": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "action"
+                          ],
+                          "type": "object"
+                        }
+                      ]
+                    },
+                    "type": "array"
+                  },
+                  "group": {
+                    "items": {
+                      "oneOf": [
+                        {
+                          "enum": [
+                            "date",
+                            "project_id",
+                            "folder_id",
+                            "user_id",
+                            "services_amount",
+                            "expense_billed_amount",
+                            "realized_amount",
+                            "invoiced_amount"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "by": {
+                              "enum": [
+                                "day",
+                                "week",
+                                "month",
+                                "year"
+                              ],
+                              "type": "string"
+                            },
+                            "col": {
+                              "enum": [
+                                "date"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "col",
+                            "by"
+                          ],
+                          "type": "object"
+                        }
+                      ]
+                    },
+                    "type": "array"
+                  },
+                  "limit": {
+                    "maximum": 5000,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "offset": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "params": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "date_from": {
+                        "format": "date",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "date_to": {
+                        "format": "date",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "sort": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "col": {
+                          "type": "string"
+                        },
+                        "dir": {
+                          "enum": [
+                            "asc",
+                            "desc"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "col"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "date": {
+                        "format": "date",
+                        "type": "string"
+                      },
+                      "expense_billed_amount": {
+                        "description": "Expense billed (expense line).",
+                        "type": "number"
+                      },
+                      "folder_id": {
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      "invoiced_amount": {
+                        "description": "Realized amount of a line of an invoiced activity, else 0.",
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "project_id": {
+                        "format": "int64",
+                        "type": [
+                          "integer",
+                          "null"
+                        ]
+                      },
+                      "realized_amount": {
+                        "description": "Services plus expenses billed.",
+                        "type": "number"
+                      },
+                      "services_amount": {
+                        "description": "Amount of the activity (activity line).",
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "user_id": {
+                        "format": "int64",
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "date",
+                      "project_id",
+                      "folder_id",
+                      "user_id",
+                      "services_amount",
+                      "expense_billed_amount",
+                      "realized_amount",
+                      "invoiced_amount"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Rows"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "revenue",
         "tags": [
           "views"
         ]

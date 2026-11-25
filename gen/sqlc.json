@@ -78131,6 +78131,125 @@
       "insert_into_table": null
     },
     {
+      "text": "select f.id as folder_id, f.project_id, f.estimated_min, s.spent_min\nfrom folder f\nleft join folder_spent s on s.folder_id = f.id\nwhere f.estimated_min is not null",
+      "name": "FolderBudget",
+      "cmd": ":many",
+      "columns": [
+        {
+          "name": "folder_id",
+          "not_null": true,
+          "is_array": false,
+          "comment": "",
+          "length": -1,
+          "is_named_param": false,
+          "is_func_call": false,
+          "scope": "",
+          "table": {
+            "catalog": "",
+            "schema": "",
+            "name": "folder"
+          },
+          "table_alias": "",
+          "type": {
+            "catalog": "",
+            "schema": "pg_catalog",
+            "name": "int8"
+          },
+          "is_sqlc_slice": false,
+          "embed_table": null,
+          "original_name": "id",
+          "unsigned": false,
+          "array_dims": 0
+        },
+        {
+          "name": "project_id",
+          "not_null": true,
+          "is_array": false,
+          "comment": "",
+          "length": -1,
+          "is_named_param": false,
+          "is_func_call": false,
+          "scope": "",
+          "table": {
+            "catalog": "",
+            "schema": "",
+            "name": "folder"
+          },
+          "table_alias": "",
+          "type": {
+            "catalog": "",
+            "schema": "pg_catalog",
+            "name": "int8"
+          },
+          "is_sqlc_slice": false,
+          "embed_table": null,
+          "original_name": "project_id",
+          "unsigned": false,
+          "array_dims": 0
+        },
+        {
+          "name": "estimated_min",
+          "not_null": false,
+          "is_array": false,
+          "comment": "",
+          "length": -1,
+          "is_named_param": false,
+          "is_func_call": false,
+          "scope": "",
+          "table": {
+            "catalog": "",
+            "schema": "",
+            "name": "folder"
+          },
+          "table_alias": "",
+          "type": {
+            "catalog": "",
+            "schema": "pg_catalog",
+            "name": "int4"
+          },
+          "is_sqlc_slice": false,
+          "embed_table": null,
+          "original_name": "estimated_min",
+          "unsigned": false,
+          "array_dims": 0
+        },
+        {
+          "name": "spent_min",
+          "not_null": false,
+          "is_array": false,
+          "comment": "",
+          "length": -1,
+          "is_named_param": false,
+          "is_func_call": false,
+          "scope": "",
+          "table": {
+            "catalog": "",
+            "schema": "",
+            "name": "folder_spent"
+          },
+          "table_alias": "",
+          "type": {
+            "catalog": "",
+            "schema": "",
+            "name": "any"
+          },
+          "is_sqlc_slice": false,
+          "embed_table": null,
+          "original_name": "spent_min",
+          "unsigned": false,
+          "array_dims": 0
+        }
+      ],
+      "params": [],
+      "comments": [
+        " Folders having an estimate: estimated and spent (real) durations.",
+        " @anchor none",
+        " @needs any"
+      ],
+      "filename": "queries.sql",
+      "insert_into_table": null
+    },
+    {
       "text": "select c.activity_id, c.user_id, c.hour_class_id, c.duration_min, c.counted_min, c.amount\nfrom activity_class c\nwhere c.activity_id = $1 and c.user_id = any($2::bigint[])\norder by c.hour_class_id nulls first",
       "name": "ActivityClass",
       "cmd": ":many",
@@ -80721,6 +80840,289 @@
       "insert_into_table": null
     },
     {
+      "text": "select r.date, r.project_id, r.folder_id, r.user_id, r.services_amount, r.expense_billed_amount, r.realized_amount, r.invoiced_amount\nfrom activity_revenue r\nwhere r.date between $1 and $2",
+      "name": "Revenue",
+      "cmd": ":many",
+      "columns": [
+        {
+          "name": "date",
+          "not_null": true,
+          "is_array": false,
+          "comment": "",
+          "length": -1,
+          "is_named_param": false,
+          "is_func_call": false,
+          "scope": "",
+          "table": {
+            "catalog": "",
+            "schema": "",
+            "name": "activity_revenue"
+          },
+          "table_alias": "",
+          "type": {
+            "catalog": "",
+            "schema": "",
+            "name": "date"
+          },
+          "is_sqlc_slice": false,
+          "embed_table": null,
+          "original_name": "date",
+          "unsigned": false,
+          "array_dims": 0
+        },
+        {
+          "name": "project_id",
+          "not_null": false,
+          "is_array": false,
+          "comment": "",
+          "length": -1,
+          "is_named_param": false,
+          "is_func_call": false,
+          "scope": "",
+          "table": {
+            "catalog": "",
+            "schema": "",
+            "name": "activity_revenue"
+          },
+          "table_alias": "",
+          "type": {
+            "catalog": "",
+            "schema": "",
+            "name": "pg_catalog.int8"
+          },
+          "is_sqlc_slice": false,
+          "embed_table": null,
+          "original_name": "project_id",
+          "unsigned": false,
+          "array_dims": 0
+        },
+        {
+          "name": "folder_id",
+          "not_null": true,
+          "is_array": false,
+          "comment": "",
+          "length": -1,
+          "is_named_param": false,
+          "is_func_call": false,
+          "scope": "",
+          "table": {
+            "catalog": "",
+            "schema": "",
+            "name": "activity_revenue"
+          },
+          "table_alias": "",
+          "type": {
+            "catalog": "",
+            "schema": "",
+            "name": "pg_catalog.int8"
+          },
+          "is_sqlc_slice": false,
+          "embed_table": null,
+          "original_name": "folder_id",
+          "unsigned": false,
+          "array_dims": 0
+        },
+        {
+          "name": "user_id",
+          "not_null": true,
+          "is_array": false,
+          "comment": "",
+          "length": -1,
+          "is_named_param": false,
+          "is_func_call": false,
+          "scope": "",
+          "table": {
+            "catalog": "",
+            "schema": "",
+            "name": "activity_revenue"
+          },
+          "table_alias": "",
+          "type": {
+            "catalog": "",
+            "schema": "",
+            "name": "pg_catalog.int8"
+          },
+          "is_sqlc_slice": false,
+          "embed_table": null,
+          "original_name": "user_id",
+          "unsigned": false,
+          "array_dims": 0
+        },
+        {
+          "name": "services_amount",
+          "not_null": false,
+          "is_array": false,
+          "comment": "",
+          "length": -1,
+          "is_named_param": false,
+          "is_func_call": false,
+          "scope": "",
+          "table": {
+            "catalog": "",
+            "schema": "",
+            "name": "activity_revenue"
+          },
+          "table_alias": "",
+          "type": {
+            "catalog": "",
+            "schema": "",
+            "name": "pg_catalog.numeric"
+          },
+          "is_sqlc_slice": false,
+          "embed_table": null,
+          "original_name": "services_amount",
+          "unsigned": false,
+          "array_dims": 0
+        },
+        {
+          "name": "expense_billed_amount",
+          "not_null": true,
+          "is_array": false,
+          "comment": "",
+          "length": -1,
+          "is_named_param": false,
+          "is_func_call": false,
+          "scope": "",
+          "table": {
+            "catalog": "",
+            "schema": "",
+            "name": "activity_revenue"
+          },
+          "table_alias": "",
+          "type": {
+            "catalog": "",
+            "schema": "",
+            "name": "pg_catalog.numeric"
+          },
+          "is_sqlc_slice": false,
+          "embed_table": null,
+          "original_name": "expense_billed_amount",
+          "unsigned": false,
+          "array_dims": 0
+        },
+        {
+          "name": "realized_amount",
+          "not_null": true,
+          "is_array": false,
+          "comment": "",
+          "length": -1,
+          "is_named_param": false,
+          "is_func_call": false,
+          "scope": "",
+          "table": {
+            "catalog": "",
+            "schema": "",
+            "name": "activity_revenue"
+          },
+          "table_alias": "",
+          "type": {
+            "catalog": "",
+            "schema": "",
+            "name": "int"
+          },
+          "is_sqlc_slice": false,
+          "embed_table": null,
+          "original_name": "realized_amount",
+          "unsigned": false,
+          "array_dims": 0
+        },
+        {
+          "name": "invoiced_amount",
+          "not_null": false,
+          "is_array": false,
+          "comment": "",
+          "length": -1,
+          "is_named_param": false,
+          "is_func_call": false,
+          "scope": "",
+          "table": {
+            "catalog": "",
+            "schema": "",
+            "name": "activity_revenue"
+          },
+          "table_alias": "",
+          "type": {
+            "catalog": "",
+            "schema": "",
+            "name": "any"
+          },
+          "is_sqlc_slice": false,
+          "embed_table": null,
+          "original_name": "invoiced_amount",
+          "unsigned": false,
+          "array_dims": 0
+        }
+      ],
+      "params": [
+        {
+          "number": 1,
+          "column": {
+            "name": "date_from",
+            "not_null": true,
+            "is_array": false,
+            "comment": "",
+            "length": -1,
+            "is_named_param": true,
+            "is_func_call": false,
+            "scope": "",
+            "table": {
+              "catalog": "",
+              "schema": "",
+              "name": "activity_revenue"
+            },
+            "table_alias": "",
+            "type": {
+              "catalog": "",
+              "schema": "",
+              "name": "date"
+            },
+            "is_sqlc_slice": false,
+            "embed_table": null,
+            "original_name": "date",
+            "unsigned": false,
+            "array_dims": 0
+          }
+        },
+        {
+          "number": 2,
+          "column": {
+            "name": "date_to",
+            "not_null": true,
+            "is_array": false,
+            "comment": "",
+            "length": -1,
+            "is_named_param": true,
+            "is_func_call": false,
+            "scope": "",
+            "table": {
+              "catalog": "",
+              "schema": "",
+              "name": "activity_revenue"
+            },
+            "table_alias": "",
+            "type": {
+              "catalog": "",
+              "schema": "",
+              "name": "date"
+            },
+            "is_sqlc_slice": false,
+            "embed_table": null,
+            "original_name": "date",
+            "unsigned": false,
+            "array_dims": 0
+          }
+        }
+      ],
+      "comments": [
+        " Revenue lines of a period, one per activity (services) and one per expense (expenses billed), with their date, project,",
+        " folder and user: realized and invoiced amounts as in profitability.",
+        " @anchor none",
+        " @needs invoice"
+      ],
+      "filename": "queries.sql",
+      "insert_into_table": null
+    },
+    {
       "text": "select f.project_id, r.folder_id, r.duration_min, r.billed_min, r.counted_min, r.services_amount, r.expense_billed_amount, r.expense_user_amount, r.realized_amount, r.invoiced_amount, r.balance_amount, r.cost_amount, r.services_margin_amount, r.balance_margin_amount\nfrom (\n    select r.folder_id,\n           sum(r.duration_min)::integer as duration_min, sum(r.billed_min)::integer as billed_min, sum(r.counted_min)::integer as counted_min,\n           sum(r.services_amount) as services_amount, sum(r.expense_billed_amount) as expense_billed_amount, sum(r.expense_user_amount) as expense_user_amount,\n           sum(r.realized_amount) as realized_amount, sum(r.invoiced_amount) as invoiced_amount, sum(r.balance_amount) as balance_amount,\n           sum(r.cost_amount) as cost_amount, sum(r.services_margin_amount) as services_margin_amount, sum(r.balance_margin_amount) as balance_margin_amount\n    from activity_cost r\n    where r.date between $1 and $2\n    group by r.folder_id\n) r\njoin folder f on f.id = r.folder_id",
       "name": "ProfitabilityCost",
       "cmd": ":many",
@@ -81525,7 +81927,7 @@
       "insert_into_table": null
     },
     {
-      "text": "select s.delivery_id as id, s.root_table, s.root_id, s.created_at, s.state, s.attempts, s.last_at, s.last_status, s.last_detail\nfrom delivery_state s\nwhere s.connection_id = $1\norder by s.delivery_id desc",
+      "text": "select s.delivery_id as id, s.connection_id, s.root_table, s.root_id, s.created_at, s.state, s.attempts, s.last_at, s.last_status, s.last_detail\nfrom delivery_state s",
       "name": "ConnectionDelivery",
       "cmd": ":many",
       "columns": [
@@ -81552,6 +81954,32 @@
           "is_sqlc_slice": false,
           "embed_table": null,
           "original_name": "delivery_id",
+          "unsigned": false,
+          "array_dims": 0
+        },
+        {
+          "name": "connection_id",
+          "not_null": true,
+          "is_array": false,
+          "comment": "",
+          "length": -1,
+          "is_named_param": false,
+          "is_func_call": false,
+          "scope": "",
+          "table": {
+            "catalog": "",
+            "schema": "",
+            "name": "delivery_state"
+          },
+          "table_alias": "",
+          "type": {
+            "catalog": "",
+            "schema": "",
+            "name": "pg_catalog.int8"
+          },
+          "is_sqlc_slice": false,
+          "embed_table": null,
+          "original_name": "connection_id",
           "unsigned": false,
           "array_dims": 0
         },
@@ -81764,39 +82192,9 @@
           "array_dims": 0
         }
       ],
-      "params": [
-        {
-          "number": 1,
-          "column": {
-            "name": "connection_id",
-            "not_null": true,
-            "is_array": false,
-            "comment": "",
-            "length": -1,
-            "is_named_param": true,
-            "is_func_call": false,
-            "scope": "",
-            "table": {
-              "catalog": "",
-              "schema": "",
-              "name": "delivery_state"
-            },
-            "table_alias": "",
-            "type": {
-              "catalog": "",
-              "schema": "",
-              "name": "pg_catalog.int8"
-            },
-            "is_sqlc_slice": false,
-            "embed_table": null,
-            "original_name": "connection_id",
-            "unsigned": false,
-            "array_dims": 0
-          }
-        }
-      ],
+      "params": [],
       "comments": [
-        " Deliveries to a connection, newest first, with their state.",
+        " Deliveries with their connection and state; a connection lists its own by a filter on connection_id.",
         " @anchor none",
         " @needs master_data"
       ],

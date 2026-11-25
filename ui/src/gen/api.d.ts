@@ -1747,7 +1747,7 @@ export interface paths {
         put?: never;
         /**
          * connection_delivery
-         * @description Deliveries to a connection, newest first, with their state.
+         * @description Deliveries with their connection and state; a connection lists its own by a filter on connection_id.
          */
         post: operations["view_connection_delivery"];
         delete?: never;
@@ -2052,6 +2052,26 @@ export interface paths {
          * @description Folders for choices, labelled "project / folder path", with whether activities can be entered.
          */
         post: operations["view_folder.lookup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v/folder_budget": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * folder_budget
+         * @description Folders having an estimate: estimated and spent (real) durations.
+         */
+        post: operations["view_folder_budget"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2454,6 +2474,26 @@ export interface paths {
         put?: never;
         /** public_holiday.lookup */
         post: operations["view_public_holiday.lookup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v/revenue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * revenue
+         * @description Revenue lines of a period, one per activity (services) and one per expense (expenses billed), with their date, project, folder and user: realized and invoiced amounts as in profitability.
+         */
+        post: operations["view_revenue"];
         delete?: never;
         options?: never;
         head?: never;
@@ -7810,20 +7850,20 @@ export interface operations {
                 "application/json": {
                     agg?: {
                         /** @enum {string} */
-                        col?: "id" | "root_table" | "root_id" | "created_at" | "state" | "attempts" | "last_at" | "last_status" | "last_detail";
+                        col?: "id" | "connection_id" | "root_table" | "root_id" | "created_at" | "state" | "attempts" | "last_at" | "last_status" | "last_detail";
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
                     filter?: ({
                         /** @enum {string} */
-                        col: "id" | "root_table" | "root_id" | "created_at" | "state" | "attempts" | "last_at" | "last_status" | "last_detail";
+                        col: "id" | "connection_id" | "root_table" | "root_id" | "created_at" | "state" | "attempts" | "last_at" | "last_status" | "last_detail";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
                     } | {
                         action: string;
                     })[];
-                    group?: (("id" | "root_table" | "root_id" | "created_at" | "state" | "attempts" | "last_at" | "last_status" | "last_detail") | {
+                    group?: (("id" | "connection_id" | "root_table" | "root_id" | "created_at" | "state" | "attempts" | "last_at" | "last_status" | "last_detail") | {
                         /** @enum {string} */
                         by: "day" | "week" | "month" | "year";
                         /** @enum {string} */
@@ -7831,10 +7871,7 @@ export interface operations {
                     })[];
                     limit?: number;
                     offset?: number;
-                    params?: {
-                        /** Format: int64 */
-                        connection_id?: number | null;
-                    };
+                    params?: Record<string, never>;
                     sort?: {
                         col: string;
                         /** @enum {string} */
@@ -7856,6 +7893,8 @@ export interface operations {
                          * @description Number of attempts.
                          */
                         attempts: number;
+                        /** Format: int64 */
+                        connection_id: number;
                         /** Format: date-time */
                         created_at: string;
                         /** Format: int64 */
@@ -9054,6 +9093,82 @@ export interface operations {
                         label: string | null;
                         /** Format: int64 */
                         project_id: number;
+                    }[];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    view_folder_budget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    agg?: {
+                        /** @enum {string} */
+                        col?: "folder_id" | "project_id" | "estimated_min" | "spent_min";
+                        /** @enum {string} */
+                        fn: "sum" | "count" | "min" | "max" | "avg";
+                    }[];
+                    filter?: ({
+                        /** @enum {string} */
+                        col: "folder_id" | "project_id" | "estimated_min" | "spent_min";
+                        /** @enum {string} */
+                        op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
+                        value?: unknown;
+                    } | {
+                        action: string;
+                    })[];
+                    group?: ("folder_id" | "project_id" | "estimated_min" | "spent_min")[];
+                    limit?: number;
+                    offset?: number;
+                    params?: Record<string, never>;
+                    sort?: {
+                        col: string;
+                        /** @enum {string} */
+                        dir?: "asc" | "desc";
+                    }[];
+                };
+            };
+        };
+        responses: {
+            /** @description Rows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * Format: int64
+                         * @description Estimated duration; activities of a folder whose real total exceeds it must be validated.
+                         */
+                        estimated_min: number | null;
+                        /** Format: int64 */
+                        folder_id: number;
+                        /**
+                         * Format: int64
+                         * @description Project of the folder.
+                         */
+                        project_id: number;
+                        /**
+                         * Format: int64
+                         * @description Sum of the real durations of the folder.
+                         */
+                        spent_min: number | null;
                     }[];
                 };
             };
@@ -10681,6 +10796,91 @@ export interface operations {
                         id: number;
                         /** @description Name of the holiday. */
                         label: string | null;
+                    }[];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    view_revenue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    agg?: {
+                        /** @enum {string} */
+                        col?: "date" | "project_id" | "folder_id" | "user_id" | "services_amount" | "expense_billed_amount" | "realized_amount" | "invoiced_amount";
+                        /** @enum {string} */
+                        fn: "sum" | "count" | "min" | "max" | "avg";
+                    }[];
+                    filter?: ({
+                        /** @enum {string} */
+                        col: "date" | "project_id" | "folder_id" | "user_id" | "services_amount" | "expense_billed_amount" | "realized_amount" | "invoiced_amount";
+                        /** @enum {string} */
+                        op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
+                        value?: unknown;
+                    } | {
+                        action: string;
+                    })[];
+                    group?: (("date" | "project_id" | "folder_id" | "user_id" | "services_amount" | "expense_billed_amount" | "realized_amount" | "invoiced_amount") | {
+                        /** @enum {string} */
+                        by: "day" | "week" | "month" | "year";
+                        /** @enum {string} */
+                        col: "date";
+                    })[];
+                    limit?: number;
+                    offset?: number;
+                    params?: {
+                        /** Format: date */
+                        date_from?: string | null;
+                        /** Format: date */
+                        date_to?: string | null;
+                    };
+                    sort?: {
+                        col: string;
+                        /** @enum {string} */
+                        dir?: "asc" | "desc";
+                    }[];
+                };
+            };
+        };
+        responses: {
+            /** @description Rows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: date */
+                        date: string;
+                        /** @description Expense billed (expense line). */
+                        expense_billed_amount: number;
+                        /** Format: int64 */
+                        folder_id: number;
+                        /** @description Realized amount of a line of an invoiced activity, else 0. */
+                        invoiced_amount: number | null;
+                        /** Format: int64 */
+                        project_id: number | null;
+                        /** @description Services plus expenses billed. */
+                        realized_amount: number;
+                        /** @description Amount of the activity (activity line). */
+                        services_amount: number | null;
+                        /** Format: int64 */
+                        user_id: number;
                     }[];
                 };
             };

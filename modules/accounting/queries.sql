@@ -1,11 +1,9 @@
 -- name: ConnectionDelivery :many
--- Deliveries to a connection, newest first, with their state.
+-- Deliveries with their connection and state; a connection lists its own by a filter on connection_id.
 -- @anchor none
 -- @needs master_data
-select s.delivery_id as id, s.root_table, s.root_id, s.created_at, s.state, s.attempts, s.last_at, s.last_status, s.last_detail
-from delivery_state s
-where s.connection_id = @connection_id
-order by s.delivery_id desc;
+select s.delivery_id as id, s.connection_id, s.root_table, s.root_id, s.created_at, s.state, s.attempts, s.last_at, s.last_status, s.last_detail
+from delivery_state s;
 
 -- name: AccountingExport :many
 -- Exports of an invoice to the accounting system: state, attempts and last detail.

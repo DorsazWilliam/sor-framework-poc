@@ -80,6 +80,13 @@ select pg_temp.eq('profitability', (select row(duration_min, services_amount, ex
 create temp table pc as execute profitabilitycost('2026-02-01', '2026-03-31');
 select pg_temp.eq('profitability cost', (select row(cost_amount, services_margin_amount, balance_margin_amount)::text from pc), '(300.00,200.00,-100.00)');
 
+-- Revenue: the lines of profitability with their date: 4 activities and 3 expenses; by month, realized and invoiced.
+create temp table rv as execute revenue('2026-02-01', '2026-03-31');
+select pg_temp.eq('revenue', (select row(count(*), sum(realized_amount), sum(invoiced_amount))::text from rv), '(7,559.00,359.00)');
+select pg_temp.eq('revenue by month', (select string_agg(row(m, r, i)::text, ',' order by m) from (
+    select date_trunc('month', date)::date as m, sum(realized_amount) as r, sum(invoiced_amount) as i from rv group by 1) x),
+    '(2026-02-01,359.00,359.00),(2026-03-01,200.00,0)');
+
 -- Run candidates: none while a draft overlaps; the project once it is gone; none for activities never billed.
 insert into invoice (project_id, date_from, date_to) select id, '2026-03-01', '2026-03-31' from project;
 create temp table rc1 as execute invoiceruncandidates('2026-03-01', '2026-03-31');

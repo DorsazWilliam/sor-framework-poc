@@ -115,6 +115,11 @@ select pg_temp.eq('to_validate none', (pg_temp.p('r2')).to_validate, false);
 update folder set estimated_min = 120 where name = 'F3';
 select pg_temp.eq('to_validate estimate reached', (pg_temp.p('e1')).to_validate, false);
 
+-- Folder budget: the folders having an estimate, with their real duration.
+create temp table fb as execute folderbudget;
+select pg_temp.eq('folder budget', (select string_agg(row(estimated_min, spent_min)::text, ',') from fb),
+    (select row(120, sum(a.duration_min))::text from activity a join folder f on f.id = a.folder_id where f.name = 'F3'));
+
 -- Conditions.
 select pg_temp.eq('locked global end', (pg_temp.p('l1')).not_locked, false);
 select pg_temp.eq('after global lock', (pg_temp.p('l2')).not_locked, true);
