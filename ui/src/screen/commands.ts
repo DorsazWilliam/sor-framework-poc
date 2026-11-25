@@ -56,5 +56,5 @@ function report(c: Command, e: ApiError) {
   } else if (p.code === "constraint") toast("error", t(`constraint.${p.constraint}`));
   else if (p.code === "forbidden") toast("error", t("ui.forbidden"), p.needs ? [t(`fn.${p.needs}`)] : undefined);
   else if (p.code === "not_found") toast("error", t("ui.not_found"));
-  else toast("error", p.title, (p.errors as { message?: string }[] | undefined)?.map((x) => x.message ?? ""));
+  else toast("error", p.detail ?? p.title, (p.errors as { message?: string }[] | undefined)?.map((x) => x.message ?? ""));
 }

@@ -60,7 +60,7 @@ export type Changed = { changed: { table: string; ids: number[] }[]; ids: number
 export type Rejected = { id: number; conditions: string[]; row: Row };
 
 export type Problem = {
-  status: number; title: string;
+  status: number; title: string; detail?: string;
   code: "unauthenticated" | "forbidden" | "not_found" | "rejected" | "constraint" | "invalid";
   needs?: string; action?: string; rejected?: Rejected[]; constraint?: string; errors?: unknown[];
 };
