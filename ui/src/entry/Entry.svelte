@@ -21,7 +21,7 @@
   import Holiday from "~icons/fluent/star-12-regular";
   import { watch } from "../app/live.svelte";
   import { lookup } from "../app/lookups.svelte";
-  import { colLabel, command, screenView, session, table, view } from "../app/session.svelte";
+  import { colLabel, command, screenLabel, screenView, session, table, view } from "../app/session.svelte";
   import { evaluate } from "../screen/commands";
   import { fmtDate, fmtDuration, isoDate } from "../ds/format";
   import { i18n, t } from "../labels/i18n.svelte";
@@ -76,7 +76,7 @@
   const balance = $derived(sum("done_min") - sum("due_min"));
   const users = $derived((session.me.reach.user ?? []).map((id) => ({ value: String(id), label: lookup("user", id) ?? "" })));
   const children = $derived(screen.children.filter((c) => screenView(c)));
-  const tabs = $derived([...children.map((c) => ({ value: c.id, label: t(`s.${c.id}`) })), { value: "history", label: t("ui.history") }]);
+  const tabs = $derived([...children.map((c) => ({ value: c.id, label: screenLabel(c) })), { value: "history", label: t("ui.history") }]);
   const canDelete = $derived(!!current?.row && evaluate(command("activity.delete")!, [current.row]).enabled);
 
   const lineOf = (uid: number) => store.lines.find((l) => l.uid === uid);
@@ -199,7 +199,7 @@
 <svelte:window onkeydown={windowKeys} />
 
 <section class="entry" data-screen={screen.id} data-ready={store.ready || undefined}>
-  <CommandBar title={t(`s.${screen.id}`)}>
+  <CommandBar title={screenLabel(screen)}>
     <Button variant="subtle" icon={Copy} title="{t('ui.entry.duplicate')} (Ctrl+D)" disabled={!current || !evaluate(command("activity.create")!, []).enabled} onclick={() => current && duplicate(current)}>
       {t("ui.entry.duplicate")}
     </Button>

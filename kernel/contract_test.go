@@ -33,6 +33,19 @@ func TestContract(t *testing.T) {
 	call(t, k, bot, "saved_view.create", `{"owner_id":2,"screen":"entries","name":"mine"}`)
 	callErr(t, k, bot, "saved_view.create", `{"owner_id":4,"screen":"entries","name":"bot's"}`, "not_found")
 
+	// A table declared with Group has a generated screen: its list view and table, a tab per child table by its foreign key.
+	i := slices.IndexFunc(k.Meta.Screens, func(s kernel.Screen) bool { return s.ID == "org" })
+	if i < 0 {
+		t.Fatal("no generated screen for org")
+	}
+	if s := k.Meta.Screens[i]; s.Group != "setup" || s.Table != "org" || len(s.Views) != 1 || s.Views[0] != "org" || len(s.Children) != 1 ||
+		s.Children[0].ID != "org_lock" || s.Children[0].Table != "org_lock" || s.Children[0].Views[0] != "org_lock" || s.Children[0].Link["org_id"] != "id" {
+		t.Fatalf("generated screen: %+v", s)
+	}
+	if !slices.Contains(k.Meta.Groups, "setup") {
+		t.Fatalf("groups: %v", k.Meta.Groups)
+	}
+
 	col := func(cols []kernel.Col, name string) kernel.Col {
 		i := slices.IndexFunc(cols, func(c kernel.Col) bool { return c.Name == name })
 		if i < 0 {

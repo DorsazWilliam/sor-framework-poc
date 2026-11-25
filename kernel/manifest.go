@@ -260,7 +260,9 @@ func (s *Static) labelKeys() []string {
 	var walk func([]Screen)
 	walk = func(ss []Screen) {
 		for _, sc := range ss {
-			keys["s."+sc.ID] = true
+			if sc.Table == "" {
+				keys["s."+sc.ID] = true
+			}
 			if sc.Group != "" {
 				keys["g."+sc.Group] = true
 			}

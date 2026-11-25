@@ -25,7 +25,7 @@ var Manifest []byte
 var Ticks, TickBy atomic.Int64
 
 var Module = kernel.Module{Name: "testmod", Schema: schema, Register: func(r *kernel.Registry) {
-	r.Table("org", kernel.Write("admin"))
+	r.Table("org", kernel.Write("admin"), kernel.Group("setup"))
 	r.Table("person", kernel.Write("admin"))
 	r.Table("org_lock", kernel.ChildOf("org", "org_id"), kernel.Write("admin"))
 	r.Table("entry", kernel.Under("org"), kernel.Anchor("person_id", "user"), kernel.Write("entry"), kernel.Guarded("validated"), kernel.Label("note"))

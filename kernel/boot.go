@@ -569,25 +569,24 @@ func (b *booter) effect(ctx context.Context, q *Query, c *Command) *effect {
 
 func (b *booter) meta() {
 	b.Meta.Functions = nonNil(b.Meta.Enums["fn"])
-	groups := []string{}
-	add := func(g string) {
-		if g != "" && !slices.Contains(groups, g) {
-			groups = append(groups, g)
-		}
-	}
-	var walk func([]Screen)
-	walk = func(ss []Screen) {
-		for _, s := range ss {
-			add(s.Group)
-			walk(s.Children)
-		}
-	}
-	walk(b.Screens)
+	all := slices.Clone(b.Screens)
 	for _, t := range b.Meta.Tables {
-		add(t.decl.Group)
+		if t.decl.Group != "" {
+			all = append(all, tableScreen(t))
+		}
 	}
-	b.Meta.Groups = groups
-	b.Meta.Screens = screens(b.Screens)
+	b.Meta.Screens = screens(all)
+	b.Meta.Groups = []string{}
+	ids := map[string]bool{}
+	for _, s := range b.Meta.Screens {
+		if ids[s.ID] {
+			b.fail("screen %s declared twice", s.ID)
+		}
+		ids[s.ID] = true
+		if s.Group != "" && !slices.Contains(b.Meta.Groups, s.Group) {
+			b.Meta.Groups = append(b.Meta.Groups, s.Group)
+		}
+	}
 	slices.SortFunc(b.Meta.Views, func(x, y *View) int { return strings.Compare(x.Name, y.Name) })
 	slices.SortFunc(b.Meta.Commands, func(x, y *Command) int { return strings.Compare(x.Name, y.Name) })
 	for _, v := range b.Meta.Views {
@@ -596,6 +595,16 @@ func (b *booter) meta() {
 	for _, c := range b.Meta.Commands {
 		b.commandSchema(c)
 	}
+}
+
+// tableScreen is the generated screen of a table declared with Group (SPEC §19): its list view, its CRUD and a
+// tab per child table, read by its foreign key.
+func tableScreen(t *Table) Screen {
+	s := Screen{ID: t.Name, Group: t.decl.Group, Views: []string{t.Name}, Table: t.Name}
+	for _, c := range t.children {
+		s.Children = append(s.Children, Screen{ID: c.Name, Views: []string{c.Name}, Table: c.Name, Link: map[string]string{c.ChildFK: "id"}})
+	}
+	return s
 }
 
 // screens copies ss with the lists and maps of the contract never null.

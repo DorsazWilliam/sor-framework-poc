@@ -16,33 +16,30 @@
   import UserMenu from "../shell/UserMenu.svelte";
   import FilterOff from "~icons/fluent/dismiss-circle-16-filled";
   import { evaluate, execute, kindIcon, takesIds } from "./commands";
-  import { colLabel, command, screenView, session, table } from "../app/session.svelte";
+  import { colLabel, command, screenLabel, screenView, session, table } from "../app/session.svelte";
   import { isNumeric } from "../app/display";
   import { lookup } from "../app/lookups.svelte";
   import { watch } from "../app/live.svelte";
-  import { defaults } from "../app/params";
+  import { defaults, linkWrap } from "../app/params";
   import { keep, route, type ScreenState } from "../app/router.svelte";
   import { t } from "../labels/i18n.svelte";
 
   // Renders any Screen of the meta: params, grid on its first permitted view, commands, detail drawer.
-  // A child screen (in a drawer tab) keeps no URL state; its `link` values are params of the view, or else
-  // equality filters on the view's columns (a child table's list read by its foreign key).
+  // A child screen (in a drawer tab) keeps no URL state; its `link` values fill params or filter the view.
   let { screen, link, parent }: { screen: Screen; link?: Record<string, unknown>; parent?: Row } = $props();
 
   const nested = $derived(link !== undefined);
   const v = $derived(screenView(screen)!);
   const tbl = $derived(screen.table ? table(screen.table) : undefined);
-  const isParam = (k: string) => v.params.some((p) => p.name === k);
   // Through its JSON: a parent re-render with the same values does not reset the grid.
   const linkJson = $derived(JSON.stringify(link ?? {}));
-  const linked = $derived(Object.entries(JSON.parse(linkJson) as Record<string, unknown>));
-  const fixed = $derived(linked.filter(([k]) => !isParam(k)).map(([col, value]): Filter => ({ col, op: "eq", value })));
+  const linked = $derived(linkWrap(v, JSON.parse(linkJson)));
 
   // Full state from a partial one (URL or saved view; ignored for a child screen) over the screen's defaults and wrap.
   const merge = (given: ScreenState) => {
     const s = link ? {} : given;
     return {
-    params: { ...defaults(screen.defaults, session.me), ...s.params, ...Object.fromEntries(linked.filter(([k]) => isParam(k))) },
+    params: { ...defaults(screen.defaults, session.me), ...s.params, ...linked.params },
     filter: s.wrap?.filter ?? screen.wrap?.filter ?? [],
     sort: s.wrap?.sort ?? screen.wrap?.sort ?? [],
     group: s.wrap?.group ?? screen.wrap?.group ?? [],
@@ -67,7 +64,7 @@
     new Source({
       view: v.name,
       ...$state.snapshot({ params, sort, group }),
-      filter: [...fixed, ...$state.snapshot(filter)],
+      filter: [...linked.filter, ...$state.snapshot(filter)],
       agg: screen.wrap?.agg ?? [],
       count: v.columns[0].name,
     }),
@@ -161,7 +158,7 @@
   {#if nested}
     <div class="subbar">{@render commandButtons()}</div>
   {:else}
-    <CommandBar title={t(`s.${screen.id}`)}>
+    <CommandBar title={screenLabel(screen)}>
       {@render commandButtons()}
       {#snippet end()}<UserMenu />{/snippet}
     </CommandBar>

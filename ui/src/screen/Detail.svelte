@@ -7,7 +7,7 @@
   import FileView from "./FileView.svelte";
   import { api } from "../api/client";
   import { watch } from "../app/live.svelte";
-  import { screenView, view } from "../app/session.svelte";
+  import { screenLabel, screenView, view } from "../app/session.svelte";
   import { t } from "../labels/i18n.svelte";
 
   // Drawer content: the form of a row (read through the table's list view), child screens, history.
@@ -42,7 +42,7 @@
   const children = $derived(screen.children.filter((c) => screenView(c)));
   const items = $derived([
     { value: "form", label: t("ui.details") },
-    ...(row && tabs ? children.map((c) => ({ value: c.id, label: t(`s.${c.id}`) })) : []),
+    ...(row && tabs ? children.map((c) => ({ value: c.id, label: screenLabel(c) })) : []),
     ...(row && tabs ? [{ value: "history", label: t("ui.history") }] : []),
   ]);
   const rootId = $derived(row && (tbl.root === tbl.name ? (row.id as number) : (row[tbl.child_fk!] as number)));

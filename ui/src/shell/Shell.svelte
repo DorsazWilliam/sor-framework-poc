@@ -8,7 +8,7 @@
   import Entry from "../entry/Entry.svelte";
   import Toaster from "../ds/Toaster.svelte";
   import { groupIcons, screenIcons } from "./icons";
-  import { screenView, session, store, stored } from "../app/session.svelte";
+  import { screenLabel, screenView, session, store, stored } from "../app/session.svelte";
   import { live } from "../app/live.svelte";
   import { go, route } from "../app/router.svelte";
   import { fmtNumber } from "../ds/format";
@@ -51,7 +51,7 @@
         {#if !collapsed && isOpen(g)}
           {#each screens as s (s.id)}
             {@const SI = screenIcons[s.id] ?? I}
-            <a class="item" href="#/{s.id}" aria-current={s.id === route.screen ? "page" : undefined}><SI /><span>{t(`s.${s.id}`)}</span></a>
+            <a class="item" href="#/{s.id}" aria-current={s.id === route.screen ? "page" : undefined}><SI /><span>{screenLabel(s)}</span></a>
           {/each}
         {/if}
       </div>

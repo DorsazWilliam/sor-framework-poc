@@ -20,6 +20,11 @@ export function screenView(s: Screen) {
   return s.views.map(view).find((v) => v && can(v.needs));
 }
 
+// A screen's label: s.<id>, else the label of its table (SPEC §19).
+export function screenLabel(s: Screen) {
+  return s.table && !has(`s.${s.id}`) ? t(`t.${s.table}`) : t(`s.${s.id}`);
+}
+
 export function colLabel(name: string, tbl?: string) {
   if (tbl && has(`c.${tbl}.${name}`)) return t(`c.${tbl}.${name}`);
   return has(`c.${name}`) ? t(`c.${name}`) : name;

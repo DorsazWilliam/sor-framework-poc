@@ -1,12 +1,12 @@
 <script lang="ts">
-  import type { Filter, Screen } from "../api/contract";
+  import type { Screen } from "../api/contract";
   import { api } from "../api/client";
   import { watch } from "../app/live.svelte";
   import { screenView } from "../app/session.svelte";
+  import { linkWrap } from "../app/params";
   import { t } from "../labels/i18n.svelte";
 
-  // Component "pdf": the file of the screen's row (its first column referencing file), displayed.
-  // Link entries that are not params of the view select the row.
+  // Component "pdf": the file of the screen's row (its first column referencing file), displayed; the link selects the row.
   let { screen, link }: { screen: Screen; link: Record<string, unknown> } = $props();
 
   const v = $derived(screenView(screen)!);
@@ -16,10 +16,7 @@
   let shown: unknown = null;
 
   async function load() {
-    const params = Object.fromEntries(v.params.map((p) => [p.name, link[p.name]]));
-    const filter: Filter[] = Object.entries(link)
-      .filter(([k]) => !v.params.some((p) => p.name === k))
-      .map(([col, value]) => ({ col, op: "eq", value }));
+    const { params, filter } = linkWrap(v, link);
     const row = (await api.view(v.name, { params, filter, limit: 1 }))[0];
     const id = column && row?.[column];
     if (id == null) file = null;
