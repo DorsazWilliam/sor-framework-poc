@@ -301,15 +301,23 @@ type Meta = { tables: Table[]; views: View[]; commands: Command[]; screens: Scre
 // POST /api/v/{view}       body: { params?: Record<string, unknown> } & Wrap
 //   200: tableau JSON des rows, tel que produit par Postgres ; avec group/agg : colonnes de group + "<fn>_<col>" ("count" pour count)
 // POST /api/c/{command}    body: create {…colonnes} | update {ids, …colonnes} | delete {ids} | custom {ids, …input} | rootless {…input} | run {…params}
-//   200: { changed: { table: string; ids: number[] }[]; ids: number[] /* roots de la command, créés compris */; run?: number }
+//   200: { call: string /* = e du live : le client ignore son propre écho */; changed: { table: string; ids: number[] }[];
+//          ids: number[] /* roots de la command, créés compris */; run?: number }
 // erreurs: application/problem+json { status, title, code, needs?, action?, rejected?: { id: number; conditions: string[]; row: object }[], constraint?, errors? }
 // GET /api/live            SSE, data: { t: string; ids?: number[]; c: string; e: string }
 // GET /api/labels/{lang}   { [key: string]: string }
 // POST /api/files/presign  { hash, size, type } → { exists: boolean; url?: string; headers?: Record<string, string> }
 // POST /api/files          { hash, name, type } → { id: number }
 // POST /api/file           { view, params, id, column } → { url, name, type }
-// view history             params { root_table, root_id } → { at, command, principal, for, tbl, row_id, changes }[]
+// view history             params { root_table, root_id } → { at, command, principal_id, for_id, tbl, row_id, changes }[]
 ```
+
+Règles de lecture du contrat :
+
+- Une colonne de view qui porte le nom d'une condition de la table root de la view, et `id`, ne s'affichent pas : elles servent aux boutons et à l'identité
+- Les actions d'une table child sont celles de son root ; le client lit leurs conditions sur la row parente (celle du drawer)
+- `ref` d'une colonne qui n'est pas une FK (tampons `principal_id`, `for_id`, `owner_id`) : déclaré par `r.Ref(colonne, table)` dans le module qui possède la table des principals
+- Tri sur une colonne `ref` = tri sur le label de la table référencée (le wrap joint la table par son `Label`)
 
 ### MCP
 
