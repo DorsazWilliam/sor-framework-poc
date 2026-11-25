@@ -1,0 +1,106 @@
+-- name: InvoiceActivity :many
+-- Activities of an invoice: attached once invoiced, candidates while draft.
+-- @anchor none
+-- @needs invoice
+select a.*, u.name as user_name, f.name as folder_name, t.name as task_name
+from invoice_line l
+join activity_p a on a.id = l.activity_id
+left join "user" u on u.id = a.user_id
+left join folder f on f.id = a.folder_id
+left join task t on t.id = a.task_id
+where l.invoice_id = @invoice_id
+order by a.date, a.start_tod, a.id;
+
+-- name: InvoiceDocument :one
+-- The JSON document of an invoice: company, client, project, period, lines, expenses, totals.
+-- @anchor none
+-- @needs invoice
+select d.invoice_id, d.document
+from invoice_document d
+where d.invoice_id = @invoice_id;
+
+-- name: InvoiceRunCandidates :many
+-- Projects with activities not invoiced over a period and no draft invoice overlapping it: the invoices a run creates.
+-- @anchor none
+-- @needs invoice
+select a.project_id, @date_from::date as date_from, @date_to::date as date_to
+from activity_p a
+where a.date between @date_from::date and @date_to::date and a.not_invoiced
+  and not exists (select from invoice i
+                  where i.project_id = a.project_id and i.invoiced_at is null
+                    and i.date_from <= @date_to::date and i.date_to >= @date_from::date)
+group by a.project_id
+order by a.project_id;
+
+-- name: Profitability :many
+-- Per project and folder, over the activities of a period: durations, services, expenses billed and reimbursed,
+-- realized (services and expenses billed), invoiced, balance (realized minus invoiced). Invoiced activities use their frozen values.
+-- @anchor none
+-- @needs invoice
+select r.project_id, r.folder_id,
+       sum(r.duration_min)::integer as duration_min, sum(r.billed_min)::integer as billed_min,
+       sum(r.services_amount) as services_amount, sum(r.expenses_billed) as expenses_billed, sum(r.expenses_user) as expenses_user,
+       sum(r.realized_amount) as realized_amount, sum(r.invoiced_amount) as invoiced_amount, sum(r.balance_amount) as balance_amount
+from activity_revenue r
+where r.date between @date_from and @date_to
+group by r.project_id, r.folder_id;
+
+-- name: ProfitabilityCost :many
+-- Profitability with the cost (counted minutes times hourly cost) and the margins on services and on balance.
+-- @anchor none
+-- @needs cost
+select r.project_id, r.folder_id,
+       sum(r.duration_min)::integer as duration_min, sum(r.billed_min)::integer as billed_min, sum(r.counted_min)::integer as counted_min,
+       sum(r.services_amount) as services_amount, sum(r.expenses_billed) as expenses_billed, sum(r.expenses_user) as expenses_user,
+       sum(r.realized_amount) as realized_amount, sum(r.invoiced_amount) as invoiced_amount, sum(r.balance_amount) as balance_amount,
+       sum(r.cost_amount) as cost_amount, sum(r.margin_services) as margin_services, sum(r.margin_balance) as margin_balance
+from activity_cost r
+where r.date between @date_from and @date_to
+group by r.project_id, r.folder_id;
+
+-- name: InvoiceLockActivities :exec
+-- Locks the activities of invoices, by id, before they are attached or released.
+select a.id from activity a
+where a.id in (select l.activity_id from invoice_line l where l.invoice_id = any(@ids::bigint[]))
+order by a.id
+for update;
+
+-- name: InvoiceAttachActivities :exec
+-- Attaches its candidate activities to each draft invoice.
+update activity a set invoice_id = l.invoice_id
+from invoice_line l
+where l.activity_id = a.id and l.invoice_id = any(@ids::bigint[]);
+
+-- name: InvoiceFreezeActivities :exec
+-- Freezes rate, billed duration and amount of the activities attached to invoices, read in their projection.
+update activity a set (frozen_rate, frozen_billed_min, frozen_amount) =
+    (select p.rate, p.billed_min, p.amount from activity_p p where p.id = a.id)
+where a.invoice_id = any(@ids::bigint[]);
+
+-- name: InvoiceFreezeExpenses :exec
+-- Freezes the amounts of the expenses of the activities attached to invoices, read in their projection.
+update expense e set (frozen_user_amount, frozen_billed_amount) =
+    (select x.user_amount, x.billed_amount from expense_p x where x.id = e.id)
+where e.activity_id in (select a.id from activity a where a.invoice_id = any(@ids::bigint[]));
+
+-- name: InvoiceMarkInvoiced :exec
+-- Marks invoices invoiced by the principal, now.
+update invoice set invoiced_at = sor_now(), invoiced_by = @self where id = any(@ids::bigint[]);
+
+-- name: InvoiceReleaseExpenses :exec
+-- Clears the frozen amounts of the expenses of the activities of invoices.
+update expense set frozen_user_amount = null, frozen_billed_amount = null
+where activity_id in (select a.id from activity a where a.invoice_id = any(@ids::bigint[]));
+
+-- name: InvoiceReleaseActivities :exec
+-- Detaches the activities of invoices and clears their frozen values.
+update activity set invoice_id = null, frozen_rate = null, frozen_billed_min = null, frozen_amount = null
+where invoice_id = any(@ids::bigint[]);
+
+-- name: InvoiceBackToDraft :exec
+-- Returns invoices to draft.
+update invoice set invoiced_at = null, invoiced_by = null where id = any(@ids::bigint[]);
+
+-- name: InvoiceAttachPdf :exec
+-- Attaches the rendered PDF to invoices.
+update invoice set pdf_file_id = @pdf_file_id where id = any(@ids::bigint[]);

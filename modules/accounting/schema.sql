@@ -1,0 +1,1 @@
+-- The accounting module adds no table: it works on the kernel's connection and delivery.
