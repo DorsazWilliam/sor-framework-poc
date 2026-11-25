@@ -1,0 +1,9 @@
+version: "2"
+sql:
+  - engine: postgresql
+    schema: [../schema.sql, schema.sql]
+    queries: [../queries.sql, queries.sql]
+    gen:
+      json:
+        out: .
+        filename: sqlc.json
