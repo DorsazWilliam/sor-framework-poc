@@ -321,9 +321,8 @@ update expense e set (frozen_user_amount, frozen_billed_amount) = (x.user_amount
 from expense_p x, activity a
 where x.id = e.id and a.id = e.activity_id and a.invoice_id is not null;
 
-insert into connection (kind, name, endpoint, secret_name, principal_id)
-select 'accounting', 'Comptabilité', p.acct_url, 'accounting', u.id
-from p, "user" u
-where u.subject = 'svc-accounting';
+insert into connection (kind, name, endpoint, secret_name, subject)
+select 'accounting', 'Comptabilité', p.acct_url, 'accounting', 'svc-accounting'
+from p;
 
 analyze;

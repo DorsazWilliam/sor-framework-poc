@@ -29,5 +29,8 @@ var Module = kernel.Module{Name: "base", Schema: schema, Register: func(r *kerne
 	r.Table("cost_rate", kernel.Read("cost"), kernel.Write("cost"), group, kernel.Label("valid_from"))
 	r.Table("public_holiday", md, group, kernel.Label("label"))
 	r.Table("hour_class", md, group, kernel.Label("label"))
+	r.Ref("principal_id", "user")
+	r.Ref("for_id", "user")
+	r.Ref("owner_id", "user")
 	r.Table("hour_class_slot", kernel.ChildOf("hour_class", "hour_class_id"), md, kernel.Label("span_tod"))
 }}

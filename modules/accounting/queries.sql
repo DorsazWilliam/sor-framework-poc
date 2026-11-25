@@ -24,11 +24,6 @@ from invoice_document d
 join connection c on c.kind = 'accounting'
 where d.invoice_id = any(@ids::bigint[]);
 
--- name: DeliveryResult :exec
--- Records the outcome of an attempt of deliveries.
-insert into delivery_result (delivery_id, ok, status, detail)
-select d.id, @ok, @status, @detail from delivery d where d.id = any(@ids::bigint[]);
-
 -- name: ConnectionAdvance :exec
 -- Records a pull of connections: its cursor (kept when empty), the instant and the error if any.
 update connection set cursor = coalesce(@cursor::text, cursor), pulled_at = sor_now(), pull_error = @pull_error::text

@@ -13,18 +13,15 @@ var schema string
 // Module is the accounting module.
 var Module = kernel.Module{Name: "accounting", Schema: schema, Register: func(r *kernel.Registry) {
 	r.Table("connection", kernel.Write("master_data"))
+	r.Table("delivery", kernel.Write("accounting_sync"))
 
 	r.Command("invoice.export", kernel.On("invoice"), kernel.When("exportable"), kernel.Effect("InvoiceExport"), kernel.Needs("invoice"))
-	r.Command("delivery.retry", kernel.On("delivery"), kernel.Needs("invoice"))
-	r.Command("delivery.result", kernel.On("delivery"), kernel.Effect("DeliveryResult"), kernel.Needs("accounting_sync"))
 	r.Command("connection.pull", kernel.On("connection"), kernel.Needs("master_data"))
 	r.Command("connection.advance", kernel.On("connection"), kernel.Effect("ConnectionAdvance"), kernel.Needs("accounting_sync"))
 	r.Command("account.upsert_from_accounting", kernel.On("account"), kernel.Rootless(), kernel.Effect("AccountUpsertFromAccounting"),
 		kernel.Needs("accounting_sync"))
 	r.Command("project.upsert_from_accounting", kernel.On("project"), kernel.Rootless(), kernel.Effect("ProjectUpsertFromAccounting"),
 		kernel.Needs("accounting_sync"))
-	r.Reaction("delivery.retry", "delivery.send")
-	r.Reaction("connection.pull", "accounting.pull")
 
 	r.Screen(kernel.Screen{ID: "accounting", Group: "system", Views: []string{"connection"}, Table: "connection",
 		Commands: []string{"connection.pull"},

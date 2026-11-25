@@ -37,7 +37,6 @@ var Module = kernel.Module{Name: "time", Schema: schema, Register: func(r *kerne
 	r.Command("expense.attach_receipt", kernel.On("expense"), kernel.When("editable"), kernel.Ensure("editable"),
 		kernel.Effect("ExpenseAttachReceipt"), kernel.Needs("expense"))
 	r.Command("expense.apply_ocr", kernel.On("expense"), kernel.When("editable"), kernel.Effect("ExpenseApplyOcr"), kernel.Needs("ocr"))
-	r.Reaction("expense.attach_receipt", "ocr.read")
 
 	r.Screen(kernel.Screen{ID: "entry", Group: "time", Component: "entry", Views: []string{"timesheet", "timesheet_day"},
 		Defaults: map[string]string{"user_id": "$self", "date_from": "$today", "date_to": "$today"}, Table: "activity",

@@ -33,7 +33,7 @@ select a.id, t.id, v.q, v.a from (values ('meal', null, 50), ('km', 10, null), (
 join expense_type t on t.name = v.t, activity a where a.description = 'a2';
 
 -- Expense amounts by mode.
-select pg_temp.eq('expense amounts', (select string_agg(user_amount || '/' || billed_amount, ',' order by id) from expense_p), '50/50,7.00/9.00,7/0');
+select pg_temp.eq('expense amounts', (select string_agg(user_amount || '/' || billed_amount, ',' order by id) from expense_p), '50.00/50.00,7.00/9.00,7.00/0');
 
 -- A draft invoice takes the activities of its project and period not yet invoiced.
 insert into invoice (project_id, date_from, date_to) select id, '2026-02-01', '2026-02-28' from project;
