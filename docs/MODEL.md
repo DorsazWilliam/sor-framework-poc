@@ -25,37 +25,41 @@ Cible : n'importe quelle web app ; optimisé pour les systems of record : donné
 - Custom field : colonne typée dans la table `<table>_x`, en 1:1 avec sa table
 - Colonne `personal` : déclarée dans le schema, avec la personne qu'elle concerne
 
-## 2. Projection
+## 2. Root et projection
 
 - Root : la row autour de laquelle une projection se calcule et qu'une command lock
+- Table child : ses rows appartiennent à un root par une FK ; ses commands lockent ce root et lisent ses conditions
+- Root `under` un autre root : ses commands tiennent le root supérieur en `for share` ; une command sur le root supérieur (`for update`) les exclut toutes. Ce qui gouverne un ensemble de roots (verrou de période, clôture) est une table child du root supérieur
 - Projection : une SQL view par table root, une row par root ; colonnes de la table + valeurs calculées (montants, quantités restantes, retard)
 - Condition : colonne booléenne nommée de la projection (`not_shipped`, `under_limit`)
-- Action : nom + ensemble de conditions ; colonne d'action = AND de ses conditions ; une par command
-- Table root sans projection écrite : projection = la table, avec `editable` et `deletable` à true
-- Le temps entre par le paramètre `@now`
+- Action : nom + ensemble de conditions, déclarée dans le registry ; vraie = AND de ses conditions
+- Table root sans projection écrite : projection = la table ; `editable` et `deletable` sans condition
+- Le temps entre par `sor_now()` : l'instant de la transaction, fixé pour toute la request, épinglable (test, replay)
 
 ## 3. Access
 
-- Principal : identité authentifiée par un IdP OIDC externe (, passkeys ; client credentials pour agents et services) ; humain, agent ou service
+- Principal : identité authentifiée par un IdP OIDC externe (passkeys ; client credentials pour agents et services) ; humain, agent ou service
 - Capability : role → commands et views permises
-- Reach : les rows reliées au principal par des données (lui-même, management, membership) ; c'est une projection
-- Chaque view et command déclare son anchor (une colonne) ou aucun
+- Reach : les rows reliées au principal par des données (lui-même, management, membership) ; c'est une projection ; un principal a plusieurs reach nommés
+- Chaque view et command déclare son anchor (une colonne et un reach) ou aucun
 - `@reach` est résolu une fois par request ; une query anchorée sans `@reach` échoue au build
 - Hors reach → `not_found`
-- Données sensibles : view séparée, capability séparée
-- Agent pour un humain : reach = intersection des deux ; l'event enregistre les deux
+- Données sensibles : table ou view séparée, capability séparée
+- Agent pour un humain : capability et reach = intersection des deux ; l'event enregistre les deux
 
 ## 4. View et command
 
 - View : SQL statique dans `queries.sql`, compilé par sqlc ; params + `@reach`
 - Le kernel enveloppe une view avec filtre, tri, group, agrégat et page, sur ses colonnes de sortie ; `@reach` reste dans la view
 - List, grid, pivot, dashboard, saved view = une view enveloppée ; une saved view est une row (view + params)
-- Command : action + effet SQL ; inputs validés contre la projection, dans la transaction (`@qty <= remaining_qty`)
-- Toute table a create, update (`editable`) et delete (`deletable`), générés depuis le schema
+- Command : action avant (`When`) + effet SQL + action après (`Ensure`) ; les deux actions sont lues dans la projection, dans la transaction
+- `Ensure` porte sur les roots touchés de sa table (`quantité restante ≥ 0` est une condition du stock)
+- L'effet est du SQL statique ; chaque statement écrit ses events (§6)
+- Toute table a create (`Ensure editable`), update (`When` et `Ensure editable`) et delete (`When deletable`), dérivés du schema
 
 ```go
-var Cancel = kernel.Command("order.cancel", kernel.When("cancellable"), db.Cancel)
-var Ship   = kernel.Command("order.ship",   kernel.When("shippable"),   db.Ship)
+r.Command("order.cancel", kernel.When("cancellable"), kernel.Effect("OrderCancel"))
+r.Command("order.ship",   kernel.When("shippable"), kernel.Ensure("order_line.not_overshipped"), kernel.Effect("OrderShip"))
 ```
 
 ## 5. Exécution
@@ -64,18 +68,19 @@ Même ordre pour humain, agent, reaction et job :
 
 1. principal → capability → reach
 2. transaction (pgx v5)
-3. lock des roots (`for update`), ordre d'id stable
-4. lecture de la projection pour ces ids, `@now` fixé
-5. ids où l'action est fausse → Rejection, avec les conditions fausses
-6. validation des inputs contre la projection
-7. effet
-8. event + jobs insérés dans la transaction
+3. lock : roots `under` en `for share`, puis roots en `for update`, ordre (table, id) stable
+4. lecture de la projection pour ces ids
+5. root absent ou hors reach → `not_found` ; ids où `When` est fausse → Rejection, avec les conditions fausses et la row de projection
+6. effet ; un effet qui change d'autres roots les lock lui-même, par id
+7. relecture de la projection des roots touchés : hors reach → `not_found` ; `Ensure` fausse → Rejection ; rollback
+8. jobs insérés dans la transaction
 9. commit
 10. live
 
 ## 6. Event log
 
-- Une table, partitionnée par mois : command, principal, pour qui, ids, colonnes changées (avant, après)
+- Une table, partitionnée par mois : command, principal, pour qui, table et id de la row, son root, colonnes changées (avant, après)
+- Une row par row changée, écrite par le statement d'effet lui-même (`returning old, new`) : l'effet et son event sont indissociables
 - Historique d'une row, audit, debug des agents
 - Mois chauds dans Postgres ; mois plus vieux exportés en Parquet dans l'object storage, partition droppée ; rétention par tenant
 - Effacement d'une personne : command qui anonymise ses colonnes `personal` dans les tables, l'event log et les fichiers Parquet concernés (réécrits) ; son id entre dans la liste d'effacement du control plane, rejouée à chaque restore de backup
@@ -83,14 +88,14 @@ Même ordre pour humain, agent, reaction et job :
 ## 7. Asynchrone
 
 - Job : command différée (`After`, `Every`), dans River, inséré dans la transaction
-- Reaction : event → command, avec son propre principal ; at-least-once, idempotente par event id
-- Run : command sur un set de roots, exécutée en job ; progress live ; cancel = rollback ; undo = une autre command
+- Reaction : command → job, avec son propre principal ; inséré au commit de la command, unique par invocation ; at-least-once
+- Run : command sur un set de roots, exécutée en job dans une transaction, un savepoint par root ; progress live ; cancel = rollback ; undo = une autre command
 
 ## 8. Fichiers
 
 - File : blob content-addressed (hash) dans l'object storage du tenant (S3, ou disque on-prem) + row `file` (hash, taille, type, nom)
 - Une row métier référence un file par FK ; le file est atteignable si une row qui le référence est dans le reach
-- Upload : URL signée courte → blob ; puis command qui attache le file à une row
+- Upload : URL signée courte, hash signé → blob ; puis command qui attache le file à une row
 - Download : view sur la row → URL signée courte
 - Traitement (scan, miniature, OCR, extraction) : reaction sur l'attachement → job → files ou rows liés au file source
 - Généré (PDF, export) : job ; view + template Typst → file attaché par command ; même input = même hash
@@ -106,17 +111,19 @@ Même ordre pour humain, agent, reaction et job :
 ## 10. Live
 
 - Un stream SSE par session
-- Event commité → bus in-process ; entre instances, Postgres LISTEN/NOTIFY
-- Dependency key = (table root, id) ; une command invalide les roots qu'elle a lockés
-- Les views touchées sont relancées, le diff est poussé
-- Projection dépendant du temps : expose son prochain changement ; le live la relance à cette heure
+- Event commité → Postgres `NOTIFY` → chaque instance → ses streams
+- Dependency key = (table root, id) ; une command invalide les roots des rows qu'elle a changées
+- Le stream porte les clés, filtrées par le reach de la session ; le client relance ses views touchées ; le serveur ne garde aucun état d'abonnement
+- Les roots dont dépend une view sont dérivés du plan de sa query
+- Projection dépendant du temps : expose son prochain changement ; le client la relance à cette heure
 
 ## 11. Surfaces
 
-- Un registry de views et commands → HTTP JSON + SSE (Huma, OpenAPI), MCP (Go SDK officiel), CLI `sor`, client TypeScript ; tous générés
+- Le registry est une donnée : manifest sqlc (queries, params, commentaires) + catalog Postgres (types, FK) + déclarations des modules
+- Un registry de views et commands → HTTP JSON + SSE (Huma, OpenAPI), MCP (Go SDK officiel), CLI `sor`, client TypeScript ; tous dérivés, sans code par opération
 - UI : SPA Svelte 5 + TypeScript ; un écran = views live + commands
-- Bouton actif = colonne d'action ∧ reach ∧ capability
-- Écrans génériques (list, form, grid, pivot, run) générés depuis le registry ; écrans denses écrits à la main ; grid et planning maison, virtualisés
+- Bouton actif = action ∧ reach ∧ capability ; inactif, il nomme ses conditions fausses
+- Écrans génériques (list, form, grid, pivot, run) rendus depuis le registry ; écrans denses écrits à la main ; grid et planning maison, virtualisés
 - Chaque écran expose son arbre de views et commands, avec ids stables, lisible par un agent via MCP
 
 ## 12. Extensions
@@ -130,15 +137,15 @@ Même ordre pour humain, agent, reaction et job :
 ## 13. Stack et layout
 
 ```
-modules/<m>/  schema.sql, queries.sql, *.go (déclarations), ui/
-gen/          généré : Go, TS, OpenAPI, MCP
+modules/<m>/  schema.sql, queries.sql, module.go (déclarations), templates
+gen/          manifest sqlc, OpenAPI
 kernel/       command, view, access, event, job, live, file, connection, tenant
 ext/          runtime WASM
 ui/           shell SPA, composants génériques
-cmd/sor/      binaire : serve, migrate, tenant, introspect, run <command>
+cmd/sor/      binaire : serve, migrate, check, call, view, meta
 ```
 
-- Go 1.26, net/http, pgx v5 ; un pool pgx par tenant, ouvert à la demande
+- Go 1.27, net/http, pgx v5 ; un pool pgx par tenant, ouvert à la demande
 - Tenant = database (ce POC : une seule database)
 - Observability : OpenTelemetry (traces, métriques), slog, rrweb pour le session replay ; export OTLP
 - Packaging : un binaire statique (UI et migrations embarquées) ; image OCI
@@ -146,11 +153,11 @@ cmd/sor/      binaire : serve, migrate, tenant, introspect, run <command>
 
 ## Ouvert
 
-- Live : multiplexage, debounce, coût de relance des views qui agrègent beaucoup de roots
+- Live : coût de relance des views qui agrègent beaucoup de roots ; diff serveur si la relance client ne suffit plus
 - Projection : coût par root, et pour les runs sur beaucoup de roots
 - Custom fields en colonnes `_x` : à valider en pratique ; repli jsonb validé
 - Extensions : WASM, ou Go compilé par tenant
-- UI : Svelte 5 ou React
+- Idempotence d'une command rejouée par un client hors ligne (CASES S7)
 
 ## Journal
 
@@ -167,3 +174,15 @@ cmd/sor/      binaire : serve, migrate, tenant, introspect, run <command>
   - 1er ordre : colonnes changées seulement ; partitions mensuelles ; vieux mois en Parquet dans l'object storage
   - 2e ordre : l'effacement réécrit les Parquet concernés ; l'historique ancien se lit dans les archives
 - 2026-11-23 : réécriture complète ; stack et layout déplacés de VISION vers ce document ; event log en section propre ; arbre d'écran pour les agents précisé
+- 2026-11-25 : spec du POC ([SPEC.md](./SPEC.md), [DECISIONS.md](./DECISIONS.md)) ; le model est faux sur six points, repensés
+  - Lock entre roots : une row insérée (verrou de période) est un fantôme pour le lock de row → tables child et roots `under` (`for share` / `for update`)
+    - 1er ordre : ordre de lock global ; la clé de live d'une row child est son root
+    - 2e ordre : verrou et clôture sont des tables child d'un root supérieur
+  - Validation des inputs : pas d'état avant pour un create, et un update peut déplacer une row vers un état interdit → `When` avant + `Ensure` après, plus de langage d'expressions
+    - 1er ordre : le reach est aussi vérifié après l'effet
+    - 2e ordre : CRUD dérivé du schema avec ces deux actions
+  - `@now` : une SQL view n'a pas de paramètre → `sor_now()`
+  - Colonne d'action : le kernel ne peut pas la décomposer pour nommer les conditions fausses → action déclarée dans le registry
+  - Event : écrit par le statement d'effet (`returning old, new`), une row par row changée
+  - Live et surfaces : diff serveur → clés d'invalidation et relance client ; code généré → registry donnée, types pris dans Postgres
+  - Reaction : event → command devient command → job inséré au commit ; reach nommés ; donnée sensible en table séparée
