@@ -66465,7 +66465,7 @@
   },
   "queries": [
     {
-      "text": "select e.at, e.command, e.principal_id as principal, e.for_id as \"for\", e.tbl, e.row_id, e.changes\nfrom event e\nwhere e.root_table = $1 and e.root_id = $2\norder by e.at desc, e.id desc",
+      "text": "select e.at, e.command, e.principal_id, e.for_id, e.tbl, e.row_id, e.changes\nfrom event e\nwhere e.root_table = $1 and e.root_id = $2\norder by e.at desc, e.id desc",
       "name": "History",
       "cmd": ":many",
       "columns": [
@@ -66522,7 +66522,7 @@
           "array_dims": 0
         },
         {
-          "name": "principal",
+          "name": "principal_id",
           "not_null": true,
           "is_array": false,
           "comment": "",
@@ -66548,7 +66548,7 @@
           "array_dims": 0
         },
         {
-          "name": "for",
+          "name": "for_id",
           "not_null": false,
           "is_array": false,
           "comment": "",

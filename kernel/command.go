@@ -282,7 +282,7 @@ union all select (e.changes->%s->>0)::bigint from event e where e.call = $1::uui
 		}
 	}
 
-	res := &Result{Changed: []Changed{}, IDs: []int64{}}
+	res := &Result{Call: x.id, Changed: []Changed{}, IDs: []int64{}}
 	if rootExpr != "" {
 		res.IDs = sortedKeys64(before)
 	}
@@ -493,7 +493,7 @@ func (x *call) startRun(ctx context.Context) (*Result, error) {
 	x.enqueue("run.execute", []int64{id})
 	x.react([]int64{id})
 	rows := []Row{{"run", id, "run", id}}
-	return &Result{Changed: []Changed{{Table: "run", IDs: []int64{id}}}, IDs: []int64{}, Run: &id},
+	return &Result{Call: x.id, Changed: []Changed{{Table: "run", IDs: []int64{id}}}, IDs: []int64{}, Run: &id},
 		x.k.commit(ctx, x.conn, &Commit{Command: x.c.Name, Call: x.id, Principal: x.p.ID, For: x.p.forID(), Subjects: x.p.Subjects,
 			Rows: rows, Run: &id}, map[string][]int64{"run": {x.p.ID}}, x.jobs)
 }

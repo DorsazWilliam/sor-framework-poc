@@ -110,13 +110,14 @@ func (b *booter) commandSchema(c *Command) {
 }
 
 var resultSchema = object(map[string]*huma.Schema{
+	"call": {Type: huma.TypeString, Format: "uuid"},
 	"changed": {Type: huma.TypeArray, Items: object(map[string]*huma.Schema{
 		"table": {Type: huma.TypeString},
 		"ids":   {Type: huma.TypeArray, Items: &huma.Schema{Type: huma.TypeInteger, Format: "int64"}},
 	}, []string{"table", "ids"})},
 	"ids": {Type: huma.TypeArray, Items: &huma.Schema{Type: huma.TypeInteger, Format: "int64"}},
 	"run": {Type: huma.TypeInteger, Format: "int64"},
-}, []string{"changed", "ids"})
+}, []string{"call", "changed", "ids"})
 
 func precompute(s *huma.Schema) {
 	if s == nil {

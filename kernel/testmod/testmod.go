@@ -31,6 +31,9 @@ var Module = kernel.Module{Name: "testmod", Schema: schema, Register: func(r *ke
 	r.Table("entry", kernel.Under("org"), kernel.Anchor("person_id", "user"), kernel.Write("entry"), kernel.Guarded("validated"), kernel.Label("note"))
 	r.Table("entry_line", kernel.ChildOf("entry", "entry_id"), kernel.Write("entry"), kernel.Label("label"))
 	r.Table("delivery", kernel.Write("validate"))
+	for _, c := range []string{"principal_id", "for_id", "owner_id"} {
+		r.Ref(c, "person")
+	}
 	r.Action("entry", "editable", "not_locked", "not_validated", "short")
 	r.Action("entry", "deletable", "not_locked", "not_validated")
 	r.Action("entry", "validatable", "not_validated")

@@ -79,7 +79,7 @@ func (k *Kernel) view(ctx context.Context, q querier, p *Principal, name string,
 			args = append(args, pgValue(req.Params[name], params[name].Type))
 		}
 	}
-	sql, args, pr := v.wrap(req.Wrap, args)
+	sql, args, pr := v.wrap(req.Wrap, args, k.label)
 	if pr != nil {
 		return nil, pr
 	}
@@ -118,8 +118,17 @@ func reachName(a *AnchorDecl) string {
 	return a.Reach
 }
 
+// label is the label column of a declared table, or "".
+func (k *Kernel) label(table string) string {
+	if t := k.tables[table]; t != nil {
+		return t.Label
+	}
+	return ""
+}
+
 // wrap builds filter, sort, group, aggregate and page around the view query; values become params.
-func (v *View) wrap(w Wrap, args []any) (string, []any, *Problem) {
+// Sorting on a column with a ref sorts on the label of the referenced row.
+func (v *View) wrap(w Wrap, args []any, label func(table string) string) (string, []any, *Problem) {
 	cols := map[string]Col{}
 	for _, c := range v.Columns {
 		cols[c.Name] = c
@@ -186,7 +195,8 @@ func (v *View) wrap(w Wrap, args []any) (string, []any, *Problem) {
 		}
 		sel = strings.Join(list, ", ")
 	}
-	var order []string
+	var order, labels []string
+	joins := ""
 	for _, s := range w.Sort {
 		if !slices.Contains(out, s.Col) {
 			return "", nil, problem(422, "invalid", "cannot sort on "+s.Col)
@@ -195,19 +205,26 @@ func (v *View) wrap(w Wrap, args []any) (string, []any, *Problem) {
 		if s.Dir == "desc" {
 			dir = "desc"
 		}
-		order = append(order, ident(s.Col)+" "+dir)
+		expr := "v." + ident(s.Col)
+		if grouped {
+			expr = ident(s.Col)
+		}
+		if c, ok := cols[s.Col]; ok && c.Ref != "" && label(c.Ref) != "" && (!grouped || slices.Contains(w.Group, s.Col)) {
+			a := fmt.Sprintf("l%d", len(labels))
+			joins += fmt.Sprintf(" left join %s %s on %s.id = v.%s", ident(c.Ref), a, a, ident(s.Col))
+			expr = a + "." + ident(label(c.Ref))
+			labels = append(labels, expr)
+		}
+		order = append(order, expr+" "+dir)
 	}
 	_, hasID := cols["id"]
 	byID := !grouped && hasID
 	if byID && !slices.ContainsFunc(w.Sort, func(s Sort) bool { return s.Col == "id" }) {
-		order = append(order, `"id" asc`)
+		order = append(order, `v."id" asc`)
 	}
 	orderSQL := ""
 	if len(order) > 0 {
-		orderSQL = " order by v." + strings.Join(order, ", v.")
-		if grouped {
-			orderSQL = " order by " + strings.Join(order, ", ")
-		}
+		orderSQL = " order by " + strings.Join(order, ", ")
 	}
 	limit := w.Limit
 	if limit <= 0 {
@@ -219,18 +236,18 @@ func (v *View) wrap(w Wrap, args []any) (string, []any, *Problem) {
 	case grouped:
 		groupSQL := ""
 		if len(w.Group) > 0 {
-			groupSQL = " group by " + strings.Join(slices.Collect(func(yield func(string) bool) {
+			groupSQL = " group by " + strings.Join(append(slices.Collect(func(yield func(string) bool) {
 				for _, g := range w.Group {
 					yield("v." + ident(g))
 				}
-			}), ", ")
+			}), labels...), ", ")
 		}
-		return "select " + sel + " from " + q + whereSQL + groupSQL + orderSQL + page, args, nil
+		return "select " + sel + " from " + q + joins + whereSQL + groupSQL + orderSQL + page, args, nil
 	case byID:
-		return "with k as materialized (select v.id from " + q + whereSQL + orderSQL + page + ") select v.* from k join " + q +
-			" using (id)" + orderSQL, args, nil
+		return "with k as materialized (select v.id from " + q + joins + whereSQL + orderSQL + page + ") select v.* from k join " + q +
+			" using (id)" + joins + orderSQL, args, nil
 	default:
-		return "select v.* from " + q + whereSQL + orderSQL + page, args, nil
+		return "select v.* from " + q + joins + whereSQL + orderSQL + page, args, nil
 	}
 }
 

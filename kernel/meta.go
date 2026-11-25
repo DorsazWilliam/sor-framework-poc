@@ -148,6 +148,7 @@ func problem(status int, code, detail string) *Problem {
 
 // Result is the body of a successful command.
 type Result struct {
+	Call    string    `json:"call"` // the e of the live keys of the command
 	Changed []Changed `json:"changed"`
 	IDs     []int64   `json:"ids"`
 	Run     *int64    `json:"run,omitempty"`

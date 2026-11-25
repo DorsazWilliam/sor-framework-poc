@@ -149,7 +149,20 @@ group by 1, 2 order by 1, 2`)
 		}
 		b.refs[col] = ref
 	}
-	return rows.Err()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for col, ref := range b.Refs {
+		switch prev, ok := b.refs[col]; {
+		case b.rels[ref] == nil:
+			b.fail("Ref(%s, %s): %s is not a table", col, ref, ref)
+		case ok && prev != ref:
+			b.fail("Ref(%s, %s): %s is a foreign key to %s", col, ref, col, prev)
+		default:
+			b.refs[col] = ref
+		}
+	}
+	return nil
 }
 
 var suffixFormats = map[string]string{"_min": "min", "_tod": "tod", "_pct": "pct", "_coef": "coef"}

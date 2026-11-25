@@ -30,7 +30,7 @@ import (
 const usage = `usage: sor <command>
   up                 migrate, seed $SOR_SEED (default demo) if the domain is empty, serve
   serve              serve HTTP on $LISTEN_ADDR (default :8080)
-  migrate            apply the module schemas with pgschema, create event partitions
+  migrate            migrate the river schema, apply the module schemas with pgschema, create event partitions
   seed demo|perf     load the synthetic dataset
   check [--static]   check the registry (--static: manifest and declarations only, no database)
   openapi            write gen/openapi.json
@@ -154,6 +154,18 @@ func serve(ctx context.Context) error {
 		return err
 	}
 	defer pool.Close()
+	if err := k.OpenStorage(ctx, kernel.Storage{Endpoint: os.Getenv("S3_ENDPOINT"), PublicEndpoint: os.Getenv("S3_PUBLIC_ENDPOINT"),
+		Bucket: os.Getenv("S3_BUCKET"), AccessKey: os.Getenv("S3_ACCESS_KEY"), SecretKey: os.Getenv("S3_SECRET_KEY")}); err != nil {
+		return fmt.Errorf("storage: %w", err)
+	}
+	if err := k.Start(ctx); err != nil {
+		return err
+	}
+	defer func() {
+		stop, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		k.Stop(stop)
+	}()
 	go k.Listen(ctx)
 	h, _ := k.API(kernel.Config{Issuer: os.Getenv("OIDC_ISSUER"), Dial: os.Getenv("OIDC_DIAL"), ClientID: os.Getenv("OIDC_CLIENT_ID"),
 		PublicURL: os.Getenv("PUBLIC_URL"), Labels: sor.Labels, UI: uiFS()})
@@ -172,7 +184,7 @@ func serve(ctx context.Context) error {
 	return nil
 }
 
-// migrate creates btree_gist and the plan database, applies the concatenated schemas with pgschema,
+// migrate creates btree_gist, migrates the river schema, creates the plan database, applies the concatenated schemas with pgschema,
 // then creates the event partitions.
 func migrate(ctx context.Context) error {
 	s, err := load()
@@ -191,6 +203,9 @@ func migrate(ctx context.Context) error {
 	defer pool.Close()
 	if _, err := pool.Exec(ctx, "create extension if not exists btree_gist"); err != nil {
 		return err
+	}
+	if err := kernel.MigrateJobs(ctx, pool); err != nil {
+		return fmt.Errorf("river: %w", err)
 	}
 	var exists bool
 	if err := pool.QueryRow(ctx, "select exists(select from pg_database where datname = 'sorplan')").Scan(&exists); err != nil {

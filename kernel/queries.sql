@@ -1,7 +1,7 @@
 -- name: History :many
 -- Events of a root, newest first. Served after the root is read through its list view.
 -- @anchor none
-select e.at, e.command, e.principal_id as principal, e.for_id as "for", e.tbl, e.row_id, e.changes
+select e.at, e.command, e.principal_id, e.for_id, e.tbl, e.row_id, e.changes
 from event e
 where e.root_table = @root_table and e.root_id = @root_id
 order by e.at desc, e.id desc;

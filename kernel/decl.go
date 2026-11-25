@@ -124,11 +124,17 @@ type Registry struct {
 	Jobs      []*JobDecl
 	Reactions map[string][]string // command → job kinds
 	Screens   []Screen
+	Refs      map[string]string // column name → referenced table, for columns that are not foreign keys
 }
 
 func newRegistry() *Registry {
-	return &Registry{Tables: map[string]*TableDecl{}, Actions: map[string]map[string][]string{}, Reactions: map[string][]string{}}
+	return &Registry{Tables: map[string]*TableDecl{}, Actions: map[string]map[string][]string{}, Reactions: map[string][]string{},
+		Refs: map[string]string{}}
 }
+
+// Ref gives every column named column a reference to table, like a foreign key column (stamps such as
+// principal_id that carry no FK).
+func (r *Registry) Ref(column, table string) { r.Refs[column] = table }
 
 type TableOpt func(*TableDecl)
 
