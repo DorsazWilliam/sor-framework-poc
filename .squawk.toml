@@ -1,0 +1,3 @@
+pg_version = "18.0"
+# pgschema applies a plan group in one transaction
+assume_in_transaction = true

@@ -273,6 +273,7 @@ func TestRoundTrips(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", tc.name, err)
 		}
+		t.Logf("%s: %d round trips", tc.name, timing.RT.Load())
 		if rt := timing.RT.Load(); rt > tc.max {
 			t.Fatalf("%s: %d round trips, budget %d", tc.name, rt, tc.max)
 		}
