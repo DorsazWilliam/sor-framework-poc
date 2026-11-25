@@ -46,7 +46,9 @@ type booter struct {
 	problems []string
 }
 
-func (b *booter) fail(format string, args ...any) { b.problems = append(b.problems, fmt.Sprintf(format, args...)) }
+func (b *booter) fail(format string, args ...any) {
+	b.problems = append(b.problems, fmt.Sprintf(format, args...))
+}
 
 // Boot binds the static registry to the database: catalog, prepared queries, derived views and commands.
 // The error lists every violation found.

@@ -74,7 +74,6 @@ func setup(t *testing.T) *kernel.Kernel {
 	return k
 }
 
-
 func exec(t *testing.T, pool *pgxpool.Pool, sql string) {
 	t.Helper()
 	c, err := pool.Acquire(context.Background())

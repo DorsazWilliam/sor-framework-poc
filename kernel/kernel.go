@@ -32,6 +32,7 @@ type Kernel struct {
 	refs      map[string]string
 	principal *Query
 	hub       hub
+	verify    func(ctx context.Context, raw string) ([]string, error)
 }
 
 // Commit describes a command about to commit.
@@ -109,7 +110,7 @@ func (tracer) TraceQueryEnd(ctx context.Context, _ *pgx.Conn, _ pgx.TraceQueryEn
 func (tracer) TraceBatchStart(ctx context.Context, _ *pgx.Conn, _ pgx.TraceBatchStartData) context.Context {
 	return start(ctx)
 }
-func (tracer) TraceBatchQuery(context.Context, *pgx.Conn, pgx.TraceBatchQueryData) {}
+func (tracer) TraceBatchQuery(context.Context, *pgx.Conn, pgx.TraceBatchQueryData)     {}
 func (tracer) TraceBatchEnd(ctx context.Context, _ *pgx.Conn, _ pgx.TraceBatchEndData) { end(ctx) }
 
 // Principal is the authenticated caller, merged with the human it acts for.
