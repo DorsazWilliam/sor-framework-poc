@@ -172,20 +172,20 @@ select p.id as activity_id, p.user_id, o.hour_class_id, o.minutes,
        round(p.rate * p.billed_min / 60.0 * o.minutes * coalesce(c.rate_coef, 1) / p.duration_min, 2) as amount
 from activity_p p
 join (
-    select m.activity_id, m.hour_class_id, sum(m.minutes)::integer as minutes
-    from (
-        select a.id as activity_id, case when k.in_class then s.hour_class_id end as hour_class_id,
-               case when k.in_class then 1 else -1 end
-               * (upper(s.span_tod * int4range(a.start_tod, a.start_tod + a.duration_min)) - lower(s.span_tod * int4range(a.start_tod, a.start_tod + a.duration_min))) as minutes
-        from activity_p a
-        join hour_class_slot s on s.day_type = a.day_type and s.span_tod && int4range(a.start_tod, a.start_tod + a.duration_min)
-        cross join (select true as in_class union all select false) k
-        union all
-        select a.id, null, a.duration_min from activity_p a
-    ) m
-    group by m.activity_id, m.hour_class_id
-    having sum(m.minutes) > 0
-) o on o.activity_id = p.id
+    select a.id as activity_id, s.hour_class_id,
+           sum(upper(s.span_tod * int4range(a.start_tod, a.start_tod + a.duration_min))
+               - lower(s.span_tod * int4range(a.start_tod, a.start_tod + a.duration_min)))::integer as minutes
+    from activity_p a
+    join hour_class_slot s on s.day_type = a.day_type and s.span_tod && int4range(a.start_tod, a.start_tod + a.duration_min)
+    group by a.id, s.hour_class_id
+    union all
+    select a.id, null::bigint,
+           (a.duration_min - coalesce((select sum(upper(s.span_tod * int4range(a.start_tod, a.start_tod + a.duration_min))
+                                                  - lower(s.span_tod * int4range(a.start_tod, a.start_tod + a.duration_min)))
+                                       from hour_class_slot s
+                                       where s.day_type = a.day_type and s.span_tod && int4range(a.start_tod, a.start_tod + a.duration_min)), 0))::integer
+    from activity_p a
+) o on o.activity_id = p.id and o.minutes > 0
 left join task t on t.id = p.task_id
 left join hour_class c on c.id = o.hour_class_id;
 comment on view activity_class is 'Split of each activity by hour class touched, plus the part outside any class.';

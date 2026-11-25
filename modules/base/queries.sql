@@ -1,12 +1,11 @@
 -- name: Principal :many
--- Principals of the given identity-provider subjects: id, kind, name, language, functions
+-- Principals of the given identity-provider subjects: subject, id, kind, name, language, functions
 -- (union of their groups; an admin group grants all) and named reaches: self = the principal,
 -- team = direct reports (scope_direct), the whole subtree (scope_tree) or every other human (scope_all),
 -- user = self and team. Archived principals are absent.
 -- @anchor none
--- @needs master_data
 with recursive p as (
-    select u.id, u.kind, u.name, u.lang,
+    select u.id, u.subject, u.kind, u.name, u.lang,
            case when bool_or(g.admin) then enum_range(null::fn)
                 else coalesce(array_agg(distinct gf.fn) filter (where gf.fn is not null), '{}') end as functions
     from "user" u
@@ -21,7 +20,7 @@ with recursive p as (
     union
     select t.root_id, u.id from tree t join "user" u on u.manager_id = t.id
 )
-select p.id, p.kind, p.name, p.lang, p.functions,
+select p.subject, p.id, p.kind, p.name, p.lang, p.functions,
        jsonb_build_object('self', jsonb_build_array(p.id), 'team', to_jsonb(t.ids), 'user', to_jsonb(p.id || t.ids)) as reach
 from p
 cross join lateral (
