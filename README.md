@@ -40,6 +40,17 @@ Load the performance dataset (200 users, 600k activities):
 docker compose exec app sor seed perf
 ```
 
+## Status
+
+Works end to end on a fresh `docker compose up`: keyboard time entry, expenses with receipt OCR, validation, balances, profitability, invoicing (run, PDF, CSV export to the fake accounting server with retry), period locks, master data, history, live updates, MCP.
+
+Known limits:
+
+- Analytic screens over the whole history are slow (0.8 to 1.9 s on 600k activities): rows and totals are two full computations, and balances carry over from the first entry. See [docs/PERF.md](docs/PERF.md).
+- Declarative migration of stacked views failed in place a few times during development; a fresh database always applies.
+- Not built: event archive, erasure of a person, extensions, webhooks, multi-tenancy.
+- No human has reviewed the code; no security review; no load test.
+
 ## Layout
 
 ```
