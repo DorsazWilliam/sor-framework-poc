@@ -30,7 +30,8 @@
   "ui.no_results": "Keine Treffer",
   "ui.no_rows": "Keine Zeilen",
   "ui.not_found": "Nicht gefunden oder ausserhalb der Reichweite",
-  "ui.rejected": "{cmd} für {n} Zeile(n) abgelehnt",
+  "ui.read_only": "Schreibgeschützt. {reasons}",
+  "ui.rejected": "{cmd} für {n} Zeile(n) abgelehnt. Nicht erfüllte Bedingungen:",
   "ui.rejected_roots": "{n} Zeile(n) abgelehnt",
   "ui.replace": "Ersetzen",
   "ui.required": "Pflichtfeld",
@@ -52,6 +53,7 @@
   "ui.to": "Bis",
   "ui.toggle_nav": "Navigation ein- oder ausblenden",
   "ui.total": "Total",
+  "ui.unmet": "Nicht erfüllte Bedingungen: {list}",
   "ui.upload": "Hochladen",
   "ui.yes": "Ja"
 }

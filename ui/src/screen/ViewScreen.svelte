@@ -84,6 +84,12 @@
     tbl ? Object.fromEntries(tbl.columns.filter((c) => params[c.name] !== undefined).map((c) => [c.name, params[c.name]])) : {},
   );
 
+  // The grid keeps showing the previous result until the new query has its first answer.
+  let shown = $state.raw<Source>();
+  $effect(() => {
+    if (source.ready || !shown) shown = source;
+  });
+
   $effect(() => {
     void source;
     selection = new Map();
@@ -97,7 +103,7 @@
 
   $effect(() => {
     if (nested) return;
-    session.status = { rows: (source.totals?.count as number) ?? 0, selected: selection.size };
+    session.status = { rows: (shown?.totals?.count as number) ?? 0, selected: selection.size };
     keep($state.snapshot({ params, wrap: { filter, sort, group }, widths }));
   });
 
@@ -148,27 +154,31 @@
     </CommandBar>
   {/if}
 
-  <div class="params">
-    {#each shownParams as p (p.name)}
-      <label class="param" class:wide={!!p.ref}>
-        <span>{colLabel(p.name)}</span>
-        <FieldEditor col={p} id="p-{screen.id}-{p.name}" bind:value={params[p.name]} />
-      </label>
-    {/each}
-    <label class="param wide">
-      <span>{t("ui.group_by")}</span>
-      <Select id="group-{screen.id}" items={groupItems} bind:value={() => group[0] ?? "", (g) => (group = g ? [g] : [])} />
-    </label>
-    <div class="spacer"></div>
-    {#if filter.length}
-      <Button variant="subtle" icon={FilterOff} onclick={() => (filter = [])}>{t("ui.clear_filters")}</Button>
-    {/if}
-    {#if !nested}<SavedViews screen={screen.id} {current} {apply} />{/if}
-  </div>
+  {#if !nested || shownParams.length || filter.length}
+    <div class="params">
+      {#each shownParams as p (p.name)}
+        <label class="param" class:wide={!!p.ref}>
+          <span>{colLabel(p.name)}</span>
+          <FieldEditor col={p} id="p-{screen.id}-{p.name}" bind:value={params[p.name]} />
+        </label>
+      {/each}
+      {#if !nested}
+        <label class="param wide">
+          <span>{t("ui.group_by")}</span>
+          <Select id="group-{screen.id}" items={groupItems} bind:value={() => group[0] ?? "", (g) => (group = g ? [g] : [])} />
+        </label>
+      {/if}
+      <div class="spacer"></div>
+      {#if filter.length}
+        <Button variant="subtle" icon={FilterOff} onclick={() => (filter = [])}>{t("ui.clear_filters")}</Button>
+      {/if}
+      {#if !nested}<SavedViews screen={screen.id} {current} {apply} />{/if}
+    </div>
+  {/if}
 
   <div class="content">
     <Grid
-      {source}
+      source={shown ?? source}
       {columns}
       label={(c) => colLabel(c.name, tbl?.name)}
       bind:widths
@@ -213,8 +223,10 @@
   }
   .subbar {
     display: flex;
-    gap: var(--s-2);
-    padding: var(--s-2) var(--s-4);
+    flex-wrap: wrap;
+    gap: var(--s-1);
+    padding: var(--s-2) var(--s-2);
+    border-bottom: var(--bw) solid var(--border);
   }
   .params {
     display: flex;

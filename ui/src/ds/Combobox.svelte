@@ -32,10 +32,15 @@
   );
   const current = $derived(label ?? items?.find((i) => i.value === value)?.label ?? "");
 
+  let loading = $state(false);
   $effect(() => {
     if (!search || !open) return;
     const q = query;
-    const timer = setTimeout(async () => (remote = await search(q)), 120);
+    loading = true;
+    const timer = setTimeout(async () => {
+      remote = await search(q);
+      loading = false;
+    }, 120);
     return () => clearTimeout(timer);
   });
 
@@ -72,7 +77,7 @@
       {#each shown as it (it.value)}
         <Combobox.Item class="option" value={it.value} label={it.label}>{it.label}</Combobox.Item>
       {:else}
-        <div class="empty">{t("ui.no_results")}</div>
+        <div class="empty">{loading ? "…" : t("ui.no_results")}</div>
       {/each}
     </Combobox.Content>
   </Combobox.Portal>

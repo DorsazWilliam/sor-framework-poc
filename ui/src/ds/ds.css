@@ -267,7 +267,7 @@ textarea.input {
 /* Popovers */
 .popover {
   z-index: var(--z-overlay);
-  min-width: var(--bits-select-anchor-width, 160px);
+  min-width: var(--bits-combobox-anchor-width, var(--bits-select-anchor-width, 160px));
   max-height: min(360px, var(--bits-select-content-available-height, 360px));
   overflow: auto;
   padding: var(--s-2);
@@ -453,6 +453,10 @@ textarea.input {
 .row-inputs > * {
   flex: 1;
   min-width: 0;
+}
+.row-inputs.array {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
 }
 
 .field .input.num {

@@ -27,7 +27,7 @@ export function evaluate(c: Command, rows: Row[], parent?: Row): { enabled: bool
   if (!can(c.needs)) return { enabled: false, reasons: [t("ui.forbidden")] };
   if (takesIds(c) && !rows.length) return { enabled: false, reasons: [t("ui.select_rows")] };
   const failed = conditions(c).filter((k) => rows.some((r) => (r[k] ?? parent?.[k]) === false));
-  return { enabled: !failed.length, reasons: failed.map((k) => t(`cond.${k}`)) };
+  return { enabled: !failed.length, reasons: failed.length ? [t("ui.unmet", { list: failed.map((k) => t(`cond.${k}`)).join(", ") })] : [] };
 }
 
 export async function execute(

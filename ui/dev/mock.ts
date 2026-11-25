@@ -120,9 +120,22 @@ function activityP(fx: Fx, a: Row): Row {
     entry_open: !f.entry_closed && !p.entry_closed && !p.archived, task_allowed: true };
 }
 
+// Activities of an invoice: attached once invoiced, else the uninvoiced ones of its project in its period.
+let byInvoice: Map<string, Row[]> | null = null;
+function invoiceActs(fx: Fx, v: Row) {
+  if (!byInvoice) {
+    byInvoice = new Map();
+    for (const a of fx.db.activity) {
+      const k = a.invoice_id != null ? `i${a.invoice_id}` : `p${get(fx, "folder", a.folder_id)!.project_id}`;
+      if (!byInvoice.has(k)) byInvoice.set(k, []);
+      byInvoice.get(k)!.push(a);
+    }
+  }
+  return (v.invoiced_at ? (byInvoice.get(`i${v.id}`) ?? []) : (byInvoice.get(`p${v.project_id}`) ?? []).filter((a) => inRange(a, v))).map((a) => activityP(fx, a));
+}
+
 function invoiceP(fx: Fx, v: Row): Row {
-  const acts = fx.db.activity.filter((a) => (v.invoiced_at ? a.invoice_id === v.id
-    : a.invoice_id == null && get(fx, "folder", a.folder_id)!.project_id === v.project_id && a.date! >= v.date_from! && a.date! <= v.date_to!)).map((a) => activityP(fx, a));
+  const acts = invoiceActs(fx, v);
   const services = r2(acts.reduce((s, a) => s + (a.amount as number), 0));
   const d = fx.db.delivery.filter((x) => x.root_id === v.id).at(-1);
   const exp = !d ? "none" : String(d.last_detail).startsWith("200") ? "exported" : "failed";
@@ -142,8 +155,8 @@ function viewRows(fx: Fx, name: string, p: Row): Row[] {
     case "activity_to_validate": return acts().filter((a) => a.to_validate && a.not_validated && a.user_id !== 1);
     case "timesheet": return acts().filter((a) => a.user_id === p.user_id);
     case "invoice_activity": {
-      const v = invoiceP(fx, get(fx, "invoice", p.invoice_id)!);
-      return db.activity.filter((a) => (v.invoiced_at ? a.invoice_id === v.id : a.invoice_id == null && get(fx, "folder", a.folder_id)!.project_id === v.project_id && inRange(a, v))).map((a) => activityP(fx, a));
+      const v = get(fx, "invoice", p.invoice_id);
+      return v ? invoiceActs(fx, v) : [];
     }
     case "timesheet_day": {
       const out: Row[] = [];
@@ -301,6 +314,7 @@ function command(fx: Fx, name: string, input: Row): Result {
     case "invoice.run": run = startRun(fx, fields); break;
   }
   idx.delete(tbl.name);
+  byInvoice = null;
   const u = uniques[tbl.name];
   const dup = u && changed.find((r) => rows.some((o) => o !== r && rows.includes(r) && u[0].every((k) => o[k] === r[k])));
   const failed = dup ? [] : check(c.ensure, changed.filter((r) => rows.includes(r)));
@@ -308,6 +322,7 @@ function command(fx: Fx, name: string, input: Row): Result {
     if (c.kind === "create") rows.splice(rows.indexOf(changed[0]), 1);
     for (const r of targets) Object.assign(r!, before.get(r!.id));
     idx.delete(tbl.name);
+    byInvoice = null;
     return dup ? problem(409, "constraint", { constraint: u[1] }) : problem(409, "rejected", { action: c.ensure, rejected: failed });
   }
   const call = randomUUID();
@@ -340,21 +355,22 @@ function startRun(fx: Fx, input: Row) {
       Object.assign(run, { state: "cancelled", finished_at: new Date().toISOString() });
     } else {
       run.state = "running";
-      for (const pid of projects.slice(run.done as number, (run.done as number) + 4)) {
+      for (const pid of projects.slice(run.done as number, (run.done as number) + 10)) {
         const pr = get(fx, "project", pid)!;
         if (pr.entry_closed) (run.rejected as Row[]).push({ id: pid, conditions: ["entry_open"], row: pr });
         else created.push(db.invoice[db.invoice.push({ id: Math.max(...db.invoice.map((v) => v.id as number)) + 1, project_id: pid, date_from: input.date_from, date_to: input.date_to, invoiced_at: null, invoiced_by: null, pdf_file_id: null }) - 1]);
       }
-      run.done = Math.min(projects.length, (run.done as number) + 4);
+      run.done = Math.min(projects.length, (run.done as number) + 10);
       if (run.done === projects.length) Object.assign(run, { state: "done", finished_at: new Date().toISOString() });
     }
     idx.delete("invoice");
+    byInvoice = null;
     broadcast("run", [id], "invoice.run");
     if (run.state === "done" || run.state === "cancelled") {
       clearInterval(tick);
       broadcast("invoice", undefined, "invoice.run");
     }
-  }, 150);
+  }, 100);
   return id;
 }
 

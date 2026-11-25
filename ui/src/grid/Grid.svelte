@@ -136,7 +136,8 @@
   }
 
   function keydown(e: KeyboardEvent) {
-    if ((e.target as HTMLElement).closest(".grid-head")) return;
+    const target = e.target as HTMLElement;
+    if (target.closest(".grid-head") || target.closest("input, textarea, [contenteditable]")) return;
     const page = Math.max(1, Math.floor(bodyH / ROW) - 1);
     const cur = source.entry(active);
     const keys: Record<string, () => void> = {
@@ -329,6 +330,7 @@
     font-size: var(--fs-grid);
     background: var(--surface);
     outline: none;
+    user-select: none;
   }
   .grid:focus-visible .row.active {
     outline: 1px solid var(--accent);
@@ -488,7 +490,11 @@
     color: var(--text-muted);
   }
   .lead {
+    position: sticky;
+    left: 0;
+    z-index: 1;
     gap: var(--s-3);
+    background: inherit;
   }
   .lead span {
     overflow: hidden;

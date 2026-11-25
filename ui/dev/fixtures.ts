@@ -268,7 +268,7 @@ export const labels: Record<string, string> = {
   "c.pull_error": "Erreur", "c.cursor": "Curseur", "c.secret_name": "Secret", "c.currency": "Monnaie", "c.vat_no": "N° TVA", "c.receipt": "Justificatif",
   "c.carried_min": "Report", "c.due_min": "À faire", "c.done_min": "Fait", "c.balance_min": "Solde", "c.vac_carried_min": "Vac. report", "c.vac_available_min": "Vac. dispo",
   "c.vac_taken_min": "Vac. prises", "c.vac_balance_min": "Vac. solde", "c.services": "Prestations", "c.expenses_billed": "Frais facturés", "c.expenses_user": "Frais collab.",
-  "c.realized": "Réalisé", "c.invoiced": "Facturé", "c.balance_amount": "Solde", "c.cost": "Prix de revient", "c.margin_services": "Marge prest.", "c.margin_balance": "Marge solde",
+  "c.realized": "Réalisé", "c.invoiced": "Montant facturé", "c.balance_amount": "Solde", "c.cost": "Prix de revient", "c.margin_services": "Marge prest.", "c.margin_balance": "Marge solde",
   "c.class_min": "Durée", "c.created_at": "Créé le", "c.attempts": "Tentatives", "c.last_detail": "Dernier détail", "c.connection_id": "Connexion", "c.root_id": "Objet", "c.holiday": "Férié", "c.locked": "Verrouillé",
   "c.to_validate": "À valider", "c.not_locked": "Non verrouillée", "c.not_invoiced": "Non facturée", "c.not_validated": "Non validée", "c.is_validated": "Validée", "c.entry_open": "Saisie ouverte", "c.task_allowed": "Tâche permise",
   "cmd.activity.validate": "Valider", "cmd.activity.unvalidate": "Dévalider", "cmd.invoice.run": "Run de facturation", "cmd.invoice.mark_invoiced": "Facturer", "cmd.invoice.back_to_draft": "Remettre en cours",

@@ -72,7 +72,7 @@
     <TimeInput aria-label={t("ui.to")} bind:value={() => range[1], (v) => setRange(1, v)} />
   </div>
 {:else if col.type.startsWith("_") && col.format === "min"}
-  <div class="row-inputs" {id}>
+  <div class="row-inputs array" {id}>
     {#each [...list, null] as v, i (i)}
       <DurationInput bind:value={() => v, (x) => setAt(i, x)} />
     {/each}

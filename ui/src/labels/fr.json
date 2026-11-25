@@ -30,7 +30,8 @@
   "ui.no_results": "Aucun résultat",
   "ui.no_rows": "Aucune ligne",
   "ui.not_found": "Introuvable ou hors de portée",
-  "ui.rejected": "{cmd} refusé pour {n} ligne(s)",
+  "ui.read_only": "Lecture seule. {reasons}",
+  "ui.rejected": "{cmd} refusé pour {n} ligne(s). Conditions non remplies :",
   "ui.rejected_roots": "{n} ligne(s) refusée(s)",
   "ui.replace": "Remplacer",
   "ui.required": "Obligatoire",
@@ -52,6 +53,7 @@
   "ui.to": "À",
   "ui.toggle_nav": "Afficher ou masquer la navigation",
   "ui.total": "Total",
+  "ui.unmet": "Conditions non remplies : {list}",
   "ui.upload": "Téléverser",
   "ui.yes": "Oui"
 }

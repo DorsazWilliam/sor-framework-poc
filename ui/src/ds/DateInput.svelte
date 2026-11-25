@@ -15,6 +15,7 @@
   weekStartsOn={1}
   granularity="day"
   fixedWeeks
+  weekdayFormat="short"
 >
   <DatePicker.Input class="input date" {id}>
     {#snippet children({ segments })}
@@ -39,7 +40,7 @@
             <DatePicker.Grid class="cal-grid">
               <DatePicker.GridHead>
                 <DatePicker.GridRow>
-                  {#each weekdays as d (d)}<DatePicker.HeadCell>{d.slice(0, 2)}</DatePicker.HeadCell>{/each}
+                  {#each weekdays as d, i (i)}<DatePicker.HeadCell>{d}</DatePicker.HeadCell>{/each}
                 </DatePicker.GridRow>
               </DatePicker.GridHead>
               <DatePicker.GridBody>

@@ -51,6 +51,7 @@ export class Pager {
   }
 
   ensure(from: number, to: number) {
+    void this.#version;
     const a = Math.floor(Math.max(0, from) / PAGE);
     const b = Math.floor(Math.min(to, this.count - 1) / PAGE);
     for (let p = a; p <= b; p++) if (!this.#pages.has(p) && !this.#loading.has(p)) this.#load(p);

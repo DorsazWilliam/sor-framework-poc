@@ -6,7 +6,7 @@
 
   // SPEC §11: sha256 → presign → PUT → register → id; preview through POST /api/file.
   let {
-    value = $bindable(null),
+    value = $bindable(),
     source,
     readonly = false,
     id,

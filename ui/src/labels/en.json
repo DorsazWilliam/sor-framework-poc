@@ -30,7 +30,8 @@
   "ui.no_results": "No results",
   "ui.no_rows": "No rows",
   "ui.not_found": "Not found or out of reach",
-  "ui.rejected": "{cmd} rejected for {n} row(s)",
+  "ui.read_only": "Read-only. {reasons}",
+  "ui.rejected": "{cmd} rejected for {n} row(s). Unmet conditions:",
   "ui.rejected_roots": "{n} row(s) rejected",
   "ui.replace": "Replace",
   "ui.required": "Required",
@@ -52,6 +53,7 @@
   "ui.to": "To",
   "ui.toggle_nav": "Show or hide navigation",
   "ui.total": "Total",
+  "ui.unmet": "Unmet conditions: {list}",
   "ui.upload": "Upload",
   "ui.yes": "Yes"
 }

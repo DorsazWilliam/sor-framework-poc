@@ -4,6 +4,7 @@
   import Field from "../ds/Field.svelte";
   import Tooltip from "../ds/Tooltip.svelte";
   import FieldEditor from "./FieldEditor.svelte";
+  import Lock from "~icons/fluent/lock-closed-16-regular";
   import { evaluate, execute } from "./commands";
   import { colLabel, command } from "../app/session.svelte";
   import { toast } from "../ds/toast.svelte";
@@ -66,6 +67,9 @@
 </script>
 
 <form class="form" onsubmit={save}>
+  {#if row && !status.enabled}
+    <div class="note"><Lock />{t("ui.read_only", { reasons: status.reasons.join(", ") })}</div>
+  {/if}
   <div class="fields">
     {#each cols as c (c.name)}
       <Field label={colLabel(c.name, tbl.name)} id="f-{c.name}" error={errors[c.name]}>
@@ -97,6 +101,17 @@
     flex: 1;
     flex-direction: column;
     min-height: 0;
+  }
+  .note {
+    display: flex;
+    align-items: center;
+    gap: var(--s-4);
+    margin: var(--panel-pad) var(--panel-pad) 0;
+    padding: var(--s-3) var(--s-5);
+    border: var(--bw) solid var(--border);
+    border-radius: var(--r-button);
+    background: var(--surface-subtle);
+    color: var(--text-muted);
   }
   .fields {
     flex: 1;
