@@ -48,7 +48,7 @@ var Module = kernel.Module{Name: "testmod", Schema: schema, Register: func(r *ke
 	r.Command("entry.export", kernel.On("entry"), kernel.Effect("EntryExport"))
 	r.Run("entry.run", "entry_run_candidates", "entry.create", kernel.Needs("admin"))
 	r.Job("entry.mark", mark)
-	r.Job("tick", tick, kernel.Every(250*time.Millisecond), kernel.As("bot"))
+	r.Job("tick", tick, kernel.Every(250*time.Millisecond), kernel.As("agent-user"))
 	r.Screen(kernel.Screen{ID: "entries", Group: "time", Views: []string{"entry_grid"}, Table: "entry", Commands: []string{"entry.validate"},
 		Children: []kernel.Screen{{ID: "entry_lines", Views: []string{"entry_line"}, Table: "entry_line", Link: map[string]string{"entry_id": "id"}}}})
 }}

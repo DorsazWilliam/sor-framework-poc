@@ -49,7 +49,7 @@ func count(t *testing.T, k *kernel.Kernel, sql string, args ...any) int {
 func TestReaction(t *testing.T) {
 	k := setup(t)
 	start(t, k)
-	alice, boss := principal(t, k, "alice"), principal(t, k, "boss")
+	alice, boss := principal(t, k, "user"), principal(t, k, "boss")
 	call(t, k, alice, "entry.ping", `{"ids":[2]}`)
 	var note string
 	eventually(t, 5*time.Second, "reaction job", func() bool {
@@ -77,7 +77,7 @@ func TestPeriodic(t *testing.T) {
 	before := testmod.Ticks.Load()
 	start(t, k)
 	eventually(t, 10*time.Second, "two ticks", func() bool { return testmod.Ticks.Load() >= before+2 })
-	if testmod.TickBy.Load() != principal(t, k, "bot").ID {
+	if testmod.TickBy.Load() != principal(t, k, "agent-user").ID {
 		t.Fatalf("tick ran as %d", testmod.TickBy.Load())
 	}
 }
@@ -231,7 +231,7 @@ func TestDelivery(t *testing.T) {
 	defer srv.Close()
 	k.Pool.Exec(context.Background(), "update connection set endpoint = $1", srv.URL)
 	start(t, k)
-	boss, bot := principal(t, k, "boss"), principal(t, k, "bot")
+	boss, bot := principal(t, k, "boss"), principal(t, k, "agent-user")
 
 	call(t, k, boss, "entry.export", `{"ids":[1]}`)
 	eventually(t, 30*time.Second, "delivery accepted", func() bool {

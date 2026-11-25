@@ -205,7 +205,11 @@ func (b *booter) bootTables() {
 		if t.Label == "" && t.column("name") != nil {
 			t.Label = "name"
 		}
-		for _, c := range append(append([]string{t.Label, d.ChildFK}, d.Guarded...), anchorCol(d.Anchor)) {
+		cols := append([]string{t.Label, d.ChildFK}, d.Guarded...)
+		if d.Anchor != nil {
+			cols = append(cols, d.Anchor.Column)
+		}
+		for _, c := range cols {
 			if c != "" && t.column(c) == nil {
 				b.fail("table %s: column %s does not exist", name, c)
 			}
@@ -267,13 +271,6 @@ func (b *booter) bootTables() {
 			b.fail("actions declared on unknown table %s", table)
 		}
 	}
-}
-
-func anchorCol(a *AnchorDecl) string {
-	if a == nil {
-		return ""
-	}
-	return a.Column
 }
 
 func (t *Table) column(name string) *TableCol {
@@ -354,8 +351,12 @@ func (b *booter) view(ctx context.Context, v *View, notNull []bool, t *Table) {
 	}
 	v.Params, v.Columns, v.Roots = []Col{}, []Col{}, []string{}
 	for i, oid := range sd.ParamOIDs {
-		if !kernelParams[v.params[i]] {
-			v.Params = append(v.Params, b.col(v.params[i], oid, true, ""))
+		switch name := v.params[i]; {
+		case name == "reach":
+		case kernelParams[name]:
+			b.fail("view %s: @%s is a param of commands; a view reads its rows through @reach", v.Name, name)
+		default:
+			v.Params = append(v.Params, b.col(name, oid, true, ""))
 		}
 	}
 	for i, f := range sd.Fields {

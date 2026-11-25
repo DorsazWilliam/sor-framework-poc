@@ -12,7 +12,7 @@ import (
 // TestContract: call id in the result, history stamps as ids, Ref, sort on a ref by its label.
 func TestContract(t *testing.T) {
 	k := setup(t)
-	alice, boss := principal(t, k, "alice"), principal(t, k, "boss")
+	alice, boss := principal(t, k, "user"), principal(t, k, "boss")
 
 	res := call(t, k, alice, "entry.update", `{"ids":[1],"note":"call"}`)
 	if res.Call == "" || count(t, k, "select count(*) from event where call = $1::uuid", res.Call) != 1 {
@@ -29,7 +29,7 @@ func TestContract(t *testing.T) {
 	}
 
 	// Reach self is the effective identity: an agent acting for alice owns alice's saved views.
-	bot := principal(t, k, "bot", "alice")
+	bot := principal(t, k, "agent-user", "user")
 	call(t, k, bot, "saved_view.create", `{"owner_id":2,"screen":"entries","name":"mine"}`)
 	callErr(t, k, bot, "saved_view.create", `{"owner_id":4,"screen":"entries","name":"bot's"}`, "not_found")
 
@@ -53,10 +53,13 @@ func TestContract(t *testing.T) {
 		}
 		return cols[i]
 	}
-	if c := col(k.ViewByName("history").Columns, "principal_id"); c.Ref != "person" {
+	meta := func(name string) *kernel.View {
+		return k.Meta.Views[slices.IndexFunc(k.Meta.Views, func(v *kernel.View) bool { return v.Name == name })]
+	}
+	if c := col(meta("history").Columns, "principal_id"); c.Ref != "person" {
 		t.Fatalf("history principal_id ref: %+v", c)
 	}
-	if c := col(k.ViewByName("run").Columns, "for_id"); c.Ref != "person" {
+	if c := col(meta("run").Columns, "for_id"); c.Ref != "person" {
 		t.Fatalf("run for_id ref: %+v", c)
 	}
 

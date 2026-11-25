@@ -33,8 +33,7 @@ func (k *Kernel) Call(ctx context.Context, p *Principal, name string, body []byt
 	if x.c.Kind == "run" {
 		res, err = x.startRun(ctx)
 	} else if res, err = x.exec(ctx, "begin"); err == nil {
-		err = x.k.commit(ctx, conn, &Commit{Command: x.c.Name, Call: x.id, Principal: x.p.ID, For: x.p.forID(),
-			Subjects: x.p.Subjects, Roots: res.IDs, Rows: x.rows}, x.anchors, x.jobs)
+		err = x.k.commit(ctx, conn, x.c.Name, x.id, x.rows, x.anchors, x.jobs)
 	}
 	if err != nil {
 		conn.Exec(context.WithoutCancel(ctx), "rollback")
@@ -94,7 +93,8 @@ func (x *call) reach() []int64 {
 // exec runs the call up to its commit, opened by begin or by a savepoint inside a run's transaction.
 func (x *call) exec(ctx context.Context, open string) (*Result, error) {
 	c := x.c
-	for _, v := range asSlice(x.in["ids"]) {
+	ids, _ := x.in["ids"].([]any)
+	for _, v := range ids {
 		f, _ := v.(float64)
 		x.ids = append(x.ids, int64(f))
 	}
@@ -336,30 +336,25 @@ func (x *call) enqueue(kind string, ids []int64) {
 	x.jobs = append(x.jobs, x.k.jobParams(kind, ReactionArgs{IDs: ids, Call: x.id}, x.p.Subjects, true))
 }
 
-// commit inserts the jobs (one round trip), then sends the hook's statements, the live keys of the
-// changed rows and the commit (one round trip).
-func (k *Kernel) commit(ctx context.Context, conn *pgxpool.Conn, cm *Commit, anchors map[string][]int64, jobs []river.InsertManyParams) error {
+// commit inserts the jobs (one round trip), then sends the live keys of the rows changed by the invocation
+// call of command and the commit (one round trip).
+func (k *Kernel) commit(ctx context.Context, conn *pgxpool.Conn, command, call string, rows []Row, anchors map[string][]int64, jobs []river.InsertManyParams) error {
 	b := &pgx.Batch{}
 	if len(jobs) > 0 {
 		if _, err := k.river.InsertManyTx(ctx, batchTx{conn: conn.Conn(), b: b}, jobs); err != nil {
 			return err
 		}
 	}
-	if k.BeforeCommit != nil {
-		if err := k.BeforeCommit(ctx, b, cm); err != nil {
-			return err
-		}
-	}
 	keys := map[string][]int64{}
 	var order []string
-	for _, r := range cm.Rows {
+	for _, r := range rows {
 		if _, ok := keys[r.RootTable]; !ok {
 			order = append(order, r.RootTable)
 		}
 		keys[r.RootTable] = append(keys[r.RootTable], r.RootID)
 	}
 	for _, t := range order {
-		b.Queue("select pg_notify('sor_live', $1)", livePayload(t, uniq(keys[t]), anchors[t], cm.Command, cm.Call))
+		b.Queue("select pg_notify('sor_live', $1)", livePayload(t, uniq(keys[t]), anchors[t], command, call))
 	}
 	b.Queue("commit")
 	return conn.SendBatch(ctx, b).Close()
@@ -510,8 +505,7 @@ func (x *call) startRun(ctx context.Context) (*Result, error) {
 	x.react([]int64{id})
 	rows := []Row{{"run", id, "run", id, true}}
 	return &Result{Call: x.id, Changed: []Changed{{Table: "run", IDs: []int64{id}}}, IDs: []int64{}, Run: &id},
-		x.k.commit(ctx, x.conn, &Commit{Command: x.c.Name, Call: x.id, Principal: x.p.ID, For: x.p.forID(), Subjects: x.p.Subjects,
-			Rows: rows, Run: &id}, map[string][]int64{"run": {x.p.Self}}, x.jobs)
+		x.k.commit(ctx, x.conn, x.c.Name, x.id, rows, map[string][]int64{"run": {x.p.Self}}, x.jobs)
 }
 
 func projRows(br pgx.BatchResults) (map[int64]json.RawMessage, error) {
@@ -559,8 +553,6 @@ func pgProblem(err error) error {
 	}
 	return err
 }
-
-func asSlice(v any) []any { s, _ := v.([]any); return s }
 
 func optInt(p *int64) any {
 	if p == nil {

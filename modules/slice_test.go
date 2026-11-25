@@ -1,6 +1,6 @@
-// Package modules_test runs the "À éprouver" cases of SLICE end to end: real Postgres, object storage and
-// fake accounting server, demo seed. Env: TEST_DATABASE_URL, TEST_S3 (endpoint, credentials of deploy/s3.json),
-// TEST_ACCT_URL (a fresh cmd/fakeacct with ACCT_SECRET=acct-dev-secret).
+// Package modules_test runs the "À éprouver" cases of SLICE end to end: real Postgres, object storage, identity
+// provider and fake accounting server, demo seed. Env: TEST_DATABASE_URL, TEST_S3 (endpoint, credentials of
+// deploy/s3.json), TEST_ISSUER (deploy/idp.json), TEST_ACCT_URL (a fresh cmd/fakeacct with ACCT_SECRET=acct-dev-secret).
 package modules_test
 
 import (
@@ -179,30 +179,33 @@ func count(t *testing.T, k *kernel.Kernel, sql string) int {
 	return n
 }
 
-// hold makes the first commit of command wait until the returned release is called; held is closed when
-// it waits.
-func hold(k *kernel.Kernel, command string) (held chan struct{}, release func()) {
-	held, gate := make(chan struct{}), make(chan struct{})
-	first := true
-	k.BeforeCommit = func(_ context.Context, _ *pgx.Batch, c *kernel.Commit) error {
-		if c.Command == command && first {
-			first = false
-			close(held)
-			<-gate
-		}
-		return nil
+// hold makes the commands wait at the write of their events, once their roots are locked, until release.
+func hold(t *testing.T, k *kernel.Kernel) (release func()) {
+	t.Helper()
+	tx, err := k.Pool.Begin(context.Background())
+	if err == nil {
+		_, err = tx.Exec(context.Background(), "lock table event in share mode")
 	}
-	return held, func() { close(gate) }
+	if err != nil {
+		t.Fatal(err)
+	}
+	return func() { tx.Rollback(context.Background()) }
 }
 
-// await waits until the held command waits at its commit; it fails if the command returned instead.
-func await(t *testing.T, held chan struct{}, errc chan error) {
+// held waits until the command of errc waits at the write of its events; it fails if the command returned.
+func held(t *testing.T, k *kernel.Kernel, errc chan error) {
 	t.Helper()
-	select {
-	case <-held:
-	case err := <-errc:
-		t.Fatalf("the held command returned: %v", err)
+	for end := time.Now().Add(5 * time.Second); time.Now().Before(end); time.Sleep(20 * time.Millisecond) {
+		select {
+		case err := <-errc:
+			t.Fatalf("the held command returned: %v", err)
+		default:
+		}
+		if count(t, k, "select count(*) from pg_locks where relation = 'event'::regclass and not granted") > 0 {
+			return
+		}
 	}
+	t.Fatal("timeout: command held")
 }
 
 // waiting asserts that the call in errc has not returned within 300 ms.
@@ -241,9 +244,9 @@ func TestActivityVersusPeriodLock(t *testing.T) {
 	id, date, _ := editable(t, k)
 	lock := map[string]any{"date_from": date, "date_to": date, "user_id": 4}
 
-	held, release := hold(k, "period_lock.create")
+	release := hold(t, k)
 	lockc := async(k, admin, "period_lock.create", lock)
-	await(t, held, lockc)
+	held(t, k, lockc)
 	upd := async(k, user, "activity.update", map[string]any{"ids": []int64{id}, "description": "during the lock"})
 	waiting(t, upd, "activity.update")
 	release()
@@ -287,9 +290,9 @@ func TestActivityVersusInvoicing(t *testing.T) {
 	inv := invoiceOf(project, date)
 	var dur int
 	one(t, k, "select duration_min from activity where id = "+strconv.FormatInt(id, 10), &dur)
-	held, release := hold(k, "activity.update")
+	release := hold(t, k)
 	upd := async(k, user, "activity.update", map[string]any{"ids": []int64{id}, "duration_min": dur + 15})
-	await(t, held, upd)
+	held(t, k, upd)
 	mark := async(k, finance, "invoice.mark_invoiced", map[string]any{"ids": []int64{inv}})
 	waiting(t, mark, "invoice.mark_invoiced")
 	release()
@@ -311,6 +314,23 @@ func TestActivityVersusInvoicing(t *testing.T) {
 
 }
 
+// jwt is a token of the identity provider of the tests for client id sub, its subject (client credentials).
+func jwt(t *testing.T, sub string) string {
+	t.Helper()
+	res, err := http.PostForm(os.Getenv("TEST_ISSUER")+"/token", neturl.Values{"grant_type": {"client_credentials"}, "client_id": {sub}, "client_secret": {"secret"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	var body struct {
+		AccessToken string `json:"access_token"`
+	}
+	if err := json.NewDecoder(res.Body).Decode(&body); err != nil || body.AccessToken == "" {
+		t.Fatalf("token of %s: %d %v", sub, res.StatusCode, err)
+	}
+	return body.AccessToken
+}
+
 type bearer string
 
 func (b bearer) RoundTrip(r *http.Request) (*http.Response, error) {
@@ -321,8 +341,9 @@ func (b bearer) RoundTrip(r *http.Request) (*http.Response, error) {
 
 // (d) A refusal lists the false conditions, identically over HTTP and MCP; (e) out of reach is not_found.
 func TestRejectionAndReach(t *testing.T) {
+	need(t, "TEST_ISSUER")
 	k := setup(t)
-	h, _ := k.API(kernel.Config{Verify: func(_ context.Context, raw string) ([]string, error) { return strings.Split(raw, "+"), nil }})
+	h, _ := k.API(kernel.Config{Issuer: os.Getenv("TEST_ISSUER")})
 	srv := httptest.NewServer(h)
 	defer srv.Close()
 	var invoiced, other int64
@@ -332,7 +353,8 @@ func TestRejectionAndReach(t *testing.T) {
 
 	body, _ := json.Marshal(in)
 	req, _ := http.NewRequest("POST", srv.URL+"/api/c/activity.update", strings.NewReader(string(body)))
-	req.Header.Set("Authorization", "Bearer user")
+	token := jwt(t, "user")
+	req.Header.Set("Authorization", "Bearer "+token)
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatal(err)
@@ -350,7 +372,7 @@ func TestRejectionAndReach(t *testing.T) {
 
 	c := mcp.NewClient(&mcp.Implementation{Name: "test", Version: "1"}, nil)
 	session, err := c.Connect(context.Background(), &mcp.StreamableClientTransport{Endpoint: srv.URL + "/mcp",
-		HTTPClient: &http.Client{Transport: bearer("user")}}, nil)
+		HTTPClient: &http.Client{Transport: bearer(token)}}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -19,13 +19,13 @@ import (
 const fixture = `
 insert into org (name) values ('Org');
 insert into person (subject, name, functions) values ('boss', 'Boss', '{entry,validate,admin}');
-insert into person (subject, name, manager_id, functions) values ('alice', 'Alice', 1, '{entry}');
+insert into person (subject, name, manager_id, functions) values ('user', 'Alice', 1, '{entry}');
 insert into person (subject, name, functions) values ('bob', 'Bob', '{entry}');
-insert into person (subject, name, kind, functions) values ('bot', 'Bot', 'agent', '{entry,validate}');
+insert into person (subject, name, kind, functions) values ('agent-user', 'Bot', 'agent', '{entry,validate}');
 insert into entry (person_id, day, worked_min, note) values
   (2, '2026-11-02', 60, 'a1'), (2, '2026-11-03', 120, 'a2'), (3, '2026-11-02', 30, 'b1'), (1, '2026-11-04', 90, 'boss');
 insert into entry_line (entry_id, label, line_min) values (1, 'x', 30), (1, 'y', 30);
-insert into connection (kind, name, endpoint, secret_name, subject) values ('acct', 'Accounting', 'http://127.0.0.1:1', 'acct', 'bot');
+insert into connection (kind, name, endpoint, secret_name, subject) values ('acct', 'Accounting', 'http://127.0.0.1:1', 'acct', 'agent-user');
 `
 
 // setup creates a fresh database with the kernel and fixture schemas and boots a kernel on it.
@@ -133,7 +133,7 @@ func callErr(t *testing.T, k *kernel.Kernel, p *kernel.Principal, name, body, co
 
 func TestWrap(t *testing.T) {
 	k := setup(t)
-	alice, boss := principal(t, k, "alice"), principal(t, k, "boss")
+	alice, boss := principal(t, k, "user"), principal(t, k, "boss")
 	if rows := view(t, k, alice, "entry_grid", `{}`); len(rows) != 2 {
 		t.Fatalf("alice sees %d entries, want 2", len(rows))
 	}
@@ -189,7 +189,7 @@ func TestWrap(t *testing.T) {
 func TestCommands(t *testing.T) {
 	k := setup(t)
 	ctx := context.Background()
-	alice, boss, bob := principal(t, k, "alice"), principal(t, k, "boss"), principal(t, k, "bob")
+	alice, boss, bob := principal(t, k, "user"), principal(t, k, "boss"), principal(t, k, "bob")
 
 	pr := callErr(t, k, alice, "entry.validate", `{"ids":[1]}`, "forbidden")
 	if pr.Needs != "validate" {
@@ -288,7 +288,7 @@ func TestRoundTrips(t *testing.T) {
 		}},
 	} {
 		ctx, timing := kernel.WithTiming(context.Background())
-		p, err := k.Principal(ctx, []string{"alice"})
+		p, err := k.Principal(ctx, []string{"user"})
 		if err == nil {
 			err = tc.run(ctx, p)
 		}
@@ -302,29 +302,38 @@ func TestRoundTrips(t *testing.T) {
 	}
 }
 
+// hold makes the commands wait at the write of their events, once their roots are locked, until release.
+func hold(t *testing.T, k *kernel.Kernel) (release func()) {
+	t.Helper()
+	tx, err := k.Pool.Begin(context.Background())
+	if err == nil {
+		_, err = tx.Exec(context.Background(), "lock table event in share mode")
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	return func() { tx.Rollback(context.Background()) }
+}
+
+// held waits until n commands wait at the write of their events.
+func held(t *testing.T, k *kernel.Kernel, n int) {
+	t.Helper()
+	eventually(t, 5*time.Second, "commands held", func() bool {
+		return count(t, k, "select count(*) from pg_locks where relation = 'event'::regclass and not granted") >= n
+	})
+}
+
 // TestUnderLock: a writer of a lower root and a writer of the upper root's child exclude each other.
 func TestUnderLock(t *testing.T) {
 	k := setup(t)
-	alice, boss := principal(t, k, "alice"), principal(t, k, "boss")
-	hold := make(chan struct{})
-	held := make(chan struct{})
-	k.BeforeCommit = func(ctx context.Context, b *pgx.Batch, c *kernel.Commit) error {
-		if c.Command == "org_lock.create" {
-			close(held)
-			<-hold
-		}
-		return nil
-	}
+	alice, boss := principal(t, k, "user"), principal(t, k, "boss")
+	release := hold(t, k)
 	errc := make(chan error, 1)
 	go func() {
 		_, err := k.Call(context.Background(), boss, "org_lock.create", []byte(`{"date_from":"2026-11-01","date_to":"2026-11-30"}`))
 		errc <- err
 	}()
-	select {
-	case <-held:
-	case err := <-errc:
-		t.Fatalf("org_lock.create: %v", err)
-	}
+	held(t, k, 1)
 	done := make(chan error, 1)
 	go func() {
 		_, err := k.Call(context.Background(), alice, "entry.update", []byte(`{"ids":[1],"note":"during lock"}`))
@@ -335,7 +344,7 @@ func TestUnderLock(t *testing.T) {
 		t.Fatalf("entry update did not wait for the period lock: %v", err)
 	case <-time.After(300 * time.Millisecond):
 	}
-	close(hold)
+	release()
 	if err := <-errc; err != nil {
 		t.Fatal(err)
 	}
@@ -346,19 +355,12 @@ func TestUnderLock(t *testing.T) {
 
 	// Reverse: the lock writer waits for an entry writer.
 	k.Pool.Exec(context.Background(), "delete from org_lock")
-	hold, held = make(chan struct{}), make(chan struct{})
-	k.BeforeCommit = func(ctx context.Context, b *pgx.Batch, c *kernel.Commit) error {
-		if c.Command == "entry.update" {
-			close(held)
-			<-hold
-		}
-		return nil
-	}
+	release = hold(t, k)
 	go func() {
 		_, err := k.Call(context.Background(), alice, "entry.update", []byte(`{"ids":[1],"note":"before lock"}`))
 		errc <- err
 	}()
-	<-held
+	held(t, k, 1)
 	go func() {
 		_, err := k.Call(context.Background(), boss, "org_lock.create", []byte(`{"date_from":"2026-11-01","date_to":"2026-11-30"}`))
 		done <- err
@@ -368,7 +370,7 @@ func TestUnderLock(t *testing.T) {
 		t.Fatalf("lock did not wait for the entry writer: %v", err)
 	case <-time.After(300 * time.Millisecond):
 	}
-	close(hold)
+	release()
 	if err := <-errc; err != nil {
 		t.Fatal(err)
 	}
@@ -382,7 +384,7 @@ func TestLive(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go k.Listen(ctx)
-	alice, boss, bob := principal(t, k, "alice"), principal(t, k, "boss"), principal(t, k, "bob")
+	alice, boss, bob := principal(t, k, "user"), principal(t, k, "boss"), principal(t, k, "bob")
 	bossCh, stop := k.Subscribe(boss)
 	defer stop()
 	bobCh, stop2 := k.Subscribe(bob)

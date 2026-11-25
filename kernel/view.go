@@ -71,15 +71,11 @@ func (k *Kernel) view(ctx context.Context, q querier, p *Principal, name string,
 		switch name {
 		case "reach":
 			args = append(args, ints(p.reach(v.Anchor, "")))
-		case "self":
-			args = append(args, strconv.FormatInt(p.Self, 10))
-		case "ids":
-			args = append(args, nil)
 		default:
 			args = append(args, pgValue(req.Params[name], params[name].Type))
 		}
 	}
-	sql, args, pr := v.wrap(req.Wrap, args, k.label)
+	sql, args, pr := v.wrap(req.Wrap, args, k.tables)
 	if pr != nil {
 		return nil, pr
 	}
@@ -113,17 +109,9 @@ func (k *Kernel) view(ctx context.Context, q querier, p *Principal, name string,
 	return out, nil
 }
 
-// label is the label column of a declared table, or "".
-func (k *Kernel) label(table string) string {
-	if t := k.tables[table]; t != nil {
-		return t.Label
-	}
-	return ""
-}
-
 // wrap builds filter, sort, group, aggregate and page around the view query; values become params.
-// Sorting on a column with a ref sorts on the label of the referenced row.
-func (v *View) wrap(w Wrap, args []any, label func(table string) string) (string, []any, *Problem) {
+// Sorting on a column with a ref sorts on the label of the referenced row, of one of tables.
+func (v *View) wrap(w Wrap, args []any, tables map[string]*Table) (string, []any, *Problem) {
 	cols := map[string]Col{}
 	for _, c := range v.Columns {
 		cols[c.Name] = c
@@ -214,10 +202,10 @@ func (v *View) wrap(w Wrap, args []any, label func(table string) string) (string
 		if grouped {
 			expr = ident(s.Col)
 		}
-		if c, ok := cols[s.Col]; ok && c.Ref != "" && label(c.Ref) != "" && (!grouped || slices.Contains(w.Group, s.Col)) {
+		if t := tables[cols[s.Col].Ref]; t != nil && t.Label != "" && (!grouped || slices.Contains(w.Group, s.Col)) {
 			a := fmt.Sprintf("l%d", len(labels))
-			joins += fmt.Sprintf(" left join %s %s on %s.id = v.%s", ident(c.Ref), a, a, ident(s.Col))
-			expr = a + "." + ident(label(c.Ref))
+			joins += fmt.Sprintf(" left join %s %s on %s.id = v.%s", ident(t.Name), a, a, ident(s.Col))
+			expr = a + "." + ident(t.Label)
 			labels = append(labels, expr)
 		}
 		order = append(order, expr+" "+dir)

@@ -22,10 +22,6 @@ type Kernel struct {
 	Pool *pgxpool.Pool
 	Meta Meta
 
-	// BeforeCommit, if set, runs inside a command's transaction after its checks and job inserts; what
-	// it queues on b is sent with the commit, in the same round trip.
-	BeforeCommit func(ctx context.Context, b *pgx.Batch, c *Commit) error
-
 	tables    map[string]*Table
 	views     map[string]*View
 	commands  map[string]*Command
@@ -37,18 +33,6 @@ type Kernel struct {
 	verify    func(ctx context.Context, raw string) ([]string, error)
 	river     *river.Client[pgx.Tx]
 	store     *store
-}
-
-// Commit describes a command about to commit.
-type Commit struct {
-	Command   string
-	Call      string
-	Principal int64
-	For       *int64
-	Subjects  []string
-	Roots     []int64 // roots of the command
-	Rows      []Row   // rows changed
-	Run       *int64
 }
 
 // Row is one changed row, as returned by an effect.
@@ -263,9 +247,6 @@ func ints(ids []int64) string {
 	}
 	return "{" + strings.Join(parts, ",") + "}"
 }
-
-// View returns the registry view name, or nil.
-func (k *Kernel) ViewByName(name string) *View { return k.views[name] }
 
 // CommandByName returns the registry command name, or nil.
 func (k *Kernel) CommandByName(name string) *Command { return k.commands[name] }

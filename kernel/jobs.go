@@ -61,10 +61,12 @@ func (b *booter) bootJobs(ctx context.Context) {
 				&river.PeriodicJobOpts{RunOnStart: true}))
 		}
 	}
-	for on, kinds := range mergedKeys(b.Reactions, b.OnInserts) {
-		for _, kind := range kinds {
-			if b.jobs[kind] == nil {
-				b.fail("reaction on %s: job %s is not declared", on, kind)
+	for _, reactions := range []map[string][]string{b.Reactions, b.OnInserts} {
+		for on, kinds := range reactions {
+			for _, kind := range kinds {
+				if b.jobs[kind] == nil {
+					b.fail("reaction on %s: job %s is not declared", on, kind)
+				}
 			}
 		}
 	}
@@ -87,16 +89,6 @@ func (b *booter) bootJobs(ctx context.Context) {
 	if err != nil {
 		b.fail("jobs: %v", err)
 	}
-}
-
-func mergedKeys(ms ...map[string][]string) map[string][]string {
-	out := map[string][]string{}
-	for _, m := range ms {
-		for k, v := range m {
-			out[k] = append(out[k], v...)
-		}
-	}
-	return out
 }
 
 // jobParams builds the insertion of a job; As replaces the subjects.

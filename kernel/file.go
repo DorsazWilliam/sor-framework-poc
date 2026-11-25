@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -179,7 +180,8 @@ func (k *Kernel) fileRoutes(mux *http.ServeMux) {
 		if v == nil {
 			return nil, problem(404, "not_found", "no view "+in.View)
 		}
-		if !hasFileColumn(v, in.Column) {
+		// the column references file: the view's reach guards the file
+		if !slices.ContainsFunc(v.Columns, func(c Col) bool { return c.Name == in.Column && c.Ref == "file" }) {
 			return nil, problem(422, "invalid", in.Column+" is not a file column of "+in.View)
 		}
 		if len(in.Params) == 0 {
@@ -207,16 +209,6 @@ func (k *Kernel) fileRoutes(mux *http.ServeMux) {
 		}
 		return map[string]string{"url": req2.URL, "name": name, "type": typ}, nil
 	})
-}
-
-// hasFileColumn: column of v references the file table, so the view's reach guards the file.
-func hasFileColumn(v *View, column string) bool {
-	for _, c := range v.Columns {
-		if c.Name == column && c.Ref == "file" {
-			return true
-		}
-	}
-	return false
 }
 
 // fileGC is the job deleting the file rows referenced by no foreign key, registered for more than a

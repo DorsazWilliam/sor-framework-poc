@@ -1,7 +1,6 @@
 package kernel_test
 
 import (
-	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -17,7 +16,7 @@ import (
 func TestHTTP(t *testing.T) {
 	k := setup(t)
 	h, api := k.API(kernel.Config{
-		Verify: func(_ context.Context, raw string) ([]string, error) { return strings.Split(raw, "+"), nil },
+		Issuer: issuer(t),
 		Labels: fstest.MapFS{"fr.json": {Data: []byte(`{"t.entry":"Saisie"}`)}},
 		UI:     fstest.MapFS{"index.html": {Data: []byte("<p>app")}},
 	})
@@ -26,7 +25,7 @@ func TestHTTP(t *testing.T) {
 	do := func(method, path, token, body string) (*http.Response, map[string]any, string) {
 		req, _ := http.NewRequest(method, srv.URL+path, strings.NewReader(body))
 		if token != "" {
-			req.Header.Set("Authorization", "Bearer "+token)
+			req.Header.Set("Authorization", "Bearer "+jwt(t, token))
 		}
 		res, err := http.DefaultClient.Do(req)
 		if err != nil {
@@ -44,24 +43,24 @@ func TestHTTP(t *testing.T) {
 	if res, m, _ := do("GET", "/api/me", "nobody", ""); res.StatusCode != 403 || m["code"] != "forbidden" {
 		t.Fatalf("unknown subject: %d %v", res.StatusCode, m)
 	}
-	res, m, _ := do("GET", "/api/me", "bot+alice", "")
+	res, m, _ := do("GET", "/api/me", "agent-user", "")
 	if res.StatusCode != 200 || m["id"].(float64) != 4 || m["self"].(float64) != 2 || m["for"].(map[string]any)["name"] != "Alice" || len(m["functions"].([]any)) != 1 ||
 		m["reach"].(map[string]any)["self"].([]any)[0].(float64) != 2 {
 		t.Fatalf("me as agent for alice: %v", m)
 	}
-	res, _, body := do("POST", "/api/v/entry_grid", "alice", `{"sort":[{"col":"day","dir":"asc"}]}`)
+	res, _, body := do("POST", "/api/v/entry_grid", "user", `{"sort":[{"col":"day","dir":"asc"}]}`)
 	if res.StatusCode != 200 || !strings.HasPrefix(body, `[{"id":1,`) || !strings.Contains(res.Header.Get("Server-Timing"), `desc="2 rt"`) {
 		t.Fatalf("view: %d %s %s", res.StatusCode, res.Header.Get("Server-Timing"), body)
 	}
-	res, m, _ = do("POST", "/api/c/entry.update", "alice", `{"ids":[1],"worked_min":900}`)
+	res, m, _ = do("POST", "/api/c/entry.update", "user", `{"ids":[1],"worked_min":900}`)
 	if res.StatusCode != 409 || m["code"] != "rejected" || res.Header.Get("Content-Type") != "application/problem+json" {
 		t.Fatalf("rejected: %d %v", res.StatusCode, m)
 	}
-	res, m, _ = do("POST", "/api/c/entry.update", "alice", `{"ids":"x"}`)
+	res, m, _ = do("POST", "/api/c/entry.update", "user", `{"ids":"x"}`)
 	if res.StatusCode != 422 || m["code"] != "invalid" || len(m["errors"].([]any)) == 0 {
 		t.Fatalf("invalid: %d %v", res.StatusCode, m)
 	}
-	res, m, _ = do("POST", "/api/c/entry.update", "alice", `{"ids":[1],"note":"http"}`)
+	res, m, _ = do("POST", "/api/c/entry.update", "user", `{"ids":[1],"note":"http"}`)
 	if res.StatusCode != 200 || m["ids"].([]any)[0].(float64) != 1 || m["changed"].([]any)[0].(map[string]any)["table"] != "entry" {
 		t.Fatalf("update: %d %v", res.StatusCode, m)
 	}
@@ -83,7 +82,7 @@ func TestHTTP(t *testing.T) {
 		}
 		return out
 	}
-	_, m, _ = do("GET", "/api/meta", "alice", "")
+	_, m, _ = do("GET", "/api/meta", "user", "")
 	if !slices.Contains(names(m, "views"), "entry_grid") || slices.Contains(names(m, "commands"), "entry.validate") ||
 		slices.Contains(names(m, "views"), "entry_run_candidates") || slices.Contains(names(m, "tables"), "connection") || m["functions"].([]any)[0] != "entry" {
 		t.Fatalf("meta of alice: %v", m)

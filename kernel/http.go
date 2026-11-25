@@ -33,8 +33,6 @@ type Config struct {
 	PublicURL string
 	Labels    fs.FS // <lang>.json
 	UI        fs.FS // the SPA; index.html is the fallback
-	// Verify replaces the OIDC verification of a raw token; it returns [sub] or [sub, act_for].
-	Verify func(ctx context.Context, raw string) ([]string, error)
 }
 
 const sessionCookie = "sor_session"
@@ -321,9 +319,6 @@ func (a *authn) init(ctx context.Context) error {
 }
 
 func (a *authn) verify(ctx context.Context, raw string) ([]string, error) {
-	if a.cfg.Verify != nil {
-		return a.cfg.Verify(ctx, raw)
-	}
 	if err := a.init(ctx); err != nil {
 		return nil, err
 	}

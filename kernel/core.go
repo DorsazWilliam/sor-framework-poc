@@ -13,7 +13,7 @@ var coreSchema string
 // capabilities on file, connection, delivery and delivery_result are set by the module that owns their policy,
 // declaring the table again (options add up), as it adds options to a command by declaring it again.
 var Core = Module{Name: "kernel", Schema: coreSchema, Register: func(r *Registry) {
-	r.Table("file", NoCRUD(), Label("name"))
+	r.Table("file", NoCRUD())
 	r.Table("run", Anchor("owner_id", "self"), Read(Any), Write(Any), NoCRUD())
 	r.Table("saved_view", Anchor("owner_id", "self"), Read(Any), Write(Any))
 	r.Table("connection", NoCRUD())

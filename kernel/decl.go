@@ -113,7 +113,9 @@ type Filter struct {
 }
 
 // Schema is that of a filter on a column or by an action (SPEC §7).
-func (Filter) Schema(huma.Registry) *huma.Schema { return filterSchema(&huma.Schema{Type: huma.TypeString}) }
+func (Filter) Schema(huma.Registry) *huma.Schema {
+	return filterSchema(&huma.Schema{Type: huma.TypeString})
+}
 
 func filterSchema(col *huma.Schema) *huma.Schema {
 	return &huma.Schema{OneOf: []*huma.Schema{
@@ -179,12 +181,12 @@ func (r *Registry) Table(name string, opts ...TableOpt) {
 	}
 }
 
-func Root() TableOpt                   { return func(t *TableDecl) { t.ChildOf, t.ChildFK = "", "" } }
 func ChildOf(root, fk string) TableOpt { return func(t *TableDecl) { t.ChildOf, t.ChildFK = root, fk } }
 func Under(root string) TableOpt       { return func(t *TableDecl) { t.Under = root } }
 func Anchor(column, reach string) TableOpt {
 	return func(t *TableDecl) { t.Anchor = &AnchorDecl{column, reach} }
 }
+
 // Any is the capability of every authenticated principal, said explicitly: nothing is open by default.
 const Any = "any"
 

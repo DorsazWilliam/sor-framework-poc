@@ -148,8 +148,7 @@ func (r *runner) execute(ctx context.Context, conn *pgxpool.Conn, p *Principal, 
 		}
 		return r.set(ctx, "state = 'cancelled', finished_at = sor_now()")
 	}
-	err := r.k.commit(ctx, conn, &Commit{Command: c.Name, Call: r.call, Principal: p.ID, For: p.forID(), Subjects: p.Subjects,
-		Rows: rows, Run: &r.id}, anchors, jobs)
+	err := r.k.commit(ctx, conn, c.Name, r.call, rows, anchors, jobs)
 	if err != nil {
 		return err
 	}

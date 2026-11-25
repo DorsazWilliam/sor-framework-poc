@@ -25,7 +25,7 @@ func TestMCP(t *testing.T) {
 	ctx := context.Background()
 	session := func(token string) *mcp.ClientSession {
 		c := mcp.NewClient(&mcp.Implementation{Name: "test", Version: "1"}, nil)
-		s, err := c.Connect(ctx, &mcp.StreamableClientTransport{Endpoint: srv.URL + "/mcp", HTTPClient: &http.Client{Transport: bearer(token)}}, nil)
+		s, err := c.Connect(ctx, &mcp.StreamableClientTransport{Endpoint: srv.URL + "/mcp", HTTPClient: &http.Client{Transport: bearer(jwt(t, token))}}, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -43,7 +43,7 @@ func TestMCP(t *testing.T) {
 		}
 		return names
 	}
-	alice, boss := session("alice"), session("boss")
+	alice, boss := session("user"), session("boss")
 	if a, b := tools(alice), tools(boss); slices.Contains(a, "entry.validate") || !slices.Contains(b, "entry.validate") || !slices.Contains(a, "entry_grid") {
 		t.Fatalf("tools by capability: alice %v, boss %v", a, b)
 	}

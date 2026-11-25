@@ -8,8 +8,10 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -30,9 +32,43 @@ func storage(t *testing.T, k *kernel.Kernel) {
 	}
 }
 
-// server serves the API; the bearer token is the subject (or sub+act_for).
+// issuer is the identity provider of the tests, $TEST_ISSUER (deploy/idp.json: a client id is the subject of its token,
+// agent-user acts for user).
+func issuer(t *testing.T) string {
+	t.Helper()
+	iss := os.Getenv("TEST_ISSUER")
+	if iss == "" {
+		t.Skip("TEST_ISSUER not set")
+	}
+	return iss
+}
+
+var tokens sync.Map
+
+// jwt is a token of the identity provider for client id sub (client credentials).
+func jwt(t *testing.T, sub string) string {
+	t.Helper()
+	if tok, ok := tokens.Load(sub); ok {
+		return tok.(string)
+	}
+	res, err := http.PostForm(issuer(t)+"/token", url.Values{"grant_type": {"client_credentials"}, "client_id": {sub}, "client_secret": {"secret"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	var body struct {
+		AccessToken string `json:"access_token"`
+	}
+	if err := json.NewDecoder(res.Body).Decode(&body); err != nil || body.AccessToken == "" {
+		t.Fatalf("token of %s: %d %v", sub, res.StatusCode, err)
+	}
+	tokens.Store(sub, body.AccessToken)
+	return body.AccessToken
+}
+
+// server serves the API, authenticating with the identity provider of the tests.
 func server(t *testing.T, k *kernel.Kernel) *httptest.Server {
-	h, _ := k.API(kernel.Config{Verify: func(_ context.Context, raw string) ([]string, error) { return strings.Split(raw, "+"), nil }})
+	h, _ := k.API(kernel.Config{Issuer: issuer(t)})
 	srv := httptest.NewServer(h)
 	t.Cleanup(srv.Close)
 	return srv
@@ -42,7 +78,7 @@ func post(t *testing.T, srv *httptest.Server, path, token string, body any) (int
 	t.Helper()
 	b, _ := json.Marshal(body)
 	req, _ := http.NewRequest("POST", srv.URL+path, strings.NewReader(string(b)))
-	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Authorization", "Bearer "+jwt(t, token))
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatal(err)
@@ -62,7 +98,7 @@ func TestFiles(t *testing.T) {
 	sum := sha256.Sum256([]byte(data))
 	hash := hex.EncodeToString(sum[:])
 
-	_, m := post(t, srv, "/api/files/presign", "alice", map[string]any{"hash": hash, "size": len(data), "type": "text/plain"})
+	_, m := post(t, srv, "/api/files/presign", "user", map[string]any{"hash": hash, "size": len(data), "type": "text/plain"})
 	if m["exists"] != false || m["url"] == nil {
 		t.Fatalf("presign: %v", m)
 	}
@@ -84,18 +120,18 @@ func TestFiles(t *testing.T) {
 	if st := put(data); st != 200 {
 		t.Fatalf("put: %d", st)
 	}
-	if _, m := post(t, srv, "/api/files/presign", "alice", map[string]any{"hash": hash, "size": len(data), "type": "text/plain"}); m["exists"] != true {
+	if _, m := post(t, srv, "/api/files/presign", "user", map[string]any{"hash": hash, "size": len(data), "type": "text/plain"}); m["exists"] != true {
 		t.Fatalf("presign of a stored blob: %v", m)
 	}
-	st, m := post(t, srv, "/api/files", "alice", map[string]any{"hash": hash, "name": "receipt.txt", "type": "text/plain"})
+	st, m := post(t, srv, "/api/files", "user", map[string]any{"hash": hash, "name": "receipt.txt", "type": "text/plain"})
 	if st != 200 || m["id"] == nil {
 		t.Fatalf("register: %d %v", st, m)
 	}
 	id := int64(m["id"].(float64))
-	call(t, k, principal(t, k, "alice"), "entry.update", `{"ids":[1],"file_id":`+itoa(id)+`}`)
+	call(t, k, principal(t, k, "user"), "entry.update", `{"ids":[1],"file_id":`+itoa(id)+`}`)
 
 	req := map[string]any{"view": "entry", "params": map[string]any{}, "id": 1, "column": "file_id"}
-	st, m = post(t, srv, "/api/file", "alice", req)
+	st, m = post(t, srv, "/api/file", "user", req)
 	if st != 200 || m["name"] != "receipt.txt" || m["type"] != "text/plain" {
 		t.Fatalf("download: %d %v", st, m)
 	}
@@ -111,7 +147,7 @@ func TestFiles(t *testing.T) {
 	if st, m := post(t, srv, "/api/file", "bob", req); st != 404 || m["code"] != "not_found" {
 		t.Fatalf("download out of reach: %d %v", st, m)
 	}
-	if st, _ := post(t, srv, "/api/file", "alice", map[string]any{"view": "entry", "id": 1, "column": "worked_min"}); st != 422 {
+	if st, _ := post(t, srv, "/api/file", "user", map[string]any{"view": "entry", "id": 1, "column": "worked_min"}); st != 422 {
 		t.Fatalf("download of a column that is not a file: %d", st)
 	}
 

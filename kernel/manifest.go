@@ -149,17 +149,6 @@ func Load(manifestJSON []byte, mods ...Module) (*Static, error) {
 	return &Static{Registry: r, Modules: mods, Queries: qs, Functions: schemaFunctions(mods), problems: problems}, nil
 }
 
-// effectQueries are the :exec queries referenced by commands.
-func (s *Static) effectQueries() map[string]bool {
-	used := map[string]bool{}
-	for _, c := range s.Commands {
-		for _, e := range c.Effects {
-			used[e] = true
-		}
-	}
-	return used
-}
-
 // CheckStatic lists the violations visible without a database. labels is labels/fr.json, or nil.
 func (s *Static) CheckStatic(labels map[string]string) []string {
 	p := slices.Clone(s.problems)
@@ -171,7 +160,12 @@ func (s *Static) CheckStatic(labels map[string]string) []string {
 			p = append(p, fmt.Sprintf("%s: function %q is not a value of enum fn", where, f))
 		}
 	}
-	used := s.effectQueries()
+	used := map[string]bool{} // the :exec queries referenced by commands
+	for _, c := range s.Commands {
+		for _, e := range c.Effects {
+			used[e] = true
+		}
+	}
 	for _, name := range sortedKeys(s.Queries) {
 		q := s.Queries[name]
 		if !q.isView() {
