@@ -25,6 +25,7 @@ insert into person (subject, name, kind, functions) values ('bot', 'Bot', 'agent
 insert into entry (person_id, day, worked_min, note) values
   (2, '2026-11-02', 60, 'a1'), (2, '2026-11-03', 120, 'a2'), (3, '2026-11-02', 30, 'b1'), (1, '2026-11-04', 90, 'boss');
 insert into entry_line (entry_id, label, line_min) values (1, 'x', 30), (1, 'y', 30);
+insert into connection (kind, name, endpoint, secret_name, subject) values ('acct', 'Accounting', 'http://127.0.0.1:1', 'acct', 'bot');
 `
 
 // setup creates a fresh database with the kernel and fixture schemas and boots a kernel on it.
@@ -64,6 +65,9 @@ func setup(t *testing.T) *kernel.Kernel {
 	}
 	exec(t, pool, s.Schema())
 	if err := kernel.EnsurePartitions(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	if err := kernel.MigrateJobs(ctx, pool); err != nil {
 		t.Fatal(err)
 	}
 	exec(t, pool, fixture)
@@ -258,6 +262,14 @@ func TestRoundTrips(t *testing.T) {
 		}},
 		{"child create", 4, func(ctx context.Context, p *kernel.Principal) error {
 			_, err := k.Call(ctx, p, "entry_line.create", []byte(`{"entry_id":1,"label":"rt"}`))
+			return err
+		}},
+		{"command with a reaction", 5, func(ctx context.Context, p *kernel.Principal) error {
+			_, err := k.Call(ctx, p, "entry.ping", []byte(`{"ids":[1]}`))
+			return err
+		}},
+		{"command with a reaction, again", 5, func(ctx context.Context, p *kernel.Principal) error {
+			_, err := k.Call(ctx, p, "entry.ping", []byte(`{"ids":[2]}`))
 			return err
 		}},
 		{"delete", 4, func(ctx context.Context, p *kernel.Principal) error {

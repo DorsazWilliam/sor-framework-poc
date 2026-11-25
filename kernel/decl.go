@@ -66,11 +66,13 @@ type JobDecl struct {
 // Job is one execution of a job kind.
 type Job struct {
 	Kind     string          `json:"kind"`
-	Args     json.RawMessage `json:"args"`
-	Subjects []string        `json:"subjects"`
+	Args     json.RawMessage `json:"args"`     // ReactionArgs for a reaction; null for a periodic job
+	Subjects []string        `json:"subjects"` // As(subject), or the subjects of the command that inserted it
+	// Principal is resolved from Subjects before the job runs; nil without subjects.
+	Principal *Principal `json:"-"`
 }
 
-// JobFunc runs a job; it calls views and commands through k with job.Subjects.
+// JobFunc runs a job; it calls views and commands through k as job.Principal. An error retries the job.
 type JobFunc func(ctx context.Context, k *Kernel, job Job) error
 
 // Screen is a node of the UI tree (SPEC §19).

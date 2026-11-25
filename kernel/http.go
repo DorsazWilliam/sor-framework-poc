@@ -98,6 +98,8 @@ func (k *Kernel) API(cfg Config) (http.Handler, huma.API) {
 		w.Write([]byte("{}"))
 	})
 	mux.HandleFunc("GET /api/live", k.live)
+	k.fileRoutes(mux)
+	mux.Handle("/mcp", k.mcpHandler())
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, problem(404, "not_found", r.URL.Path))
 	})
@@ -156,12 +158,18 @@ func (k *Kernel) authenticate(r *http.Request) (*Principal, error) {
 	return p, err
 }
 
-func writeProblem(w http.ResponseWriter, err error) {
+// asProblem returns the problem body of err; an error the kernel did not classify is logged and internal.
+func asProblem(err error) *Problem {
 	var p *Problem
 	if !errors.As(err, &p) {
 		slog.Error("request failed", "err", err)
 		p = &Problem{Status: 500, Title: "Internal Server Error", Code: "internal"}
 	}
+	return p
+}
+
+func writeProblem(w http.ResponseWriter, err error) {
+	p := asProblem(err)
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(p.Status)
 	json.NewEncoder(w).Encode(p)

@@ -3,10 +3,10 @@
     "version": "2",
     "engine": "postgresql",
     "schema": [
-      "schema.sql"
+      "kernel/schema.sql"
     ],
     "queries": [
-      "queries.sql"
+      "kernel/queries.sql"
     ],
     "codegen": {
       "out": "",
@@ -707,7 +707,7 @@
                 "name": "rejected",
                 "not_null": true,
                 "is_array": false,
-                "comment": "Roots refused: [{id, conditions, row}].",
+                "comment": "Roots refused: [{input, code, id, conditions, row, constraint}].",
                 "length": -1,
                 "is_named_param": false,
                 "is_func_call": false,
@@ -1114,10 +1114,10 @@
                 "array_dims": 0
               },
               {
-                "name": "principal_id",
-                "not_null": false,
+                "name": "subject",
+                "not_null": true,
                 "is_array": false,
-                "comment": "Principal acting for the connection.",
+                "comment": "Subject of the principal acting for the connection.",
                 "length": -1,
                 "is_named_param": false,
                 "is_func_call": false,
@@ -1130,8 +1130,8 @@
                 "table_alias": "",
                 "type": {
                   "catalog": "",
-                  "schema": "pg_catalog",
-                  "name": "int8"
+                  "schema": "",
+                  "name": "text"
                 },
                 "is_sqlc_slice": false,
                 "embed_table": null,
@@ -66756,9 +66756,126 @@
       ],
       "filename": "queries.sql",
       "insert_into_table": null
+    },
+    {
+      "text": "insert into delivery_result (delivery_id, ok, status, detail)\nselect d.id, $1::boolean, $2::integer, $3::text from delivery d where d.id = any($4::bigint[])",
+      "name": "DeliveryResult",
+      "cmd": ":exec",
+      "columns": [],
+      "params": [
+        {
+          "number": 1,
+          "column": {
+            "name": "ok",
+            "not_null": true,
+            "is_array": false,
+            "comment": "",
+            "length": -1,
+            "is_named_param": true,
+            "is_func_call": false,
+            "scope": "",
+            "table": null,
+            "table_alias": "",
+            "type": {
+              "catalog": "",
+              "schema": "pg_catalog",
+              "name": "bool"
+            },
+            "is_sqlc_slice": false,
+            "embed_table": null,
+            "original_name": "",
+            "unsigned": false,
+            "array_dims": 0
+          }
+        },
+        {
+          "number": 2,
+          "column": {
+            "name": "status",
+            "not_null": false,
+            "is_array": false,
+            "comment": "",
+            "length": -1,
+            "is_named_param": true,
+            "is_func_call": false,
+            "scope": "",
+            "table": null,
+            "table_alias": "",
+            "type": {
+              "catalog": "",
+              "schema": "pg_catalog",
+              "name": "int4"
+            },
+            "is_sqlc_slice": false,
+            "embed_table": null,
+            "original_name": "",
+            "unsigned": false,
+            "array_dims": 0
+          }
+        },
+        {
+          "number": 3,
+          "column": {
+            "name": "detail",
+            "not_null": false,
+            "is_array": false,
+            "comment": "",
+            "length": -1,
+            "is_named_param": true,
+            "is_func_call": false,
+            "scope": "",
+            "table": null,
+            "table_alias": "",
+            "type": {
+              "catalog": "",
+              "schema": "",
+              "name": "text"
+            },
+            "is_sqlc_slice": false,
+            "embed_table": null,
+            "original_name": "",
+            "unsigned": false,
+            "array_dims": 0
+          }
+        },
+        {
+          "number": 4,
+          "column": {
+            "name": "ids",
+            "not_null": true,
+            "is_array": true,
+            "comment": "",
+            "length": -1,
+            "is_named_param": true,
+            "is_func_call": false,
+            "scope": "",
+            "table": null,
+            "table_alias": "",
+            "type": {
+              "catalog": "",
+              "schema": "pg_catalog",
+              "name": "int8"
+            },
+            "is_sqlc_slice": false,
+            "embed_table": null,
+            "original_name": "",
+            "unsigned": false,
+            "array_dims": 1
+          }
+        }
+      ],
+      "comments": [
+        " Records the outcome of a delivery attempt."
+      ],
+      "filename": "queries.sql",
+      "insert_into_table": {
+        "catalog": "",
+        "schema": "",
+        "name": "delivery_result"
+      }
     }
   ],
   "sqlc_version": "v1.31.1",
-  "plugin_options": "eyJvdXQiOiIuLi9nZW4iLCJmaWxlbmFtZSI6InNxbGMuanNvbiJ9",
+  "plugin_options": "eyJvdXQiOiJnZW4iLCJmaWxlbmFtZSI6InNxbGMuanNvbiJ9",
   "global_options": ""
 }

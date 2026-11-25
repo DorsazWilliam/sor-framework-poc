@@ -34,7 +34,8 @@ create table entry (
     day date not null,
     worked_min integer not null check (worked_min > 0),
     note text,
-    validated boolean not null default false
+    validated boolean not null default false,
+    file_id bigint references file
 );
 comment on table entry is 'Time entry.';
 

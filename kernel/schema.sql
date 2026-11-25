@@ -85,7 +85,7 @@ comment on column run.for_id is 'Human the principal acted for, if any.';
 comment on column run.state is 'Lifecycle state.';
 comment on column run.total is 'Number of candidate roots.';
 comment on column run.done is 'Number of roots processed.';
-comment on column run.rejected is 'Roots refused: [{id, conditions, row}].';
+comment on column run.rejected is 'Roots refused: [{input, code, id, conditions, row, constraint}].';
 comment on column run.error is 'Failure message.';
 comment on column run.cancel_requested is 'Set by run.cancel; read by the run between two roots.';
 comment on column run.created_at is 'When the run was queued.';
@@ -111,7 +111,7 @@ create table connection (
     name text not null,
     endpoint text not null,
     secret_name text,
-    principal_id bigint,
+    subject text not null,
     cursor text,
     pulled_at timestamptz,
     pull_error text
@@ -121,7 +121,7 @@ comment on column connection.kind is 'Kind of system.';
 comment on column connection.name is 'Name.';
 comment on column connection.endpoint is 'Base URL.';
 comment on column connection.secret_name is 'Name of the secret in the vault.';
-comment on column connection.principal_id is 'Principal acting for the connection.';
+comment on column connection.subject is 'Subject of the principal acting for the connection.';
 comment on column connection.cursor is 'Cursor of the last pull.';
 comment on column connection.pulled_at is 'Instant of the last pull.';
 comment on column connection.pull_error is 'Error of the last pull.';

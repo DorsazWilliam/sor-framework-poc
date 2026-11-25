@@ -13,6 +13,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/riverqueue/river"
 )
 
 // Kernel is the registry bound to a database.
@@ -21,18 +22,21 @@ type Kernel struct {
 	Pool *pgxpool.Pool
 	Meta Meta
 
-	// BeforeCommit, if set, runs inside a command's transaction after its checks; what it queues on b
-	// is sent with the commit, in the same round trip.
+	// BeforeCommit, if set, runs inside a command's transaction after its checks and job inserts; what
+	// it queues on b is sent with the commit, in the same round trip.
 	BeforeCommit func(ctx context.Context, b *pgx.Batch, c *Commit) error
 
 	tables    map[string]*Table
 	views     map[string]*View
 	commands  map[string]*Command
+	jobs      map[string]*JobDecl
 	types     map[uint32]pgType
 	refs      map[string]string
 	principal *Query
 	hub       hub
 	verify    func(ctx context.Context, raw string) ([]string, error)
+	river     *river.Client[pgx.Tx]
+	store     *store
 }
 
 // Commit describes a command about to commit.

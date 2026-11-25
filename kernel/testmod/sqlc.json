@@ -709,7 +709,7 @@
                 "name": "rejected",
                 "not_null": true,
                 "is_array": false,
-                "comment": "Roots refused: [{id, conditions, row}].",
+                "comment": "Roots refused: [{input, code, id, conditions, row, constraint}].",
                 "length": -1,
                 "is_named_param": false,
                 "is_func_call": false,
@@ -1116,10 +1116,10 @@
                 "array_dims": 0
               },
               {
-                "name": "principal_id",
-                "not_null": false,
+                "name": "subject",
+                "not_null": true,
                 "is_array": false,
-                "comment": "Principal acting for the connection.",
+                "comment": "Subject of the principal acting for the connection.",
                 "length": -1,
                 "is_named_param": false,
                 "is_func_call": false,
@@ -1132,8 +1132,8 @@
                 "table_alias": "",
                 "type": {
                   "catalog": "",
-                  "schema": "pg_catalog",
-                  "name": "int8"
+                  "schema": "",
+                  "name": "text"
                 },
                 "is_sqlc_slice": false,
                 "embed_table": null,
@@ -2136,6 +2136,32 @@
                 "original_name": "",
                 "unsigned": false,
                 "array_dims": 0
+              },
+              {
+                "name": "file_id",
+                "not_null": false,
+                "is_array": false,
+                "comment": "",
+                "length": -1,
+                "is_named_param": false,
+                "is_func_call": false,
+                "scope": "",
+                "table": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "entry"
+                },
+                "table_alias": "",
+                "type": {
+                  "catalog": "",
+                  "schema": "pg_catalog",
+                  "name": "int8"
+                },
+                "is_sqlc_slice": false,
+                "embed_table": null,
+                "original_name": "",
+                "unsigned": false,
+                "array_dims": 0
               }
             ],
             "comment": "Time entry."
@@ -2410,6 +2436,32 @@
                   "catalog": "",
                   "schema": "",
                   "name": "pg_catalog.bool"
+                },
+                "is_sqlc_slice": false,
+                "embed_table": null,
+                "original_name": "",
+                "unsigned": false,
+                "array_dims": 0
+              },
+              {
+                "name": "file_id",
+                "not_null": false,
+                "is_array": false,
+                "comment": "",
+                "length": -1,
+                "is_named_param": false,
+                "is_func_call": false,
+                "scope": "",
+                "table": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "entry_p"
+                },
+                "table_alias": "",
+                "type": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "pg_catalog.int8"
                 },
                 "is_sqlc_slice": false,
                 "embed_table": null,
@@ -67696,6 +67748,123 @@
       "insert_into_table": null
     },
     {
+      "text": "insert into delivery_result (delivery_id, ok, status, detail)\nselect d.id, $1::boolean, $2::integer, $3::text from delivery d where d.id = any($4::bigint[])",
+      "name": "DeliveryResult",
+      "cmd": ":exec",
+      "columns": [],
+      "params": [
+        {
+          "number": 1,
+          "column": {
+            "name": "ok",
+            "not_null": true,
+            "is_array": false,
+            "comment": "",
+            "length": -1,
+            "is_named_param": true,
+            "is_func_call": false,
+            "scope": "",
+            "table": null,
+            "table_alias": "",
+            "type": {
+              "catalog": "",
+              "schema": "pg_catalog",
+              "name": "bool"
+            },
+            "is_sqlc_slice": false,
+            "embed_table": null,
+            "original_name": "",
+            "unsigned": false,
+            "array_dims": 0
+          }
+        },
+        {
+          "number": 2,
+          "column": {
+            "name": "status",
+            "not_null": false,
+            "is_array": false,
+            "comment": "",
+            "length": -1,
+            "is_named_param": true,
+            "is_func_call": false,
+            "scope": "",
+            "table": null,
+            "table_alias": "",
+            "type": {
+              "catalog": "",
+              "schema": "pg_catalog",
+              "name": "int4"
+            },
+            "is_sqlc_slice": false,
+            "embed_table": null,
+            "original_name": "",
+            "unsigned": false,
+            "array_dims": 0
+          }
+        },
+        {
+          "number": 3,
+          "column": {
+            "name": "detail",
+            "not_null": false,
+            "is_array": false,
+            "comment": "",
+            "length": -1,
+            "is_named_param": true,
+            "is_func_call": false,
+            "scope": "",
+            "table": null,
+            "table_alias": "",
+            "type": {
+              "catalog": "",
+              "schema": "",
+              "name": "text"
+            },
+            "is_sqlc_slice": false,
+            "embed_table": null,
+            "original_name": "",
+            "unsigned": false,
+            "array_dims": 0
+          }
+        },
+        {
+          "number": 4,
+          "column": {
+            "name": "ids",
+            "not_null": true,
+            "is_array": true,
+            "comment": "",
+            "length": -1,
+            "is_named_param": true,
+            "is_func_call": false,
+            "scope": "",
+            "table": null,
+            "table_alias": "",
+            "type": {
+              "catalog": "",
+              "schema": "pg_catalog",
+              "name": "int8"
+            },
+            "is_sqlc_slice": false,
+            "embed_table": null,
+            "original_name": "",
+            "unsigned": false,
+            "array_dims": 1
+          }
+        }
+      ],
+      "comments": [
+        " Records the outcome of a delivery attempt."
+      ],
+      "filename": "queries.sql",
+      "insert_into_table": {
+        "catalog": "",
+        "schema": "",
+        "name": "delivery_result"
+      }
+    },
+    {
       "text": "select p.subject, p.id, p.kind, p.name, p.lang, p.functions,\n       jsonb_build_object(\n         'self', jsonb_build_array(p.id),\n         'team', coalesce((select jsonb_agg(t.id) from person t where t.manager_id = p.id), '[]'::jsonb),\n         'user', jsonb_build_array(p.id) || coalesce((select jsonb_agg(t.id) from person t where t.manager_id = p.id), '[]'::jsonb)\n       ) as reach\nfrom person p\nwhere p.subject = any($1::text[])",
       "name": "Principal",
       "cmd": ":many",
@@ -68261,6 +68430,254 @@
       ],
       "filename": "queries.sql",
       "insert_into_table": null
+    },
+    {
+      "text": "select (case when i \u003c $1::int then 1 else 2 end)::bigint as person_id, $2::date as \"day\",\n       (case when i = $3::int then 700 else 15 end) as worked_min\nfrom generate_series(0, 7) i\nwhere i \u003c $4::int",
+      "name": "EntryRunCandidates",
+      "cmd": ":many",
+      "columns": [
+        {
+          "name": "person_id",
+          "not_null": true,
+          "is_array": false,
+          "comment": "",
+          "length": -1,
+          "is_named_param": false,
+          "is_func_call": false,
+          "scope": "",
+          "table": null,
+          "table_alias": "",
+          "type": {
+            "catalog": "",
+            "schema": "pg_catalog",
+            "name": "int8"
+          },
+          "is_sqlc_slice": false,
+          "embed_table": null,
+          "original_name": "",
+          "unsigned": false,
+          "array_dims": 0
+        },
+        {
+          "name": "day",
+          "not_null": true,
+          "is_array": false,
+          "comment": "",
+          "length": -1,
+          "is_named_param": false,
+          "is_func_call": false,
+          "scope": "",
+          "table": null,
+          "table_alias": "",
+          "type": {
+            "catalog": "",
+            "schema": "",
+            "name": "date"
+          },
+          "is_sqlc_slice": false,
+          "embed_table": null,
+          "original_name": "",
+          "unsigned": false,
+          "array_dims": 0
+        },
+        {
+          "name": "worked_min",
+          "not_null": true,
+          "is_array": false,
+          "comment": "",
+          "length": -1,
+          "is_named_param": false,
+          "is_func_call": false,
+          "scope": "",
+          "table": null,
+          "table_alias": "",
+          "type": {
+            "catalog": "",
+            "schema": "",
+            "name": "int"
+          },
+          "is_sqlc_slice": false,
+          "embed_table": null,
+          "original_name": "",
+          "unsigned": false,
+          "array_dims": 0
+        }
+      ],
+      "params": [
+        {
+          "number": 1,
+          "column": {
+            "name": "split",
+            "not_null": true,
+            "is_array": false,
+            "comment": "",
+            "length": -1,
+            "is_named_param": true,
+            "is_func_call": false,
+            "scope": "",
+            "table": null,
+            "table_alias": "",
+            "type": {
+              "catalog": "",
+              "schema": "pg_catalog",
+              "name": "int4"
+            },
+            "is_sqlc_slice": false,
+            "embed_table": null,
+            "original_name": "",
+            "unsigned": false,
+            "array_dims": 0
+          }
+        },
+        {
+          "number": 2,
+          "column": {
+            "name": "day",
+            "not_null": true,
+            "is_array": false,
+            "comment": "",
+            "length": -1,
+            "is_named_param": true,
+            "is_func_call": false,
+            "scope": "",
+            "table": null,
+            "table_alias": "",
+            "type": {
+              "catalog": "",
+              "schema": "",
+              "name": "date"
+            },
+            "is_sqlc_slice": false,
+            "embed_table": null,
+            "original_name": "",
+            "unsigned": false,
+            "array_dims": 0
+          }
+        },
+        {
+          "number": 3,
+          "column": {
+            "name": "bad",
+            "not_null": true,
+            "is_array": false,
+            "comment": "",
+            "length": -1,
+            "is_named_param": true,
+            "is_func_call": false,
+            "scope": "",
+            "table": null,
+            "table_alias": "",
+            "type": {
+              "catalog": "",
+              "schema": "pg_catalog",
+              "name": "int4"
+            },
+            "is_sqlc_slice": false,
+            "embed_table": null,
+            "original_name": "",
+            "unsigned": false,
+            "array_dims": 0
+          }
+        },
+        {
+          "number": 4,
+          "column": {
+            "name": "n",
+            "not_null": true,
+            "is_array": false,
+            "comment": "",
+            "length": -1,
+            "is_named_param": true,
+            "is_func_call": false,
+            "scope": "",
+            "table": null,
+            "table_alias": "",
+            "type": {
+              "catalog": "",
+              "schema": "pg_catalog",
+              "name": "int4"
+            },
+            "is_sqlc_slice": false,
+            "embed_table": null,
+            "original_name": "",
+            "unsigned": false,
+            "array_dims": 0
+          }
+        }
+      ],
+      "comments": [
+        " Entries a run creates on day: n of them, for person 1 before index split and person 2 after; index bad is too long.",
+        " @anchor none"
+      ],
+      "filename": "queries.sql",
+      "insert_into_table": null
+    },
+    {
+      "text": "insert into delivery (connection_id, kind, root_table, root_id, payload, principal_id)\nselect 1, 'invoice', 'entry', e.id, jsonb_build_object('id', e.id, 'note', e.note), $1::bigint\nfrom entry e where e.id = any($2::bigint[])",
+      "name": "EntryExport",
+      "cmd": ":exec",
+      "columns": [],
+      "params": [
+        {
+          "number": 1,
+          "column": {
+            "name": "self",
+            "not_null": true,
+            "is_array": false,
+            "comment": "",
+            "length": -1,
+            "is_named_param": true,
+            "is_func_call": false,
+            "scope": "",
+            "table": null,
+            "table_alias": "",
+            "type": {
+              "catalog": "",
+              "schema": "pg_catalog",
+              "name": "int8"
+            },
+            "is_sqlc_slice": false,
+            "embed_table": null,
+            "original_name": "",
+            "unsigned": false,
+            "array_dims": 0
+          }
+        },
+        {
+          "number": 2,
+          "column": {
+            "name": "ids",
+            "not_null": true,
+            "is_array": true,
+            "comment": "",
+            "length": -1,
+            "is_named_param": true,
+            "is_func_call": false,
+            "scope": "",
+            "table": null,
+            "table_alias": "",
+            "type": {
+              "catalog": "",
+              "schema": "pg_catalog",
+              "name": "int8"
+            },
+            "is_sqlc_slice": false,
+            "embed_table": null,
+            "original_name": "",
+            "unsigned": false,
+            "array_dims": 1
+          }
+        }
+      ],
+      "comments": [
+        " Sends the entries to connection 1."
+      ],
+      "filename": "queries.sql",
+      "insert_into_table": {
+        "catalog": "",
+        "schema": "",
+        "name": "delivery"
+      }
     }
   ],
   "sqlc_version": "v1.31.1",

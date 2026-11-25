@@ -8,6 +8,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/jackc/pgx/v5"
 )
 
 const defaultLimit, maxLimit = 200, 5000
@@ -41,6 +43,14 @@ func (c *Command) validate(x any) *Problem { return validate(c.in, x) }
 
 // View runs a wrapped view and returns the JSON array produced by Postgres (one round trip).
 func (k *Kernel) View(ctx context.Context, p *Principal, name string, body []byte) ([]byte, error) {
+	return k.view(ctx, k.Pool, p, name, body)
+}
+
+type querier interface {
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}
+
+func (k *Kernel) view(ctx context.Context, q querier, p *Principal, name string, body []byte) ([]byte, error) {
 	v := k.views[name]
 	if v == nil {
 		return nil, problem(404, "not_found", "no view "+name)
@@ -76,7 +86,7 @@ func (k *Kernel) View(ctx context.Context, p *Principal, name string, body []byt
 	sql = "select coalesce(json_agg(t), '[]') from (" + sql + ") t"
 	if !v.history {
 		var out []byte
-		return out, k.Pool.QueryRow(ctx, sql, args...).Scan(&out)
+		return out, q.QueryRow(ctx, sql, args...).Scan(&out)
 	}
 	t := k.tables[fmt.Sprint(req.Params["root_table"])]
 	if t == nil || t.root != t {
@@ -92,7 +102,7 @@ func (k *Kernel) View(ctx context.Context, p *Principal, name string, body []byt
 	}
 	var ok bool
 	var out []byte
-	if err := k.Pool.QueryRow(ctx, "select ("+guard+"), ("+sql+")", args...).Scan(&ok, &out); err != nil {
+	if err := q.QueryRow(ctx, "select ("+guard+"), ("+sql+")", args...).Scan(&ok, &out); err != nil {
 		return nil, err
 	}
 	if !ok {

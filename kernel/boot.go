@@ -67,6 +67,7 @@ func Boot(ctx context.Context, pool *pgxpool.Pool, s *Static) (*Kernel, error) {
 	b.bootTables()
 	b.bootViews(ctx)
 	b.bootCommands(ctx)
+	b.bootJobs(ctx)
 	b.meta()
 	if len(b.problems) > 0 {
 		return k, errors.New(strings.Join(b.problems, "\n"))
@@ -507,11 +508,6 @@ func (b *booter) bootCommands(ctx context.Context) {
 		}
 		c.Description = strings.Join(desc, " ")
 		b.addCommand(c)
-	}
-	for _, j := range b.Jobs {
-		if j.Kind == "" {
-			b.fail("job without kind")
-		}
 	}
 	for cmd := range b.Reactions {
 		if b.commands[cmd] == nil && !slices.ContainsFunc(b.Static.Commands, func(d *CommandDecl) bool { return d.Name == cmd }) {
