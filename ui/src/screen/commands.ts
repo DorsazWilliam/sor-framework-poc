@@ -15,19 +15,28 @@ export const kindIcon: Record<Command["kind"], Icon> = { create: Add, update: Ed
 
 export const takesIds = (c: Command) => !c.rootless && c.kind !== "create" && c.kind !== "run";
 
-// Conditions of an action; a child table's commands use its root's actions (SPEC §7).
-function conditions(c: Command) {
-  const tbl = table(c.table);
-  if (!c.when || !tbl) return [];
-  return tbl.actions[c.when] ?? table(tbl.root)?.actions[c.when] ?? [];
-}
-
-// Enabled = capability ∧ action true on every selected row; otherwise the reasons, as labels.
+// Enabled = capability ∧ action true; otherwise the reasons, as labels. The action is the root's:
+// read on the rows for a root table, on the parent row for a child table (SPEC §7).
 export function evaluate(c: Command, rows: Row[], parent?: Row): { enabled: boolean; reasons: string[] } {
   if (!can(c.needs)) return { enabled: false, reasons: [t("ui.forbidden")] };
   if (takesIds(c) && !rows.length) return { enabled: false, reasons: [t("ui.select_rows")] };
-  const failed = conditions(c).filter((k) => rows.some((r) => (r[k] ?? parent?.[k]) === false));
+  const tbl = table(c.table);
+  const conds = (c.when && tbl && table(tbl.root)?.actions[c.when]) || [];
+  const on = tbl && tbl.root !== tbl.name ? (parent ? [parent] : []) : rows;
+  const failed = conds.filter((k) => on.some((r) => r[k] === false));
   return { enabled: !failed.length, reasons: failed.length ? [t("ui.unmet", { list: failed.map((k) => t(`cond.${k}`)).join(", ") })] : [] };
+}
+
+// The command and its own refresh through the live store; an ApiError is returned, not thrown.
+export async function call(c: Command, input: Record<string, unknown>): Promise<Changed | ApiError> {
+  try {
+    const res = await api.call(c.name, input);
+    applied(res);
+    return res;
+  } catch (e) {
+    if (!(e instanceof ApiError)) throw e;
+    return e;
+  }
 }
 
 export async function execute(
@@ -35,19 +44,15 @@ export async function execute(
   input: Record<string, unknown>,
   onRejected?: (r: Rejected[]) => void,
 ): Promise<Changed | ApiError> {
-  try {
-    const res = await api.call(c.name, input);
-    applied(res);
-    return res;
-  } catch (e) {
-    if (!(e instanceof ApiError)) throw e;
-    report(c, e);
-    if (e.problem.rejected) onRejected?.(e.problem.rejected);
-    return e;
+  const res = await call(c, input);
+  if (res instanceof ApiError) {
+    report(c, res);
+    if (res.problem.rejected) onRejected?.(res.problem.rejected);
   }
+  return res;
 }
 
-function report(c: Command, e: ApiError) {
+export function report(c: Command, e: ApiError) {
   const p = e.problem;
   const name = t(`cmd.${c.name}`);
   if (p.code === "rejected") {

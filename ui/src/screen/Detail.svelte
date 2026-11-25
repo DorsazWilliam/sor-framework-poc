@@ -16,9 +16,11 @@
     id,
     initial,
     tabs = true,
+    parent,
     onsaved,
-  }: { screen: Screen; tbl: Table; id: number | null; initial: Row; tabs?: boolean; onsaved: (id: number) => void } =
-    $props();
+  }: {
+    screen: Screen; tbl: Table; id: number | null; initial: Row; tabs?: boolean; parent?: Row; onsaved: (id: number) => void;
+  } = $props();
 
   let row = $state<Row | null>(null);
   let tab = $state("form");
@@ -50,7 +52,7 @@
   <Tabs bind:value={tab} {items}>
     {#snippet panel(v)}
       {#if v === "form"}
-        <Form {tbl} {row} {initial} file={{ view: tbl.name, params: {} }} {onsaved} />
+        <Form {tbl} {row} {initial} file={{ view: tbl.name, params: {} }} {parent} {onsaved} />
       {:else if v === "history"}
         <History root={tbl.root} id={rootId!} />
       {:else}

@@ -36,11 +36,21 @@ function labels(tbl: string) {
   return m;
 }
 
-async function fetchLookup(tbl: string, filter: Filter[], limit: number) {
+async function fetchLookup(tbl: string, filter: Filter[], limit: number, offset = 0) {
   const m = labels(tbl);
-  const rows = await api.view(`${tbl}.lookup`, { filter, limit });
+  const rows = await api.view(`${tbl}.lookup`, { filter, limit, offset });
   for (const r of rows as Row[]) m.set(r.id as number, String(r.label));
   return rows;
+}
+
+// Every row of a lookup view (with its extra columns), for pickers filtered in memory.
+export async function all(tbl: string): Promise<Row[]> {
+  const out: Row[] = [];
+  for (let offset = 0; ; offset += 5000) {
+    const rows = await fetchLookup(tbl, [], 5000, offset);
+    out.push(...rows);
+    if (rows.length < 5000) return out;
+  }
 }
 
 function load() {

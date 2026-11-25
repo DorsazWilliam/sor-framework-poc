@@ -17,12 +17,14 @@
     row,
     initial = {},
     file,
+    parent,
     onsaved,
   }: {
     tbl: Table;
     row: Row | null;
     initial?: Row;
     file?: { view: string; params: Record<string, unknown> };
+    parent?: Row;
     onsaved: (id: number) => void;
   } = $props();
 
@@ -38,7 +40,7 @@
   });
 
   const cmd = $derived(command(`${tbl.name}.${row ? "update" : "create"}`));
-  const status = $derived(cmd ? evaluate(cmd, row ? [row] : []) : { enabled: false, reasons: [] });
+  const status = $derived(cmd ? evaluate(cmd, row ? [row] : [], parent) : { enabled: false, reasons: [] });
   const changed = $derived(cols.filter((c) => !c.guarded && JSON.stringify(values[c.name] ?? null) !== JSON.stringify(base[c.name] ?? null)));
 
   async function save(e: Event) {
@@ -50,7 +52,9 @@
         .map((c) => [c.name, t("ui.required")]),
     );
     if (Object.keys(errors).length) return;
-    const diff = Object.fromEntries(changed.map((c) => [c.name, values[c.name] ?? null]));
+    // Create sends every value (prefilled ones included), update the changed ones.
+    const sent = row ? changed : cols.filter((c) => !c.guarded && values[c.name] != null);
+    const diff = Object.fromEntries(sent.map((c) => [c.name, values[c.name] ?? null]));
     busy = true;
     const res = await execute(cmd, row ? { ids: [row.id], ...diff } : diff);
     busy = false;

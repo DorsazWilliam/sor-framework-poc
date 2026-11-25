@@ -111,13 +111,28 @@ function activityP(fx: Fx, a: Row): Row {
   const dur = a.duration_min as number;
   const billed = (a.frozen_billed_min as number) ?? (tk.billing === "always" ? dur : tk.billing === "sometimes" ? ((a.billed_min as number) ?? dur) : 0);
   const rate = (a.frozen_rate as number) ?? (f.rate as number) ?? (p.rate as number) ?? (tk.rate as number) ?? 0;
-  const locked = fx.db.period_lock.some((l) => a.date! >= l.date_from! && a.date! <= l.date_to! && (l.user_id == null || l.user_id === a.user_id));
+  const locked = isLocked(fx, a.date as string, a.user_id as number);
   const night = (a.start_tod as number) < 360 || (a.start_tod as number) + dur > 1320;
   return { ...a, project_id: f.project_id, kind: tk.kind, billed_min: billed, rate, amount: (a.frozen_amount as number) ?? r2((rate * billed) / 60),
     counted_min: tk.counts_hours ? (night ? Math.round(dur * 1.25) : dur) : 0,
     to_validate: !!tk.requires_validation || night || (a.id as number) % 7 === 0,
     not_locked: !locked, not_invoiced: a.invoice_id == null, not_validated: a.validated_by == null, is_validated: a.validated_by != null,
-    entry_open: !f.entry_closed && !p.entry_closed && !p.archived, task_allowed: true };
+    entry_open: !f.entry_closed && !p.entry_closed && !p.archived, task_allowed: allowedTasks(fx, a.folder_id as number).has(a.task_id as number) };
+}
+
+const isLocked = (fx: Fx, date: string, user: number) =>
+  fx.db.period_lock.some((l) => date >= l.date_from! && date <= l.date_to! && (l.user_id == null || l.user_id === user));
+
+let allowed: Map<number, Set<number>> | null = null;
+function allowedTasks(fx: Fx, folder: number) {
+  if (!allowed) {
+    allowed = new Map();
+    for (const r of fx.db.folder_task) {
+      if (!allowed.has(r.folder_id)) allowed.set(r.folder_id, new Set());
+      allowed.get(r.folder_id)!.add(r.task_id);
+    }
+  }
+  return allowed.get(folder) ?? new Set<number>();
 }
 
 // Activities of an invoice: attached once invoiced, else the uninvoiced ones of its project in its period.
@@ -153,17 +168,22 @@ function viewRows(fx: Fx, name: string, p: Row): Row[] {
   switch (name) {
     case "activity_grid": return acts();
     case "activity_to_validate": return acts().filter((a) => a.to_validate && a.not_validated && a.user_id !== 1);
-    case "timesheet": return acts().filter((a) => a.user_id === p.user_id);
+    case "timesheet": return acts().filter((a) => a.user_id === p.user_id).sort((x, y) => x.date === y.date ? (x.start_tod as number) - (y.start_tod as number) : x.date! < y.date! ? -1 : 1);
+    case "folder_task_allowed": return [...allowedTasks(fx, p.folder_id as number)].map((task_id) => ({ task_id }));
     case "invoice_activity": {
       const v = get(fx, "invoice", p.invoice_id);
       return v ? invoiceActs(fx, v) : [];
     }
     case "timesheet_day": {
       const out: Row[] = [];
-      for (let d = new Date(p.date_from as string); d <= new Date(p.date_to as string); d.setDate(d.getDate() + 1)) {
+      const pct = (db.work_period.find((w) => w.user_id === p.user_id)?.activity_pct ?? 100) / 100;
+      const mine = db.activity.filter((a) => a.user_id === p.user_id && inRange(a, p)).map((a) => activityP(fx, a));
+      for (let d = new Date(p.date_from as string); d <= new Date(p.date_to as string); d.setUTCDate(d.getUTCDate() + 1)) {
         const date = d.toISOString().slice(0, 10);
-        const done = db.activity.filter((a) => a.user_id === p.user_id && a.date === date).reduce((s, a) => s + (a.duration_min as number), 0);
-        out.push({ date, due_min: d.getDay() % 6 ? 504 : 0, done_min: done, holiday: db.public_holiday.some((h) => h.date === date), locked: false });
+        const holiday = db.public_holiday.find((h) => h.date === date);
+        const due = d.getUTCDay() % 6 ? 504 - (holiday ? (holiday.deducted_min ?? 504) : 0) : 0;
+        const done = mine.filter((a) => a.date === date).reduce((s, a) => s + (a.counted_min as number), 0);
+        out.push({ date, due_min: Math.round(due * pct), done_min: done, holiday: holiday?.label ?? null, locked: isLocked(fx, date, p.user_id as number) });
       }
       return out;
     }
@@ -205,7 +225,9 @@ function viewRows(fx: Fx, name: string, p: Row): Row[] {
   if (name.endsWith(".lookup")) {
     const t = name.slice(0, -7);
     const tbl = fx.meta.tables.find((x) => x.name === t)!;
-    return db[t].map((r) => ({ id: r.id, label: t === "folder" ? `${get(fx, "project", r.project_id)?.name} / ${r.name}` : String(r[tbl.label] ?? r.id) }));
+    if (t === "folder") return db.folder.map((r) => ({ id: r.id, label: `${get(fx, "project", r.project_id)?.name} / ${r.name}`, project_id: r.project_id }));
+    if (t === "task") return db.task.map((r) => ({ id: r.id, label: r.name, billing: r.billing }));
+    return db[t].map((r) => ({ id: r.id, label: String(r[tbl.label] ?? r.id) }));
   }
   return (db[name] ?? []).map((r) => project(fx, name, r));
 }
@@ -272,7 +294,7 @@ function command(fx: Fx, name: string, input: Row): Result {
   const rootOf = (r: Row) => (tbl.root === tbl.name ? r : get(fx, tbl.root, r[tbl.child_fk!])!);
   const rootTbl = meta.tables.find((t) => t.name === tbl.root)!;
   const check = (action: string | undefined, rs: Row[]) => {
-    const conds = (action && (tbl.actions[action] ?? rootTbl.actions[action])) || [];
+    const conds = (action && rootTbl.actions[action]) || [];
     return rs.map((r) => project(fx, tbl.root, rootOf(r))).flatMap((r) => {
       const failed = conds.filter((k) => r[k] === false);
       return failed.length ? [{ id: r.id, conditions: failed, row: r }] : [];
@@ -308,13 +330,14 @@ function command(fx: Fx, name: string, input: Row): Result {
     case "invoice.back_to_draft": targets.forEach((r) => set(r!, { invoiced_at: null, invoiced_by: null })); break;
     case "invoice.print": targets.forEach((r) => set(r!, { pdf_file_id: pdf(r!) })); break;
     case "invoice.export": targets.forEach((r) => { db.delivery.push({ id: db.delivery.length + 1, connection_id: 1, kind: "invoice", root_table: "invoice", root_id: r!.id, payload: {}, created_at: now, attempts: 1, last_detail: "200 OK" }); changed.push(r!); }); break;
-    case "expense.attach_receipt": targets.forEach((r) => set(r!, { receipt_file_id: fields.receipt_file_id, ocr_amount: 42.5 })); break;
+    case "expense.attach_receipt": targets.forEach((r) => { set(r!, { receipt_file_id: fields.receipt_file_id }); setTimeout(() => ocr(r!), 600); }); break;
     case "run.cancel": targets.forEach((r) => set(r!, { cancel_requested: true })); break;
     case "delivery.retry": case "connection.pull": targets.forEach((r) => changed.push(r!)); break;
     case "invoice.run": run = startRun(fx, fields); break;
   }
   idx.delete(tbl.name);
   byInvoice = null;
+  allowed = null;
   const u = uniques[tbl.name];
   const dup = u && changed.find((r) => rows.some((o) => o !== r && rows.includes(r) && u[0].every((k) => o[k] === r[k])));
   const failed = dup ? [] : check(c.ensure, changed.filter((r) => rows.includes(r)));
@@ -330,11 +353,20 @@ function command(fx: Fx, name: string, input: Row): Result {
     const o = before.get(r.id) ?? {};
     const n = rows.includes(r) ? r : {};
     const changes = Object.fromEntries(Object.keys({ ...o, ...n }).filter((k) => JSON.stringify(o[k]) !== JSON.stringify(n[k])).map((k) => [k, [o[k] ?? null, n[k] ?? null]]));
-    events.push({ at: now, command: name, principal: db.user[0].name, for: null, tbl: tbl.name, row_id: r.id, root_table: tbl.root, root_id: rootOf(r)?.id ?? r.id, changes });
+    events.push({ at: now, command: name, principal_id: 1, for_id: null, tbl: tbl.name, row_id: r.id, root_table: tbl.root, root_id: rootOf(r)?.id ?? r.id, changes });
   }
   const rootIds = [...new Set(changed.map((r) => (rootOf(r) ?? r).id as number))];
   if (changed.length) broadcast(tbl.root, rootIds, name, call);
-  return { status: 200, body: { changed: changed.length ? [{ table: tbl.name, ids: changed.map((r) => r.id) }] : [], ids: rootIds, run } };
+  return { status: 200, body: { changed: changed.length ? [{ table: tbl.name, ids: changed.map((r) => r.id) }] : [], ids: rootIds, run, call } };
+}
+
+// The ocr.read job of SPEC §17, as the ocr service principal: expense.apply_ocr in its own call.
+function ocr(e: Row) {
+  const o = { ocr_amount: e.ocr_amount, amount: e.amount };
+  Object.assign(e, { ocr_amount: 42.5, amount: e.amount ?? 42.5 });
+  const changes = Object.fromEntries(Object.entries(o).filter(([k, v]) => v !== e[k]).map(([k, v]) => [k, [v, e[k]]]));
+  events.push({ at: new Date().toISOString(), command: "expense.apply_ocr", principal_id: 2, for_id: null, tbl: "expense", row_id: e.id, root_table: "activity", root_id: e.activity_id, changes });
+  broadcast("activity", [e.activity_id as number], "expense.apply_ocr");
 }
 
 function broadcast(t: string, ids: number[] | undefined, c: string, e = randomUUID()) {

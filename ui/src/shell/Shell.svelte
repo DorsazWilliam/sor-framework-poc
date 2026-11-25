@@ -8,6 +8,7 @@
   import Other from "~icons/fluent/text-bullet-list-square-20-regular";
   import Dot from "~icons/fluent/circle-12-filled";
   import ViewScreen from "../screen/ViewScreen.svelte";
+  import Entry from "../entry/Entry.svelte";
   import Toaster from "../ds/Toaster.svelte";
   import type { Icon } from "../ds/types";
   import { screenView, session } from "../app/session.svelte";
@@ -53,7 +54,9 @@
 
   <main>
     {#if screen}
-      {#key screen.id}<ViewScreen {screen} />{/key}
+      {#key screen.id}
+        {#if screen.component === "entry"}<Entry {screen} />{:else}<ViewScreen {screen} />{/if}
+      {/key}
     {/if}
   </main>
 

@@ -68,6 +68,12 @@
         query = e.currentTarget.value;
         if (!query) set(null);
       }}
+      onkeydown={(e) => {
+        // Tab accepts the highlighted option of the open list.
+        const list = e.key === "Tab" && document.getElementById(e.currentTarget.getAttribute("aria-controls") ?? "");
+        const v = list && list.querySelector("[data-highlighted]")?.getAttribute("data-value");
+        if (v) set(v);
+      }}
       onfocus={(e) => e.currentTarget.select()}
     />
     <Combobox.Trigger class="field-btn" tabindex={-1}><Chevron /></Combobox.Trigger>

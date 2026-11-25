@@ -34,10 +34,171 @@ const home = async () => {
 };
 const toast = (text: string) => page.locator(".toast", { hasText: text }).first().waitFor();
 
+// ---- entry screen, keyboard only ----
+const kb = page.keyboard;
+const api = (v: string, body: object) => fetch(`${base}/api/v/${v}`, { method: "POST", body: JSON.stringify(body) }).then((r) => r.json());
+const focused = () => page.evaluate(() => {
+  const a = document.activeElement as HTMLElement;
+  const line = a.closest<HTMLElement>("[data-uid]");
+  return { inGrid: !!a.closest(".lines"), col: a.closest<HTMLElement>("[data-col]")?.dataset.col, uid: line?.dataset.uid, row: line?.dataset.row, saved: line?.dataset.saved };
+});
+async function inGrid(what: string) {
+  await until(async () => (await focused()).inGrid, `focus in grid (${what})`);
+}
+const dayTotal = () => page.locator(".totals span").first().innerText();
+const pressed = () => page.locator(".strip .day[aria-pressed=true]").getAttribute("data-date");
+const [folder] = await api("folder.lookup", { filter: [{ col: "id", op: "eq", value: 12 }] });
+const [project, folderName] = String(folder.label).split(" / ");
+const allowedTask: number = (await api("folder_task_allowed", { params: { folder_id: 12 } }))[0].task_id;
+const [task] = await api("task.lookup", { filter: [{ col: "id", op: "eq", value: allowedTask }] });
+const timings: number[] = [];
+const requests: number[] = [];
+const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
+
+// Types one line from its start cell; Enter saves it and moves to the day's new line.
+async function typeLine(start: string, duration: string, description: string) {
+  await until(async () => (await focused()).col === "start_tod" && (await focused()).row === "new", "on the new line");
+  await kb.type(start);
+  await kb.press("Tab");
+  await kb.type(duration);
+  await kb.press("Tab");
+  await kb.type(`${project.split(" ")[1].slice(0, 4)} ${folderName}`);
+  await page.locator(".popover .option").first().waitFor();
+  await kb.press("Tab");
+  await page.waitForFunction(() => document.activeElement?.closest("[data-col]")?.getAttribute("data-col") === "task_id");
+  await kb.type(String(task.label).slice(0, 4));
+  await page.locator(".popover .option", { hasText: String(task.label) }).first().waitFor();
+  await kb.press("Tab");
+  if ((await focused()).col === "billed_min") await kb.press("Tab");
+  await kb.type(description);
+  // Measured in the page: Enter keydown → data-saved attribute changed.
+  await page.evaluate((uid) => {
+    const el = document.querySelector(`[data-uid="${uid}"]`)!;
+    let t0 = 0;
+    addEventListener("keydown", () => (t0 = performance.now()), { capture: true, once: true });
+    (window as unknown as { saved: Promise<number> }).saved = new Promise((res) =>
+      new MutationObserver((_, o) => (o.disconnect(), res(performance.now() - t0))).observe(el, { attributeFilter: ["data-saved"] }));
+  }, (await focused()).uid);
+  await kb.press("Enter");
+  timings.push(await page.evaluate(() => (window as unknown as { saved: Promise<number> }).saved));
+  requests.push(await page.evaluate(() => performance.getEntriesByType("resource").filter((e) => e.name.endsWith("/api/c/activity.create")).at(-1)!.duration));
+  await inGrid("after save");
+}
+
+await step("entry: open, focus on the new line of today", async () => {
+  await page.goto(`${base}/#/entry`);
+  await ready(page, "entry");
+  await inGrid("open");
+});
+
+await step("entry: type three activities with the keyboard (create, data-saved)", async () => {
+  await typeLine("13", "1.5", "Analyse des besoins");
+  await typeLine("", "45m", "Revue de code");
+  await typeLine("1530", "1:15", "Correctifs");
+  console.log(`    Enter → data-saved (mock): ${timings.map(Math.round).join(", ")} ms; of which the create request: ${requests.map(Math.round).join(", ")} ms`);
+});
+
+await step("entry: edit a duration, the day total follows after refresh", async () => {
+  const before = await dayTotal();
+  for (let i = 0; i < 20 && (await focused()).col !== "duration_min"; i++) await kb.press("Shift+Tab");
+  const { uid, saved } = await focused();
+  await kb.type("2h");
+  await kb.press("Enter");
+  await page.waitForSelector(`[data-uid="${uid}"][data-saved="${+saved! + 1}"]`);
+  await until(async () => (await dayTotal()) !== before, "day total changed");
+  await inGrid("after edit");
+});
+
+await step("entry: refused save on a locked day shows the condition", async () => {
+  const today = await pressed();
+  await kb.press("Alt+ArrowUp");
+  for (let d = new Date(`${today}T12:00`).getDay(); d !== 1; d = (d + 6) % 7) await kb.press("Alt+ArrowLeft");
+  await page.locator(".strip .day[aria-pressed=true] .mark").first().waitFor();
+  await inGrid("after day moves");
+  await typeLineRefused();
+  await page.locator(".reasons", { hasText: "Période non verrouillée" }).waitFor();
+  await kb.press("Alt+ArrowDown");
+  for (let i = 0; (await pressed()) !== today; i++) {
+    check(i < 7, "back to today");
+    await kb.press("Alt+ArrowRight");
+  }
+  await inGrid("back to today");
+});
+
+async function typeLineRefused() {
+  await until(async () => (await focused()).row === "new", "on the new line");
+  await kb.type("17");
+  await kb.press("Tab");
+  await kb.type("1");
+  await kb.press("Tab");
+  await kb.type(`${project.split(" ")[1].slice(0, 4)} ${folderName}`);
+  await page.locator(".popover .option").first().waitFor();
+  await kb.press("Tab");
+  await kb.type(String(task.label).slice(0, 4));
+  await page.locator(".popover .option", { hasText: String(task.label) }).first().waitFor();
+  await kb.press("Tab");
+  await kb.press("Enter");
+}
+
+await step("entry: duplicate with Ctrl+D, delete with Ctrl+Delete", async () => {
+  const count = () => page.locator('.line:not([data-row="new"])').count();
+  const n = await count();
+  await kb.press("Shift+Tab");
+  await kb.press("Control+d");
+  await until(async () => (await focused()).row === "new", "on the new line after duplicate");
+  await kb.press("Enter");
+  await until(async () => (await count()) === n + 1, "one more line");
+  for (let i = 0; i < 12 && (await focused()).row === "new"; i++) await kb.press("Shift+Tab");
+  const { row } = await focused();
+  await kb.press("Control+Delete");
+  await page.locator(`[data-row="${row}"]`).waitFor({ state: "detached" });
+  check((await count()) === n, "line deleted");
+  await inGrid("after delete");
+});
+
+await step("entry: week mode, drawer with F4 (focus stays in the grid)", async () => {
+  await page.locator(".seg button", { hasText: "Semaine" }).click();
+  await page.locator(".dayhead").nth(6).waitFor();
+  await page.locator('.line:not([data-row="new"]) input').last().focus();
+  await kb.press("F4");
+  await page.locator(".drawer [data-screen='activity.expenses'][data-ready]").waitFor();
+  await inGrid("drawer open");
+  await page.screenshot({ path: `${shots}entry-week-light.png` });
+  await page.locator(".seg button", { hasText: "Jour" }).click();
+  await page.locator(".dayhead").first().waitFor({ state: "detached" });
+  await page.locator('.line:not([data-row="new"]) input').last().focus();
+  await page.screenshot({ path: `${shots}entry-day-light.png` });
+});
+
+await step("entry drawer: add an expense, attach a receipt, OCR amount arrives live", async () => {
+  const drawer = page.locator(".drawer");
+  await drawer.locator('[data-command="expense.create"]').press("Enter");
+  await page.locator("#f-expense_type_id").focus();
+  await kb.type("Repas");
+  await page.locator(".popover .option", { hasText: "Repas" }).waitFor();
+  await kb.press("Enter");
+  await page.locator("#f-amount").focus();
+  await kb.type("25");
+  await page.locator(".dialog").getByRole("button", { name: "Créer" }).press("Enter");
+  const row = drawer.locator(".row[data-id]").first();
+  await row.waitFor();
+  await row.click();
+  await drawer.locator('[data-command="expense.attach_receipt"]').press("Enter");
+  await page.locator('.dialog input[type="file"]').setInputFiles({ name: "ticket.png", mimeType: "image/png", buffer: png });
+  await page.locator(".dialog-footer").getByRole("button", { name: "Exécuter" }).press("Enter");
+  await drawer.locator(".row[data-id]", { hasText: "42.50" }).first().waitFor();
+  await kb.press("Escape");
+});
+
+let all = ""; // row count of the activities grid, as shown in the status bar
+
 await step("open activities (generic screen 1)", async () => {
   await page.goto(`${base}/#/activities`);
   await ready(page, "activities");
-  check((await status()).includes("50'000"), "50'000 rows in status bar");
+  const [{ count }] = await api("activity_grid", { params: { date_from: "2000-01-01", date_to: "2100-01-01" }, agg: [{ col: "id", fn: "count" }] });
+  all = await page.evaluate((n) => new Intl.NumberFormat("de-CH").format(n), count);
+  check((await status()).includes(all), "all rows in status bar");
+  check((await page.locator(".grid").getAttribute("aria-rowcount")) === String(count), "aria-rowcount");
 });
 
 await step("sort by duration (server-side)", async () => {
@@ -51,9 +212,9 @@ await step("filter description contains 'Atelier'", async () => {
   const input = page.locator(".frow .fcell").nth(d).locator("input");
   await input.fill("Atelier");
   await input.press("Enter");
-  await until(async () => !(await status()).includes("50'000") && (await firstCell(d)) === "Atelier client", "filtered rows");
+  await until(async () => !(await status()).includes(all) && (await firstCell(d)) === "Atelier client", "filtered rows");
   await page.getByRole("button", { name: "Effacer les filtres" }).click();
-  await page.waitForFunction(() => document.querySelector(".status")?.textContent?.includes("50'000"));
+  await page.waitForFunction((all) => document.querySelector(".status")?.textContent?.includes(all), all);
 });
 
 await step("scroll 50k rows to the end", async () => {
@@ -63,7 +224,6 @@ await step("scroll 50k rows to the end", async () => {
     const vp = document.querySelector(".viewport")!;
     return ids.length > 0 && vp.scrollTop > 1_000_000;
   });
-  check((await page.locator(".grid").getAttribute("aria-rowcount")) === "50000", "aria-rowcount");
   await page.locator(".viewport").evaluate((v) => (v.scrollTop = 0));
 });
 
@@ -208,7 +368,6 @@ await step("upload a receipt through a child screen command (sha256, presign, PU
   await page.getByRole("tab", { name: "Frais" }).click();
   await page.locator('[data-screen="activity.expenses"][data-ready] .row[data-id]').first().click();
   await page.locator('[data-command="expense.attach_receipt"]').click();
-  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
   await page.locator('.dialog input[type="file"]').setInputFiles({ name: "ticket.png", mimeType: "image/png", buffer: png });
   await page.locator(".dialog img").waitFor();
   await page.locator(".dialog-footer").getByRole("button", { name: "Exécuter" }).click();

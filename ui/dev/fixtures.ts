@@ -16,7 +16,7 @@ export const enums: Record<string, string[]> = {
 
 const refs: Record<string, string> = {
   manager_id: "user", validated_by: "user", invoiced_by: "user", lead_user_id: "user", parent_id: "folder",
-  receipt_file_id: "file", pdf_file_id: "file",
+  receipt_file_id: "file", pdf_file_id: "file", principal_id: "user", for_id: "user",
 };
 const money = /^(rate|amount|hourly_cost|unit_price|billing_unit_price|frozen_rate|frozen_amount|ocr_amount|.*_amount|services|expenses_user|expenses_billed|realized|invoiced|balance_amount|cost|margin.*)$/;
 const dates = new Set(["date", "valid_from", "date_from", "date_to"]);
@@ -59,8 +59,10 @@ function T(name: string, columns: string, o: TOpts = {}) {
   const tc: TableCol[] = cols(`id ${columns}`).map((c) => ({ ...c, guarded: guarded.has(c.name), has_default: c.name === "id" || c.name === "archived" || c.type === "bool" }));
   const conditions = (o.conditions ?? "").split(" ").filter(Boolean);
   const actions = Object.fromEntries(Object.entries(o.actions ?? {}).map(([k, v]) => [k, v.split(" ")]));
-  actions.editable ??= [];
-  actions.deletable ??= [];
+  if (!o.child) {
+    actions.editable ??= [];
+    actions.deletable ??= [];
+  }
   tables.push({ name, root: o.child?.[0] ?? name, child_fk: o.child?.[1], under: o.under, write: o.write ?? "master_data", read: o.read ?? "",
     anchor: o.anchor && { column: o.anchor[0], reach: o.anchor[1] }, label: o.label ?? "name", crud: o.crud ?? true,
     columns: tc, conditions, actions });
@@ -75,6 +77,7 @@ T("user_group_fn", "user_group_id! fn:fn!", { child: ["user_group", "user_group_
 T("account", "external_id name! address archived");
 T("project", "external_id account_id! name! rate entry_closed lead_user_id archived");
 T("folder", "project_id! parent_id name! rate estimated_min entry_closed");
+T("folder_task", "folder_id! task_id!", { child: ["folder", "folder_id"], label: "task_id" });
 T("task", "name! kind:task_kind! billing:task_billing! requires_validation counts_hours rate archived");
 T("user_task_rate", "user_id! task_id! rate!", { label: "rate" });
 T("work_period", "user_id! valid_from! week_min! vacation_days! activity_pct!", { anchor: ["user_id", "user"], label: "valid_from" });
@@ -113,13 +116,15 @@ function V(name: string, params: string, columns: Col[] | string, roots: string,
 }
 for (const t of tables) {
   V(t.name, "", listCols(t.name), t.root, t.read);
-  V(`${t.name}.lookup`, "", "id label", t.name === "folder" ? "folder project" : t.root, t.read);
+  const extra = { folder: " project_id", task: " billing:task_billing" }[t.name] ?? "";
+  V(`${t.name}.lookup`, "", `id label${extra}`, t.name === "folder" ? "folder project" : t.root, t.read);
 }
-const actCols = "id date user_id project_id folder_id task_id start_tod duration_min billed_min counted_min amount description validated_by invoice_id to_validate not_locked not_invoiced not_validated is_validated entry_open task_allowed";
+V("folder_task_allowed", "folder_id", "task_id", "folder");
+const actCols = "id date user_id project_id folder_id task_id start_tod duration_min billed_min counted_min rate amount description validated_by invoice_id to_validate not_locked not_invoiced not_validated is_validated entry_open task_allowed";
 V("activity_grid", "date_from date_to", actCols, "activity folder project task user");
 V("activity_to_validate", "date_from date_to", actCols, "activity folder project task user", "validation");
 V("timesheet", "user_id date_from date_to", actCols, "activity folder project task");
-V("timesheet_day", "user_id date_from date_to", "date due_min done_min holiday locked", "activity work_period public_holiday company");
+V("timesheet_day", "user_id date_from date_to", "date due_min done_min holiday:text locked", "activity work_period public_holiday company");
 V("expense_by_activity", "activity_id", "id expense_type_id quantity amount mode:expense_mode user_amount billed_amount receipt_file_id ocr_amount", "activity expense_type");
 V("activity_class", "activity_id", "hour_class_id class_min amount", "activity hour_class");
 V("balance", "date_from date_to", "user_id carried_min due_min done_min balance_min vac_carried_min vac_available_min vac_taken_min vac_balance_min", "activity work_period public_holiday user");
@@ -128,7 +133,7 @@ V("profitability_cost", "date_from date_to", `${profit} cost margin_services mar
 V("profitability", "date_from date_to", profit, "activity project folder invoice", "invoice");
 V("invoice_activity", "invoice_id", actCols, "invoice activity", "invoice");
 V("accounting_export", "invoice_id", "id created_at export_state:export_state attempts:int4 last_detail", "delivery", "invoice");
-V("history", "root_table root_id:int8", "at command principal for tbl row_id:int8 changes:jsonb", "");
+V("history", "root_table root_id:int8", "at command principal_id for_id tbl row_id:int8 changes:jsonb", "");
 
 export const commands: Command[] = [];
 function C(name: string, kind: Command["kind"], o: Partial<Command> & { inputs?: string } = {}) {
@@ -137,9 +142,11 @@ function C(name: string, kind: Command["kind"], o: Partial<Command> & { inputs?:
 }
 for (const t of tables.filter((t) => t.crud)) {
   const input = t.columns.filter((c) => !c.guarded && c.name !== "id").map(({ guarded: _g, has_default: _h, ...c }) => c);
-  commands.push({ name: `${t.name}.create`, table: t.name, kind: "create", rootless: true, input, ensure: "editable", needs: t.write });
+  // SPEC §7: a child table's CRUD is When + Ensure editable of its root.
+  const child = t.root !== t.name;
+  commands.push({ name: `${t.name}.create`, table: t.name, kind: "create", rootless: true, input, when: child ? "editable" : undefined, ensure: "editable", needs: t.write });
   commands.push({ name: `${t.name}.update`, table: t.name, kind: "update", rootless: false, input: input.map((c) => ({ ...c, nullable: true })), when: "editable", ensure: "editable", needs: t.write });
-  commands.push({ name: `${t.name}.delete`, table: t.name, kind: "delete", rootless: false, input: [], when: "deletable", needs: t.write });
+  commands.push({ name: `${t.name}.delete`, table: t.name, kind: "delete", rootless: false, input: [], when: child ? "editable" : "deletable", ensure: child ? "editable" : undefined, needs: t.write });
 }
 for (const t of ["saved_view"]) {
   const input = cols("owner_id screen name state:jsonb");
@@ -224,16 +231,36 @@ db.user.forEach((u) => {
 ["Nouvel an", "Vendredi saint", "Lundi de Pâques", "Ascension", "Fête nationale", "Noël"].forEach((label, i) => db.public_holiday.push({ id: i + 1, date: daysAgo(30 + i * 55), label, deducted_min: null }));
 [["Nuit", 1.25, 1.5, true], ["Samedi", 1.25, 1.25, false], ["Dimanche et férié", 1.5, 2, true]].forEach(([label, hc, rc, rv], i) => db.hour_class.push({ id: i + 1, label, hours_coef: hc, rate_coef: rc, requires_validation: rv }));
 db.hour_class_slot.push({ id: 1, hour_class_id: 1, day_type: 1, span_tod: "[0,360)" }, { id: 2, hour_class_id: 1, day_type: 1, span_tod: "[1320,1440)" }, { id: 3, hour_class_id: 2, day_type: 6, span_tod: "[0,1440)" }, { id: 4, hour_class_id: 3, day_type: 7, span_tod: "[0,1440)" });
-db.period_lock.push({ id: 1, company_id: 1, date_from: daysAgo(400), date_to: daysAgo(200), user_id: null });
+// Monday and Tuesday of last week are locked for user 1.
+const dow = (today.getDay() + 6) % 7;
+db.period_lock.push({ id: 1, company_id: 1, date_from: daysAgo(400), date_to: daysAgo(200), user_id: null },
+  { id: 2, company_id: 1, date_from: daysAgo(dow + 7), date_to: daysAgo(dow + 6), user_id: 1 });
+// Each folder allows 8 of the 10 tasks.
+const allowed = (f: number, t: number) => (f * 3 + t) % 5 !== 0;
+for (const f of db.folder) for (const t of db.task) if (allowed(f.id, t.id)) db.folder_task.push({ id: db.folder_task.length + 1, folder_id: f.id, task_id: t.id });
 const descr = ["Atelier client", "Revue de code", "Correctifs", "Spécifications", "Réunion de suivi", "Tests d'intégration", "Mise en production", "Documentation", ""];
-for (let i = 1; i <= 50000; i++) {
+const act = (user_id: number, day: number, start_tod: number, duration_min: number, folder_id: number, task: number, validated: boolean) => {
+  const task_id = allowed(folder_id, task) ? task : task === 1 ? 2 : 1;
+  db.activity.push({ id: db.activity.length + 1, user_id, date: daysAgo(day), start_tod, duration_min, billed_min: null, folder_id, task_id, description: pick(descr),
+    validated_by: validated ? 1 : null, validated_at: validated ? `${daysAgo(day - 1)}T17:00:00Z` : null, invoice_id: null, frozen_rate: null, frozen_billed_min: null, frozen_amount: null });
+};
+// User 1 (the dev session) has regular working days on a few folders; today only the morning.
+const holidays = new Set(db.public_holiday.map((h) => h.date));
+for (let day = 364; day >= 0; day--) {
+  const wd = new Date(daysAgo(day)).getUTCDay();
+  if (!wd || wd === 6 || holidays.has(daysAgo(day))) continue;
+  for (const [from, to] of day ? [[480, 720], [780, 1050]] : [[480, 720]]) {
+    for (let t = from; t < to; ) {
+      const d = Math.min(to - t, 30 * (2 + Math.floor(rnd() * 5)));
+      act(1, day, t, d, pick([12, 47, 88, 131, 205, 302]), 1 + Math.floor(rnd() * 5), day > 21);
+      t += d;
+    }
+  }
+}
+while (db.activity.length < 50000) {
   const day = Math.floor(rnd() * 365);
   const task = rnd() < 0.9 ? 1 + Math.floor(rnd() * 6) : 7 + Math.floor(rnd() * 4);
-  const old = day > 60;
-  const validated = old || rnd() < 0.3;
-  db.activity.push({ id: i, user_id: 1 + Math.floor(rnd() * 20), date: daysAgo(day), start_tod: 480 + 30 * Math.floor(rnd() * 16), duration_min: 15 * (1 + Math.floor(rnd() * 16)),
-    billed_min: null, folder_id: 1 + Math.floor(rnd() * 600), task_id: task, description: pick(descr), validated_by: validated ? 1 : null, validated_at: validated ? `${daysAgo(day - 1)}T17:00:00Z` : null,
-    invoice_id: null, frozen_rate: null, frozen_billed_min: null, frozen_amount: null });
+  act(2 + Math.floor(rnd() * 19), day, 480 + 30 * Math.floor(rnd() * 16), 15 * (1 + Math.floor(rnd() * 16)), 1 + Math.floor(rnd() * 600), task, day > 60 || rnd() < 0.3);
 }
 for (let i = 1; i <= 80; i++) db.invoice.push({ id: i, project_id: 1 + (i % 150), date_from: daysAgo(30 * (1 + (i % 10)) + 30), date_to: daysAgo(30 * (1 + (i % 10))), invoiced_at: i % 3 ? `${daysAgo(30 * (1 + (i % 10)) - 2)}T10:00:00Z` : null, invoiced_by: i % 3 ? 1 : null, pdf_file_id: null });
 for (const a of db.activity) {

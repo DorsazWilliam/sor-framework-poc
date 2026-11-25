@@ -55,7 +55,8 @@ export type Row = Record<string, unknown>;
 
 export type ViewBody<P = Record<string, unknown>> = { params?: P } & Wrap;
 
-export type Changed = { changed: { table: string; ids: number[] }[]; ids: number[]; run?: number };
+// `call` is the `e` of the live keys this command produces.
+export type Changed = { changed: { table: string; ids: number[] }[]; ids: number[]; run?: number; call: string };
 
 export type Rejected = { id: number; conditions: string[]; row: Row };
 

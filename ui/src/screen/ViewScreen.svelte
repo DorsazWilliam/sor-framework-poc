@@ -72,8 +72,8 @@
       .map(command)
       .filter((c): c is Command => !!c),
   );
-  // Ids and condition columns stay in the rows (commands read them) but are not displayed.
-  const conditions = $derived(new Set(session.meta.tables.flatMap((x) => x.conditions)));
+  // `id` and the conditions of the view's root tables stay in the rows (commands read them) but are not displayed.
+  const conditions = $derived(new Set(v.roots.flatMap((r) => table(r)?.conditions ?? [])));
   const columns = $derived(v.columns.filter((c) => c.name !== "id" && !conditions.has(c.name)));
   const shownParams =$derived(v.params.filter((p) => !(link && p.name in link)));
   const groupItems = $derived([
@@ -203,7 +203,7 @@
 
 {#if detail && tbl && nested}
   <Dialog open title={t(`t.${tbl.name}`)}>
-    <Detail {screen} {tbl} id={detail.id} {initial} tabs={false} onsaved={() => (detail = null)} />
+    <Detail {screen} {tbl} id={detail.id} {initial} tabs={false} {parent} onsaved={() => (detail = null)} />
   </Dialog>
 {/if}
 

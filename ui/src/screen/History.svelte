@@ -9,7 +9,12 @@
 
   let { root, id }: { root: string; id: number } = $props();
 
-  type Event = { at: string; command: string; principal: string; for?: string; tbl: string; row_id: number; changes: Record<string, [unknown, unknown]> };
+  type Event = { at: string; command: string; principal_id: number; for_id: number | null; tbl: string; row_id: number; changes: Record<string, [unknown, unknown]> };
+  // principal_id and for_id carry a ref: shown through the lookup store.
+  const who = (name: string, v: unknown) => {
+    const c = view("history")?.columns.find((x) => x.name === name);
+    return c ? display(c, v) : String(v);
+  };
   let events = $state<Event[]>([]);
 
   async function load() {
@@ -33,7 +38,7 @@
     <li>
       <div class="head">
         <strong>{t(`cmd.${e.command}`)}</strong>
-        <span class="caption">{fmtInstant(e.at)} · {e.principal}{e.for ? ` (${e.for})` : ""}</span>
+        <span class="caption">{fmtInstant(e.at)} · {who("principal_id", e.principal_id)}{e.for_id != null ? ` (${who("for_id", e.for_id)})` : ""}</span>
       </div>
       {#if e.tbl !== root}<div class="caption">{t(`t.${e.tbl}`)} #{e.row_id}</div>{/if}
       <dl>
