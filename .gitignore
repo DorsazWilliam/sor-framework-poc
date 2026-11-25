@@ -1,0 +1,5 @@
+/sor
+/sor.exe
+*.test
+node_modules/
+/ui/dist/

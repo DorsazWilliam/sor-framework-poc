@@ -1,0 +1,19 @@
+version: "2"
+sql:
+  - engine: postgresql
+    schema:
+      - kernel/schema.sql
+      - modules/base/schema.sql
+      - modules/time/schema.sql
+      - modules/billing/schema.sql
+      - modules/accounting/schema.sql
+    queries:
+      - kernel/queries.sql
+      - modules/base/queries.sql
+      - modules/time/queries.sql
+      - modules/billing/queries.sql
+      - modules/accounting/queries.sql
+    gen:
+      json:
+        out: gen
+        filename: sqlc.json
