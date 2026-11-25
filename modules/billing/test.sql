@@ -17,7 +17,7 @@ create function pg_temp.inv(d date) returns invoice_p language sql as $$ select 
 
 insert into company overriding system value values (1, 'Test SA');
 insert into "user" (subject, name) values ('fin', 'Finance'), ('bob', 'Bob');
-insert into task (name, billing, rate) values ('dev', 'always', 100);
+insert into task (name, billing, rate) values ('dev', 'always', 100), ('free', 'never', null);
 insert into account (external_id, name) values ('A', 'Client');
 insert into project (external_id, account_id, name) select 'P1', id, 'Project' from account;
 insert into folder (project_id, name, rate) select id, 'F1', 100 from project;
@@ -27,7 +27,8 @@ insert into expense_type (name, by_quantity, unit_price, billing_unit_price, mod
 insert into cost_rate (user_id, valid_from, hourly_cost) values (pg_temp.uid('bob'), '2026-01-01', 60);
 insert into activity (user_id, date, start_tod, duration_min, folder_id, task_id, description)
 select pg_temp.uid('bob'), v.d::date, 600, v.m, f.id, t.id, v.k
-from (values ('a1', '2026-02-03', 60), ('a2', '2026-02-10', 120), ('a3', '2026-03-03', 60)) v(k, d, m), folder f, task t;
+from (values ('a1', '2026-02-03', 60, 'dev'), ('a2', '2026-02-10', 120, 'dev'), ('a3', '2026-03-03', 60, 'dev'), ('n1', '2026-02-05', 60, 'free')) v(k, d, m, t)
+join task t on t.name = v.t, folder f;
 insert into expense (activity_id, expense_type_id, quantity, amount)
 select a.id, t.id, v.q, v.a from (values ('meal', null, 50), ('km', 10, null), ('parking', null, 7)) v(t, q, a)
 join expense_type t on t.name = v.t, activity a where a.description = 'a2';
@@ -35,7 +36,7 @@ join expense_type t on t.name = v.t, activity a where a.description = 'a2';
 -- Expense amounts by mode.
 select pg_temp.eq('expense amounts', (select string_agg(user_amount || '/' || billed_amount, ',' order by id) from expense_p), '50.00/50.00,7.00/9.00,7.00/0');
 
--- A draft invoice takes the activities of its project and period not yet invoiced.
+-- A draft invoice takes the billable activities of its project and period: not invoiced, task billed (n1 is never billed).
 insert into invoice (project_id, date_from, date_to) select id, '2026-02-01', '2026-02-28' from project;
 select pg_temp.eq('draft', (select row(state, activity_count, billed_min, services_amount, expenses_amount, total_amount, export_state)::text
     from pg_temp.inv('2026-02-01')), '(draft,2,180,300.00,59.00,359.00,none)');
@@ -52,6 +53,7 @@ select pg_temp.eq('invoiced', (select row(state, activity_count, services_amount
     from pg_temp.inv('2026-02-01')), '(invoiced,2,300.00,59.00,359.00)');
 select pg_temp.eq('invoiced conditions', (select row(is_draft, is_invoiced, has_activities, not_exported)::text from pg_temp.inv('2026-02-01')), '(f,t,t,t)');
 select pg_temp.eq('activity invoiced', (pg_temp.p('a1')).not_invoiced, false);
+select pg_temp.eq('never billed stays out', (pg_temp.p('n1')).not_invoiced, true);
 select pg_temp.eq('frozen', (select row(frozen_rate, frozen_billed_min, frozen_amount)::text from activity where description = 'a2'), '(100.00,120,200.00)');
 
 -- Frozen values win after a rate change; activities not invoiced follow it.
@@ -71,11 +73,11 @@ select pg_temp.eq('document client', (select document #>> '{account,name}' from 
 -- Profitability over February and March.
 create temp table pf as execute profitability('2026-02-01', '2026-03-31');
 select pg_temp.eq('profitability', (select row(duration_min, services_amount, expenses_billed, expenses_user, realized_amount, invoiced_amount, balance_amount)::text from pf),
-    '(240,500.00,59.00,64.00,559.00,359.00,200.00)');
+    '(300,500.00,59.00,64.00,559.00,359.00,200.00)');
 create temp table pc as execute profitabilitycost('2026-02-01', '2026-03-31');
-select pg_temp.eq('profitability cost', (select row(cost_amount, margin_services, margin_balance)::text from pc), '(240.00,260.00,-40.00)');
+select pg_temp.eq('profitability cost', (select row(cost_amount, margin_services, margin_balance)::text from pc), '(300.00,200.00,-100.00)');
 
--- Run candidates: none while a draft overlaps; the project once it is gone.
+-- Run candidates: none while a draft overlaps; the project once it is gone; none for activities never billed.
 insert into invoice (project_id, date_from, date_to) select id, '2026-03-01', '2026-03-31' from project;
 create temp table rc1 as execute invoiceruncandidates('2026-03-01', '2026-03-31');
 select pg_temp.eq('candidates with draft', (select count(*) from rc1), 0::bigint);

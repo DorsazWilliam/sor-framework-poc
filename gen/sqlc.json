@@ -7230,6 +7230,94 @@
             "rel": {
               "catalog": "",
               "schema": "",
+              "name": "billable_activity"
+            },
+            "columns": [
+              {
+                "name": "project_id",
+                "not_null": true,
+                "is_array": false,
+                "comment": "Project of the folder.",
+                "length": -1,
+                "is_named_param": false,
+                "is_func_call": false,
+                "scope": "",
+                "table": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "billable_activity"
+                },
+                "table_alias": "",
+                "type": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "pg_catalog.int8"
+                },
+                "is_sqlc_slice": false,
+                "embed_table": null,
+                "original_name": "",
+                "unsigned": false,
+                "array_dims": 0
+              },
+              {
+                "name": "activity_id",
+                "not_null": true,
+                "is_array": false,
+                "comment": "Activity.",
+                "length": -1,
+                "is_named_param": false,
+                "is_func_call": false,
+                "scope": "",
+                "table": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "billable_activity"
+                },
+                "table_alias": "",
+                "type": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "pg_catalog.int8"
+                },
+                "is_sqlc_slice": false,
+                "embed_table": null,
+                "original_name": "",
+                "unsigned": false,
+                "array_dims": 0
+              },
+              {
+                "name": "date",
+                "not_null": true,
+                "is_array": false,
+                "comment": "Date of the activity.",
+                "length": -1,
+                "is_named_param": false,
+                "is_func_call": false,
+                "scope": "",
+                "table": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "billable_activity"
+                },
+                "table_alias": "",
+                "type": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "date"
+                },
+                "is_sqlc_slice": false,
+                "embed_table": null,
+                "original_name": "",
+                "unsigned": false,
+                "array_dims": 0
+              }
+            ],
+            "comment": "Activities an invoice can take: not invoiced, their task billed (not never); with the project of their folder."
+          },
+          {
+            "rel": {
+              "catalog": "",
+              "schema": "",
               "name": "invoice_line"
             },
             "columns": [
@@ -7286,7 +7374,7 @@
                 "array_dims": 0
               }
             ],
-            "comment": "Activities of an invoice: attached ones once invoiced; while draft, the activities of its project and period not yet invoiced."
+            "comment": "Activities of an invoice: attached ones once invoiced; while draft, the billable activities of its project and period."
           },
           {
             "rel": {
@@ -80431,13 +80519,13 @@
       "insert_into_table": null
     },
     {
-      "text": "select a.project_id, $1::date as date_from, $2::date as date_to\nfrom activity_p a\nwhere a.date between $1::date and $2::date and a.not_invoiced\n  and not exists (select from invoice i\n                  where i.project_id = a.project_id and i.invoiced_at is null\n                    and i.date_from \u003c= $2::date and i.date_to \u003e= $1::date)\ngroup by a.project_id\norder by a.project_id",
+      "text": "select b.project_id, $1::date as date_from, $2::date as date_to\nfrom billable_activity b\nwhere b.date between $1::date and $2::date\n  and not exists (select from invoice i\n                  where i.project_id = b.project_id and i.invoiced_at is null\n                    and i.date_from \u003c= $2::date and i.date_to \u003e= $1::date)\ngroup by b.project_id\norder by b.project_id",
       "name": "InvoiceRunCandidates",
       "cmd": ":many",
       "columns": [
         {
           "name": "project_id",
-          "not_null": false,
+          "not_null": true,
           "is_array": false,
           "comment": "",
           "length": -1,
@@ -80447,7 +80535,7 @@
           "table": {
             "catalog": "",
             "schema": "",
-            "name": "activity_p"
+            "name": "billable_activity"
           },
           "table_alias": "",
           "type": {
@@ -80559,7 +80647,7 @@
         }
       ],
       "comments": [
-        " Projects with activities not invoiced over a period and no draft invoice overlapping it: the invoices a run creates.",
+        " Projects with billable activities over a period and no draft invoice overlapping it: the invoices a run creates.",
         " @anchor none",
         " @needs invoice"
       ],
@@ -80567,13 +80655,13 @@
       "insert_into_table": null
     },
     {
-      "text": "select r.project_id, r.folder_id,\n       sum(r.duration_min)::integer as duration_min, sum(r.billed_min)::integer as billed_min,\n       sum(r.services_amount) as services_amount, sum(r.expenses_billed) as expenses_billed, sum(r.expenses_user) as expenses_user,\n       sum(r.realized_amount) as realized_amount, sum(r.invoiced_amount) as invoiced_amount, sum(r.balance_amount) as balance_amount\nfrom activity_revenue r\nwhere r.date between $1 and $2\ngroup by r.project_id, r.folder_id",
+      "text": "select f.project_id, r.folder_id, r.duration_min, r.billed_min, r.services_amount, r.expenses_billed, r.expenses_user, r.realized_amount, r.invoiced_amount, r.balance_amount\nfrom (\n    select r.folder_id,\n           sum(r.duration_min)::integer as duration_min, sum(r.billed_min)::integer as billed_min,\n           sum(r.services_amount) as services_amount, sum(r.expenses_billed) as expenses_billed, sum(r.expenses_user) as expenses_user,\n           sum(r.realized_amount) as realized_amount, sum(r.invoiced_amount) as invoiced_amount, sum(r.balance_amount) as balance_amount\n    from activity_revenue r\n    where r.date between $1 and $2\n    group by r.folder_id\n) r\njoin folder f on f.id = r.folder_id",
       "name": "Profitability",
       "cmd": ":many",
       "columns": [
         {
           "name": "project_id",
-          "not_null": false,
+          "not_null": true,
           "is_array": false,
           "comment": "",
           "length": -1,
@@ -80583,13 +80671,13 @@
           "table": {
             "catalog": "",
             "schema": "",
-            "name": "activity_revenue"
+            "name": "folder"
           },
           "table_alias": "",
           "type": {
             "catalog": "",
-            "schema": "",
-            "name": "pg_catalog.int8"
+            "schema": "pg_catalog",
+            "name": "int8"
           },
           "is_sqlc_slice": false,
           "embed_table": null,
@@ -80641,7 +80729,7 @@
           },
           "is_sqlc_slice": false,
           "embed_table": null,
-          "original_name": "",
+          "original_name": "duration_min",
           "unsigned": false,
           "array_dims": 0
         },
@@ -80663,7 +80751,7 @@
           },
           "is_sqlc_slice": false,
           "embed_table": null,
-          "original_name": "",
+          "original_name": "billed_min",
           "unsigned": false,
           "array_dims": 0
         },
@@ -80674,7 +80762,7 @@
           "comment": "",
           "length": -1,
           "is_named_param": false,
-          "is_func_call": true,
+          "is_func_call": false,
           "scope": "",
           "table": null,
           "table_alias": "",
@@ -80685,7 +80773,7 @@
           },
           "is_sqlc_slice": false,
           "embed_table": null,
-          "original_name": "",
+          "original_name": "services_amount",
           "unsigned": false,
           "array_dims": 0
         },
@@ -80696,7 +80784,7 @@
           "comment": "",
           "length": -1,
           "is_named_param": false,
-          "is_func_call": true,
+          "is_func_call": false,
           "scope": "",
           "table": null,
           "table_alias": "",
@@ -80707,7 +80795,7 @@
           },
           "is_sqlc_slice": false,
           "embed_table": null,
-          "original_name": "",
+          "original_name": "expenses_billed",
           "unsigned": false,
           "array_dims": 0
         },
@@ -80718,7 +80806,7 @@
           "comment": "",
           "length": -1,
           "is_named_param": false,
-          "is_func_call": true,
+          "is_func_call": false,
           "scope": "",
           "table": null,
           "table_alias": "",
@@ -80729,7 +80817,7 @@
           },
           "is_sqlc_slice": false,
           "embed_table": null,
-          "original_name": "",
+          "original_name": "expenses_user",
           "unsigned": false,
           "array_dims": 0
         },
@@ -80740,7 +80828,7 @@
           "comment": "",
           "length": -1,
           "is_named_param": false,
-          "is_func_call": true,
+          "is_func_call": false,
           "scope": "",
           "table": null,
           "table_alias": "",
@@ -80751,7 +80839,7 @@
           },
           "is_sqlc_slice": false,
           "embed_table": null,
-          "original_name": "",
+          "original_name": "realized_amount",
           "unsigned": false,
           "array_dims": 0
         },
@@ -80762,7 +80850,7 @@
           "comment": "",
           "length": -1,
           "is_named_param": false,
-          "is_func_call": true,
+          "is_func_call": false,
           "scope": "",
           "table": null,
           "table_alias": "",
@@ -80773,7 +80861,7 @@
           },
           "is_sqlc_slice": false,
           "embed_table": null,
-          "original_name": "",
+          "original_name": "invoiced_amount",
           "unsigned": false,
           "array_dims": 0
         },
@@ -80784,7 +80872,7 @@
           "comment": "",
           "length": -1,
           "is_named_param": false,
-          "is_func_call": true,
+          "is_func_call": false,
           "scope": "",
           "table": null,
           "table_alias": "",
@@ -80795,7 +80883,7 @@
           },
           "is_sqlc_slice": false,
           "embed_table": null,
-          "original_name": "",
+          "original_name": "balance_amount",
           "unsigned": false,
           "array_dims": 0
         }
@@ -80861,7 +80949,7 @@
         }
       ],
       "comments": [
-        " Per project and folder, over the activities of a period: durations, services, expenses billed and reimbursed,",
+        " Per folder and its project, over the activities of a period: durations, services, expenses billed and reimbursed,",
         " realized (services and expenses billed), invoiced, balance (realized minus invoiced). Invoiced activities use their frozen values.",
         " @anchor none",
         " @needs invoice"
@@ -80870,13 +80958,13 @@
       "insert_into_table": null
     },
     {
-      "text": "select r.project_id, r.folder_id,\n       sum(r.duration_min)::integer as duration_min, sum(r.billed_min)::integer as billed_min, sum(r.counted_min)::integer as counted_min,\n       sum(r.services_amount) as services_amount, sum(r.expenses_billed) as expenses_billed, sum(r.expenses_user) as expenses_user,\n       sum(r.realized_amount) as realized_amount, sum(r.invoiced_amount) as invoiced_amount, sum(r.balance_amount) as balance_amount,\n       sum(r.cost_amount) as cost_amount, sum(r.margin_services) as margin_services, sum(r.margin_balance) as margin_balance\nfrom activity_cost r\nwhere r.date between $1 and $2\ngroup by r.project_id, r.folder_id",
+      "text": "select f.project_id, r.folder_id, r.duration_min, r.billed_min, r.counted_min, r.services_amount, r.expenses_billed, r.expenses_user, r.realized_amount, r.invoiced_amount, r.balance_amount, r.cost_amount, r.margin_services, r.margin_balance\nfrom (\n    select r.folder_id,\n           sum(r.duration_min)::integer as duration_min, sum(r.billed_min)::integer as billed_min, sum(r.counted_min)::integer as counted_min,\n           sum(r.services_amount) as services_amount, sum(r.expenses_billed) as expenses_billed, sum(r.expenses_user) as expenses_user,\n           sum(r.realized_amount) as realized_amount, sum(r.invoiced_amount) as invoiced_amount, sum(r.balance_amount) as balance_amount,\n           sum(r.cost_amount) as cost_amount, sum(r.margin_services) as margin_services, sum(r.margin_balance) as margin_balance\n    from activity_cost r\n    where r.date between $1 and $2\n    group by r.folder_id\n) r\njoin folder f on f.id = r.folder_id",
       "name": "ProfitabilityCost",
       "cmd": ":many",
       "columns": [
         {
           "name": "project_id",
-          "not_null": false,
+          "not_null": true,
           "is_array": false,
           "comment": "",
           "length": -1,
@@ -80886,13 +80974,13 @@
           "table": {
             "catalog": "",
             "schema": "",
-            "name": "activity_cost"
+            "name": "folder"
           },
           "table_alias": "",
           "type": {
             "catalog": "",
-            "schema": "",
-            "name": "pg_catalog.int8"
+            "schema": "pg_catalog",
+            "name": "int8"
           },
           "is_sqlc_slice": false,
           "embed_table": null,
@@ -80944,7 +81032,7 @@
           },
           "is_sqlc_slice": false,
           "embed_table": null,
-          "original_name": "",
+          "original_name": "duration_min",
           "unsigned": false,
           "array_dims": 0
         },
@@ -80966,7 +81054,7 @@
           },
           "is_sqlc_slice": false,
           "embed_table": null,
-          "original_name": "",
+          "original_name": "billed_min",
           "unsigned": false,
           "array_dims": 0
         },
@@ -80988,7 +81076,7 @@
           },
           "is_sqlc_slice": false,
           "embed_table": null,
-          "original_name": "",
+          "original_name": "counted_min",
           "unsigned": false,
           "array_dims": 0
         },
@@ -80999,7 +81087,7 @@
           "comment": "",
           "length": -1,
           "is_named_param": false,
-          "is_func_call": true,
+          "is_func_call": false,
           "scope": "",
           "table": null,
           "table_alias": "",
@@ -81010,7 +81098,7 @@
           },
           "is_sqlc_slice": false,
           "embed_table": null,
-          "original_name": "",
+          "original_name": "services_amount",
           "unsigned": false,
           "array_dims": 0
         },
@@ -81021,7 +81109,7 @@
           "comment": "",
           "length": -1,
           "is_named_param": false,
-          "is_func_call": true,
+          "is_func_call": false,
           "scope": "",
           "table": null,
           "table_alias": "",
@@ -81032,7 +81120,7 @@
           },
           "is_sqlc_slice": false,
           "embed_table": null,
-          "original_name": "",
+          "original_name": "expenses_billed",
           "unsigned": false,
           "array_dims": 0
         },
@@ -81043,7 +81131,7 @@
           "comment": "",
           "length": -1,
           "is_named_param": false,
-          "is_func_call": true,
+          "is_func_call": false,
           "scope": "",
           "table": null,
           "table_alias": "",
@@ -81054,7 +81142,7 @@
           },
           "is_sqlc_slice": false,
           "embed_table": null,
-          "original_name": "",
+          "original_name": "expenses_user",
           "unsigned": false,
           "array_dims": 0
         },
@@ -81065,7 +81153,7 @@
           "comment": "",
           "length": -1,
           "is_named_param": false,
-          "is_func_call": true,
+          "is_func_call": false,
           "scope": "",
           "table": null,
           "table_alias": "",
@@ -81076,7 +81164,7 @@
           },
           "is_sqlc_slice": false,
           "embed_table": null,
-          "original_name": "",
+          "original_name": "realized_amount",
           "unsigned": false,
           "array_dims": 0
         },
@@ -81087,7 +81175,7 @@
           "comment": "",
           "length": -1,
           "is_named_param": false,
-          "is_func_call": true,
+          "is_func_call": false,
           "scope": "",
           "table": null,
           "table_alias": "",
@@ -81098,7 +81186,7 @@
           },
           "is_sqlc_slice": false,
           "embed_table": null,
-          "original_name": "",
+          "original_name": "invoiced_amount",
           "unsigned": false,
           "array_dims": 0
         },
@@ -81109,7 +81197,7 @@
           "comment": "",
           "length": -1,
           "is_named_param": false,
-          "is_func_call": true,
+          "is_func_call": false,
           "scope": "",
           "table": null,
           "table_alias": "",
@@ -81120,7 +81208,7 @@
           },
           "is_sqlc_slice": false,
           "embed_table": null,
-          "original_name": "",
+          "original_name": "balance_amount",
           "unsigned": false,
           "array_dims": 0
         },
@@ -81131,7 +81219,7 @@
           "comment": "",
           "length": -1,
           "is_named_param": false,
-          "is_func_call": true,
+          "is_func_call": false,
           "scope": "",
           "table": null,
           "table_alias": "",
@@ -81142,7 +81230,7 @@
           },
           "is_sqlc_slice": false,
           "embed_table": null,
-          "original_name": "",
+          "original_name": "cost_amount",
           "unsigned": false,
           "array_dims": 0
         },
@@ -81153,7 +81241,7 @@
           "comment": "",
           "length": -1,
           "is_named_param": false,
-          "is_func_call": true,
+          "is_func_call": false,
           "scope": "",
           "table": null,
           "table_alias": "",
@@ -81164,7 +81252,7 @@
           },
           "is_sqlc_slice": false,
           "embed_table": null,
-          "original_name": "",
+          "original_name": "margin_services",
           "unsigned": false,
           "array_dims": 0
         },
@@ -81175,7 +81263,7 @@
           "comment": "",
           "length": -1,
           "is_named_param": false,
-          "is_func_call": true,
+          "is_func_call": false,
           "scope": "",
           "table": null,
           "table_alias": "",
@@ -81186,7 +81274,7 @@
           },
           "is_sqlc_slice": false,
           "embed_table": null,
-          "original_name": "",
+          "original_name": "margin_balance",
           "unsigned": false,
           "array_dims": 0
         }

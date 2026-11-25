@@ -20,43 +20,51 @@ from invoice_document d
 where d.invoice_id = @invoice_id;
 
 -- name: InvoiceRunCandidates :many
--- Projects with activities not invoiced over a period and no draft invoice overlapping it: the invoices a run creates.
+-- Projects with billable activities over a period and no draft invoice overlapping it: the invoices a run creates.
 -- @anchor none
 -- @needs invoice
-select a.project_id, @date_from::date as date_from, @date_to::date as date_to
-from activity_p a
-where a.date between @date_from::date and @date_to::date and a.not_invoiced
+select b.project_id, @date_from::date as date_from, @date_to::date as date_to
+from billable_activity b
+where b.date between @date_from::date and @date_to::date
   and not exists (select from invoice i
-                  where i.project_id = a.project_id and i.invoiced_at is null
+                  where i.project_id = b.project_id and i.invoiced_at is null
                     and i.date_from <= @date_to::date and i.date_to >= @date_from::date)
-group by a.project_id
-order by a.project_id;
+group by b.project_id
+order by b.project_id;
 
 -- name: Profitability :many
--- Per project and folder, over the activities of a period: durations, services, expenses billed and reimbursed,
+-- Per folder and its project, over the activities of a period: durations, services, expenses billed and reimbursed,
 -- realized (services and expenses billed), invoiced, balance (realized minus invoiced). Invoiced activities use their frozen values.
 -- @anchor none
 -- @needs invoice
-select r.project_id, r.folder_id,
-       sum(r.duration_min)::integer as duration_min, sum(r.billed_min)::integer as billed_min,
-       sum(r.services_amount) as services_amount, sum(r.expenses_billed) as expenses_billed, sum(r.expenses_user) as expenses_user,
-       sum(r.realized_amount) as realized_amount, sum(r.invoiced_amount) as invoiced_amount, sum(r.balance_amount) as balance_amount
-from activity_revenue r
-where r.date between @date_from and @date_to
-group by r.project_id, r.folder_id;
+select f.project_id, r.*
+from (
+    select r.folder_id,
+           sum(r.duration_min)::integer as duration_min, sum(r.billed_min)::integer as billed_min,
+           sum(r.services_amount) as services_amount, sum(r.expenses_billed) as expenses_billed, sum(r.expenses_user) as expenses_user,
+           sum(r.realized_amount) as realized_amount, sum(r.invoiced_amount) as invoiced_amount, sum(r.balance_amount) as balance_amount
+    from activity_revenue r
+    where r.date between @date_from and @date_to
+    group by r.folder_id
+) r
+join folder f on f.id = r.folder_id;
 
 -- name: ProfitabilityCost :many
 -- Profitability with the cost (counted minutes times hourly cost) and the margins on services and on balance.
 -- @anchor none
 -- @needs cost
-select r.project_id, r.folder_id,
-       sum(r.duration_min)::integer as duration_min, sum(r.billed_min)::integer as billed_min, sum(r.counted_min)::integer as counted_min,
-       sum(r.services_amount) as services_amount, sum(r.expenses_billed) as expenses_billed, sum(r.expenses_user) as expenses_user,
-       sum(r.realized_amount) as realized_amount, sum(r.invoiced_amount) as invoiced_amount, sum(r.balance_amount) as balance_amount,
-       sum(r.cost_amount) as cost_amount, sum(r.margin_services) as margin_services, sum(r.margin_balance) as margin_balance
-from activity_cost r
-where r.date between @date_from and @date_to
-group by r.project_id, r.folder_id;
+select f.project_id, r.*
+from (
+    select r.folder_id,
+           sum(r.duration_min)::integer as duration_min, sum(r.billed_min)::integer as billed_min, sum(r.counted_min)::integer as counted_min,
+           sum(r.services_amount) as services_amount, sum(r.expenses_billed) as expenses_billed, sum(r.expenses_user) as expenses_user,
+           sum(r.realized_amount) as realized_amount, sum(r.invoiced_amount) as invoiced_amount, sum(r.balance_amount) as balance_amount,
+           sum(r.cost_amount) as cost_amount, sum(r.margin_services) as margin_services, sum(r.margin_balance) as margin_balance
+    from activity_cost r
+    where r.date between @date_from and @date_to
+    group by r.folder_id
+) r
+join folder f on f.id = r.folder_id;
 
 -- name: InvoiceLockActivities :exec
 -- Locks the activities of invoices, by id, before they are attached or released.

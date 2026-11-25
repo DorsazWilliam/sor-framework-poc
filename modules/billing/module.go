@@ -33,6 +33,7 @@ var Module = kernel.Module{Name: "billing", Schema: schema, Register: func(r *ke
 	r.Command("invoice.print", kernel.On("invoice"), kernel.Needs("invoice"))
 	r.Command("invoice.attach_pdf", kernel.On("invoice"), kernel.Effect("InvoiceAttachPdf"), kernel.Needs("invoice"))
 	r.Run("invoice.run", "invoice_run_candidates", "invoice.create", kernel.Needs("invoice"))
+	r.Command("delivery.retry", kernel.Needs("invoice"))
 
 	sum := func(cols ...string) []kernel.Agg {
 		aggs := make([]kernel.Agg, len(cols))

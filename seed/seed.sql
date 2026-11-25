@@ -249,18 +249,19 @@ join fta f on f.folder_id = h.fid
 cross join p
 where x.date <= p.today;
 
--- Invoices of the months older than about three months, invoiced; drafts of last month for a few projects.
+-- Invoices of the months older than about three months, invoiced; drafts of last month for a few projects. An invoice takes
+-- the billable activities: those whose task is billed.
 insert into invoice (project_id, date_from, date_to, invoiced_at, invoiced_by)
 select m.project_id, m.month, (m.month + interval '1 month - 1 day')::date, m.month + interval '1 month 5 days', 3
 from (
     select distinct f.project_id, date_trunc('month', a.date)::date as month
-    from act a join folder f on f.id = a.folder_id, p
+    from act a join folder f on f.id = a.folder_id join task t on t.id = a.task_id and t.billing <> 'never', p
     where a.date < date_trunc('month', p.today - interval '2 months')
 ) m
 order by m.month, m.project_id;
 insert into invoice (project_id, date_from, date_to)
 select distinct f.project_id, date_trunc('month', p.today - interval '1 month')::date, (date_trunc('month', p.today) - interval '1 day')::date
-from p, act a join folder f on f.id = a.folder_id
+from p, act a join folder f on f.id = a.folder_id join task t on t.id = a.task_id and t.billing <> 'never'
 where a.date >= date_trunc('month', p.today - interval '1 month') and a.date < date_trunc('month', p.today) and f.project_id % 100 = 1
 order by 1;
 
@@ -284,7 +285,8 @@ insert into activity (user_id, date, start_tod, duration_min, billed_min, folder
 select a.user_id, a.date, a.start_tod, a.duration_min, a.billed_min, a.folder_id, a.task_id, a.description, i.id
 from act a
 join folder f on f.id = a.folder_id
-left join invoice i on i.project_id = f.project_id and a.date between i.date_from and i.date_to and i.invoiced_at is not null
+join task t on t.id = a.task_id
+left join invoice i on t.billing <> 'never' and i.project_id = f.project_id and a.date between i.date_from and i.date_to and i.invoiced_at is not null
 order by a.date, a.user_id, a.start_tod;
 analyze activity, folder;
 

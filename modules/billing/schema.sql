@@ -25,18 +25,28 @@ create index invoice_project on invoice (project_id, date_from);
 
 alter table activity add constraint activity_invoice_id_fkey foreign key (invoice_id) references invoice;
 
+create view billable_activity as
+select f.project_id, a.id as activity_id, a.date
+from folder f
+join activity a on a.folder_id = f.id
+join task t on t.id = a.task_id
+where a.invoice_id is null and t.billing <> 'never';
+comment on view billable_activity is 'Activities an invoice can take: not invoiced, their task billed (not never); with the project of their folder.';
+comment on column billable_activity.project_id is 'Project of the folder.';
+comment on column billable_activity.activity_id is 'Activity.';
+comment on column billable_activity.date is 'Date of the activity.';
+
 create view invoice_line as
 select i.id as invoice_id, a.id as activity_id
 from invoice i
 join activity a on a.invoice_id = i.id
 where i.invoiced_at is not null
 union all
-select i.id, a.id
+select i.id, b.activity_id
 from invoice i
-join folder f on f.project_id = i.project_id
-join activity a on a.folder_id = f.id and a.date between i.date_from and i.date_to and a.invoice_id is null
+join billable_activity b on b.project_id = i.project_id and b.date between i.date_from and i.date_to
 where i.invoiced_at is null;
-comment on view invoice_line is 'Activities of an invoice: attached ones once invoiced; while draft, the activities of its project and period not yet invoiced.';
+comment on view invoice_line is 'Activities of an invoice: attached ones once invoiced; while draft, the billable activities of its project and period.';
 comment on column invoice_line.invoice_id is 'Invoice.';
 comment on column invoice_line.activity_id is 'Activity.';
 
