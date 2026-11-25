@@ -4,7 +4,7 @@
 
 truncate company, "user", user_group, user_group_member, user_group_fn, account, project, folder, folder_task, task,
          user_task_rate, work_period, cost_rate, public_holiday, hour_class, hour_class_slot,
-         activity, expense_type, expense, period_lock, invoice,
+         activity, expense_type, expense, period_lock, invoice, invoice_line, invoice_expense,
          connection, delivery, delivery_result, run, saved_view, event, file
     restart identity cascade;
 
@@ -281,44 +281,48 @@ from p;
 -- The generated rows reference existing rows only: the bulk load skips the per-row foreign key triggers.
 set local session_replication_role = replica;
 
-insert into activity (user_id, date, start_tod, duration_min, billed_min, folder_id, task_id, description, invoice_id)
-select a.user_id, a.date, a.start_tod, a.duration_min, a.billed_min, a.folder_id, a.task_id, a.description, i.id
+insert into activity (user_id, date, start_tod, duration_min, billed_min, folder_id, task_id, description)
+select a.user_id, a.date, a.start_tod, a.duration_min, a.billed_min, a.folder_id, a.task_id, a.description
 from act a
-join folder f on f.id = a.folder_id
-join task t on t.id = a.task_id
-left join invoice i on t.billing <> 'never' and i.project_id = f.project_id and a.date between i.date_from and i.date_to and i.invoiced_at is not null
 order by a.date, a.user_id, a.start_tod;
 analyze activity, folder;
 
--- Most old activities to validate are validated by their manager; invoiced ones get the values of their projection frozen.
--- Both read activity_p, so the rows are rewritten once from it.
+-- Most old activities to validate are validated by their manager. to_validate is read in activity_p, so the rows are
+-- rewritten once from it.
 create temp table fz on commit drop as
-select a.*, x.to_validate, x.rate, x.billed_min as billed, x.amount, u.manager_id
+select a.*, x.to_validate, u.manager_id
 from activity a
 join activity_p x on x.id = a.id
 join "user" u on u.id = a.user_id;
-truncate activity, expense;
+truncate activity, expense, invoice_line, invoice_expense;
 insert into activity overriding system value
 select z.id, z.user_id, z.date, z.start_tod, z.duration_min, z.billed_min, z.folder_id, z.task_id, z.description,
-       case when v.ok then coalesce(z.manager_id, 1) end, case when v.ok then (z.date + 3)::timestamptz end,
-       z.invoice_id,
-       case when z.invoice_id is not null then z.rate end, case when z.invoice_id is not null then z.billed end,
-       case when z.invoice_id is not null then z.amount end
+       case when v.ok then coalesce(z.manager_id, 1) end, case when v.ok then (z.date + 3)::timestamptz end
 from fz z
 cross join p
 cross join lateral (select z.to_validate and z.date < p.today - 30 and z.id % 10 < 9 as ok) v
 order by z.id;
 
--- Expenses on about 5 % of the activities of project folders; frozen on invoiced activities.
+-- Expenses on about 5 % of the activities of project folders.
 insert into expense (activity_id, expense_type_id, quantity, amount)
 select x.id, x.t,
        case x.t when 1 then 10 + floor(random() * 190) when 6 then 1 + floor(random() * 3) end,
        case when x.t not in (1, 6) then round((8 + random() * 240)::numeric, 2) end
 from (select a.id, 1 + floor(random() * 6)::integer as t from activity a where a.folder_id <= 6000 and random() < 0.05) x
 order by x.id;
-update expense e set (frozen_user_amount, frozen_billed_amount) = (x.user_amount, x.billed_amount)
-from expense_p x, activity a
-where x.id = e.id and a.id = e.activity_id and a.invoice_id is not null;
+
+-- The invoiced invoices have their lines: the values of the projections of their billable activities and expenses.
+insert into invoice_line (invoice_id, activity_id, rate, billed_min, amount)
+select i.id, x.id, x.rate, x.billed_min, x.amount
+from invoice i
+join folder f on f.project_id = i.project_id
+join billable_activity b on b.folder_id = f.id and b.date between i.date_from and i.date_to
+join activity_p x on x.id = b.activity_id
+where i.invoiced_at is not null;
+insert into invoice_expense (invoice_id, expense_id, user_amount, billed_amount)
+select l.invoice_id, x.id, x.user_amount, x.billed_amount
+from expense_p x
+join invoice_line l on l.activity_id = x.activity_id;
 
 insert into connection (kind, name, endpoint, secret_name, subject)
 select 'accounting', 'Comptabilité', p.acct_url, 'accounting', 'svc-accounting'

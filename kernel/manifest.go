@@ -45,7 +45,7 @@ type manifest struct {
 }
 
 // kernel params are bound by the kernel, never by the caller.
-var kernelParams = map[string]bool{"reach": true, "self": true, "ids": true}
+var kernelParams = map[string]bool{"reach": true, "self": true, "ids": true, "locked": true}
 
 func parseManifest(data []byte) (map[string]*Query, []string, error) {
 	var m manifest

@@ -18,6 +18,8 @@ var Template string
 // Module is the billing module.
 var Module = kernel.Module{Name: "billing", Schema: schema, Register: func(r *kernel.Registry) {
 	r.Table("invoice", kernel.Write("invoice"), kernel.Guarded("invoiced_at", "invoiced_by", "pdf_file_id"))
+	r.Table("invoice_line", kernel.ChildOf("invoice", "invoice_id"), kernel.NoCRUD(), kernel.Label("activity_id"))
+	r.Table("invoice_expense", kernel.ChildOf("invoice", "invoice_id"), kernel.NoCRUD(), kernel.Label("expense_id"))
 
 	r.Action("invoice", "editable", "is_draft")
 	r.Action("invoice", "deletable", "is_draft")
@@ -27,9 +29,9 @@ var Module = kernel.Module{Name: "billing", Schema: schema, Register: func(r *ke
 	r.Action("invoice", "exportable", "is_invoiced", "not_exported")
 
 	r.Command("invoice.mark_invoiced", kernel.On("invoice"), kernel.When("invoiceable"), kernel.Ensure("billed"), kernel.Needs("invoice_state"),
-		kernel.Effect("InvoiceLockActivities", "InvoiceAttachActivities", "InvoiceFreezeActivities", "InvoiceFreezeExpenses", "InvoiceMarkInvoiced"))
+		kernel.Effect("InvoiceLockActivities", "InvoiceWriteLines", "InvoiceWriteExpenses", "InvoiceMarkInvoiced"))
 	r.Command("invoice.back_to_draft", kernel.On("invoice"), kernel.When("revertible"), kernel.Needs("invoice_state"),
-		kernel.Effect("InvoiceLockActivities", "InvoiceReleaseExpenses", "InvoiceReleaseActivities", "InvoiceBackToDraft"))
+		kernel.Effect("InvoiceDeleteExpenses", "InvoiceDeleteLines", "InvoiceBackToDraft"))
 	r.Command("invoice.print", kernel.On("invoice"), kernel.Needs("invoice"))
 	r.Job("invoice.render", invoiceRender)
 	r.Reaction("invoice.print", "invoice.render")

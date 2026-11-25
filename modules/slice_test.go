@@ -255,8 +255,8 @@ func TestActivityVersusPeriodLock(t *testing.T) {
 	}
 }
 
-// computed is the projection of activity id as if it were not invoiced: rate, billed minutes and amount
-// computed from its inputs.
+// computed is the projection of activity id without its invoice line: rate, billed minutes and amount computed
+// from its inputs.
 func computed(t *testing.T, k *kernel.Kernel, id int64) string {
 	t.Helper()
 	tx, err := k.Pool.Begin(context.Background())
@@ -265,7 +265,8 @@ func computed(t *testing.T, k *kernel.Kernel, id int64) string {
 	}
 	defer tx.Rollback(context.Background())
 	sid := strconv.FormatInt(id, 10)
-	tx.Exec(context.Background(), "update activity set invoice_id = null, frozen_rate = null, frozen_billed_min = null, frozen_amount = null where id = "+sid)
+	tx.Exec(context.Background(), "delete from invoice_expense where expense_id in (select id from expense where activity_id = "+sid+")")
+	tx.Exec(context.Background(), "delete from invoice_line where activity_id = "+sid)
 	var s string
 	if err := tx.QueryRow(context.Background(), "select row(rate, billed_min, amount)::text from activity_p where id = "+sid).Scan(&s); err != nil {
 		t.Fatal(err)
@@ -273,7 +274,8 @@ func computed(t *testing.T, k *kernel.Kernel, id int64) string {
 	return s
 }
 
-// (b) An activity written while an invoice freezes it: the invoice waits for the write, then freezes the committed inputs.
+// (b) An activity written while it is being invoiced: the invoice waits for the write, then its line carries the values
+// of the committed inputs.
 func TestActivityVersusInvoicing(t *testing.T) {
 	k := setup(t)
 	user, finance := who(t, k, "user"), who(t, k, "finance")
@@ -297,14 +299,14 @@ func TestActivityVersusInvoicing(t *testing.T) {
 	if err := <-mark; err != nil {
 		t.Fatal(err)
 	}
-	var frozen string
+	var line string
 	var invoice int64
-	one(t, k, "select row(frozen_rate, frozen_billed_min, frozen_amount)::text, invoice_id from activity where id = "+strconv.FormatInt(id, 10), &frozen, &invoice)
-	if invoice != inv || frozen != computed(t, k, id) {
-		t.Fatalf("frozen %s on invoice %d, computed %s on %d", frozen, invoice, computed(t, k, id), inv)
+	one(t, k, "select row(rate, billed_min, amount)::text, invoice_id from invoice_line where activity_id = "+strconv.FormatInt(id, 10), &line, &invoice)
+	if invoice != inv || line != computed(t, k, id) {
+		t.Fatalf("line %s on invoice %d, computed %s on %d", line, invoice, computed(t, k, id), inv)
 	}
-	if !strings.Contains(frozen, ","+strconv.Itoa(dur+15)+",") {
-		t.Fatalf("frozen billed minutes %s, want %d", frozen, dur+15)
+	if !strings.Contains(line, ","+strconv.Itoa(dur+15)+",") {
+		t.Fatalf("billed minutes of the line %s, want %d", line, dur+15)
 	}
 
 }
@@ -324,7 +326,7 @@ func TestRejectionAndReach(t *testing.T) {
 	srv := httptest.NewServer(h)
 	defer srv.Close()
 	var invoiced, other int64
-	one(t, k, "select min(id) from activity where user_id = 4 and invoice_id is not null", &invoiced)
+	one(t, k, "select min(a.id) from activity a join invoice_line l on l.activity_id = a.id where a.user_id = 4", &invoiced)
 	one(t, k, "select min(id) from activity where user_id <> 4", &other)
 	in := map[string]any{"ids": []int64{invoiced}, "description": "late"}
 

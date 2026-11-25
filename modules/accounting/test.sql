@@ -35,7 +35,8 @@ insert into activity (user_id, date, start_tod, duration_min, folder_id, task_id
 select u.id, '2026-02-03', 600, 60, f.id, t.id from "user" u, folder f, task t;
 insert into invoice (project_id, date_from, date_to) select id, '2026-02-01', '2026-02-28' from project;
 create temp table ids as select array_agg(id) as ids from invoice;
-select format('execute %s(%L)', q, (select ids from ids)) from unnest(array['invoicelockactivities', 'invoiceattachactivities', 'invoicefreezeactivities']) q \gexec
+select format('create temp table lk as execute invoicelockactivities(%L)', (select ids from ids)) \gexec
+select format('execute invoicewritelines(%L, %L)', (select ids from ids), (select array_agg(id) from lk)) \gexec
 select format('execute invoicemarkinvoiced(%s, %L)', (select id from "user"), (select ids from ids)) \gexec
 select pg_temp.eq('not exported', (select export_state::text || '/' || not_exported from invoice_p), 'none/true');
 select format('execute invoiceexport(%s, %L)', (select id from "user"), (select ids from ids)) \gexec

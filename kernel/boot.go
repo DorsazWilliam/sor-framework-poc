@@ -510,9 +510,17 @@ func (b *booter) bootCommands(ctx context.Context) {
 				desc = append(desc, q.Description)
 			}
 			e := b.effect(ctx, q, c)
-			if e != nil {
-				c.effects = append(c.effects, e)
+			if e == nil {
+				continue
 			}
+			locks := slices.ContainsFunc(c.effects, func(x *effect) bool { return x.table == nil })
+			switch {
+			case e.table == nil && len(c.effects) > 0 && c.effects[len(c.effects)-1].table != nil:
+				b.fail("command %s: lock statement %s after a write", d.Name, name)
+			case slices.Contains(e.params, "locked") && (e.table == nil || !locks):
+				b.fail("command %s: %s uses @locked without a lock statement before it", d.Name, name)
+			}
+			c.effects = append(c.effects, e)
 		}
 		c.Description = strings.Join(desc, " ")
 		b.addCommand(c)
@@ -553,6 +561,10 @@ func (b *booter) effect(ctx context.Context, q *Query, c *Command) *effect {
 	sd, err := b.describe(ctx, q.Text)
 	if err != nil {
 		b.fail("effect %s: %v", q.Name, err)
+		return nil
+	}
+	if t == nil && (len(sd.Fields) != 1 || b.types[sd.Fields[0].DataTypeOID].name != "int8") {
+		b.fail("effect %s: a lock statement returns the ids it locks, one bigint column", q.Name)
 		return nil
 	}
 	for i, oid := range sd.ParamOIDs {

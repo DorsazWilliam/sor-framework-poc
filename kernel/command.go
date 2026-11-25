@@ -83,6 +83,8 @@ type call struct {
 	id   string
 	mark int64 // last event id before the call: its events are those of its call id after the mark
 	ids  []int64
+	// locked are the ids returned by the lock statements of the effects, @locked of the following ones
+	locked []int64
 
 	// what the call changed, for its commit
 	rows    []Row
@@ -93,7 +95,7 @@ type call struct {
 type stmt struct {
 	sql   string
 	args  []any
-	table *Table // nil: run as is
+	table *Table // nil: a lock statement, run as is
 }
 
 func (x *call) reach() string {
@@ -155,6 +157,11 @@ func (x *call) exec(ctx context.Context, open string) (*Result, error) {
 		b.Queue("select id from "+ident(root.Name)+" where id = any("+rootExpr+") order by id for update", rootArg)
 		b.Queue("select id, to_jsonb(r) from "+ident(root.source)+" r where id = any("+rootExpr+")", rootArg)
 	}
+	// the lock statements of the effects: the ids they return are @locked of the following statements
+	locks := x.statements(true)
+	for _, s := range locks {
+		b.Queue(s.sql, s.args...)
+	}
 	br := x.conn.SendBatch(ctx, b)
 	var before map[int64]json.RawMessage
 	var found int
@@ -172,15 +179,27 @@ func (x *call) exec(ctx context.Context, open string) (*Result, error) {
 				return err
 			}
 		}
-		if rootExpr == "" {
-			return nil
+		if rootExpr != "" {
+			if _, err := br.Exec(); err != nil {
+				return err
+			}
+			var err error
+			if before, err = projRows(br); err != nil {
+				return err
+			}
 		}
-		if _, err := br.Exec(); err != nil {
-			return err
+		for range locks {
+			rs, err := br.Query()
+			if err != nil {
+				return err
+			}
+			ids, err := pgx.CollectRows(rs, pgx.RowTo[int64])
+			if err != nil {
+				return err
+			}
+			x.locked = append(x.locked, ids...)
 		}
-		var err error
-		before, err = projRows(br)
-		return err
+		return nil
 	}()
 	if cerr := br.Close(); err == nil {
 		err = cerr
@@ -198,16 +217,9 @@ func (x *call) exec(ctx context.Context, open string) (*Result, error) {
 	}
 
 	// Round trip 3: effects with their events, re-read of the touched roots.
-	stmts, err := x.statements()
-	if err != nil {
-		return nil, err
-	}
+	stmts := x.statements(false)
 	b = &pgx.Batch{}
 	for _, s := range stmts {
-		if s.table == nil {
-			b.Queue(s.sql, s.args...)
-			continue
-		}
 		n := len(s.args)
 		rootFK := "id"
 		if s.table.root != s.table {
@@ -250,13 +262,7 @@ union all select (e.changes->%s->>0)::bigint from event e where e.call = $1::uui
 	}
 	br = x.conn.SendBatch(ctx, b)
 	err = func() error {
-		for _, s := range stmts {
-			if s.table == nil {
-				if _, err := br.Exec(); err != nil {
-					return err
-				}
-				continue
-			}
+		for range stmts {
 			rs, err := br.Query()
 			if err != nil {
 				return err
@@ -435,11 +441,13 @@ func rejection(action string, conds []string, rows map[int64]json.RawMessage) *P
 	return p
 }
 
-// statements are the effects of the call, in order.
-func (x *call) statements() ([]stmt, error) {
+// statements are the effects of the call, in order: its lock statements (lock), or the others.
+func (x *call) statements(lock bool) []stmt {
 	c, t := x.c, x.c.table
-	switch c.Kind {
-	case "create", "update":
+	switch {
+	case lock && c.Kind != "custom":
+		return nil
+	case c.Kind == "create" || c.Kind == "update":
 		var cols, vals []string
 		var args []any
 		for _, col := range c.Input {
@@ -450,25 +458,25 @@ func (x *call) statements() ([]stmt, error) {
 		}
 		if c.Kind == "create" {
 			if len(cols) == 0 {
-				return []stmt{{sql: "insert into " + ident(t.Name) + " default values", table: t}}, nil
+				return []stmt{{sql: "insert into " + ident(t.Name) + " default values", table: t}}
 			}
-			return []stmt{{sql: "insert into " + ident(t.Name) + " (" + strings.Join(cols, ", ") + ") values (" + strings.Join(vals, ", ") + ")", args: args, table: t}}, nil
+			return []stmt{{sql: "insert into " + ident(t.Name) + " (" + strings.Join(cols, ", ") + ") values (" + strings.Join(vals, ", ") + ")", args: args, table: t}}
 		}
 		if len(cols) == 0 {
-			return nil, nil
+			return nil
 		}
 		set := make([]string, len(cols))
 		for i := range cols {
 			set[i] = cols[i] + " = " + vals[i]
 		}
 		args = append(args, ints(x.ids))
-		return []stmt{{sql: fmt.Sprintf("update %s set %s where id = any($%d::bigint[])", ident(t.Name), strings.Join(set, ", "), len(args)), args: args, table: t}}, nil
-	case "delete":
+		return []stmt{{sql: fmt.Sprintf("update %s set %s where id = any($%d::bigint[])", ident(t.Name), strings.Join(set, ", "), len(args)), args: args, table: t}}
+	case c.Kind == "delete":
 		var out []stmt
 		for _, ch := range t.children {
 			out = append(out, stmt{sql: fmt.Sprintf("delete from %s where %s = any($1::bigint[])", ident(ch.Name), ident(ch.ChildFK)), args: []any{ints(x.ids)}, table: ch})
 		}
-		return append(out, stmt{sql: "delete from " + ident(t.Name) + " where id = any($1::bigint[])", args: []any{ints(x.ids)}, table: t}), nil
+		return append(out, stmt{sql: "delete from " + ident(t.Name) + " where id = any($1::bigint[])", args: []any{ints(x.ids)}, table: t})
 	}
 	types := map[string]string{}
 	for _, in := range c.Input {
@@ -476,6 +484,9 @@ func (x *call) statements() ([]stmt, error) {
 	}
 	var out []stmt
 	for _, e := range c.effects {
+		if (e.table == nil) != lock {
+			continue
+		}
 		s := stmt{sql: e.sql, table: e.table}
 		for _, name := range e.params {
 			switch name {
@@ -485,13 +496,15 @@ func (x *call) statements() ([]stmt, error) {
 				s.args = append(s.args, strconv.FormatInt(x.p.Self, 10))
 			case "ids":
 				s.args = append(s.args, ints(x.ids))
+			case "locked":
+				s.args = append(s.args, ints(x.locked))
 			default:
 				s.args = append(s.args, pgValue(x.in[name], types[name]))
 			}
 		}
 		out = append(out, s)
 	}
-	return out, nil
+	return out
 }
 
 // startRun inserts the run row and its run.execute job.

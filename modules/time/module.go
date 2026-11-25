@@ -21,10 +21,10 @@ var (
 // Module is the time module.
 var Module = kernel.Module{Name: "time", Schema: schema, Register: func(r *kernel.Registry) {
 	r.Table("activity", kernel.Under("company"), kernel.Anchor("user_id", "user"), kernel.Write("activity"),
-		kernel.Guarded("validated_by", "validated_at", "invoice_id", "frozen_rate", "frozen_billed_min", "frozen_amount"), kernel.Label("description"))
+		kernel.Guarded("validated_by", "validated_at"), kernel.Label("description"))
 	r.Table("expense_type", kernel.Write("master_data"), kernel.Group("master_data"))
 	r.Table("expense", kernel.ChildOf("activity", "activity_id"), kernel.Write("expense"),
-		kernel.Guarded("receipt_file_id", "ocr_amount", "frozen_user_amount", "frozen_billed_amount"), kernel.Label("expense_type_id"))
+		kernel.Guarded("receipt_file_id", "ocr_amount"), kernel.Label("expense_type_id"))
 	r.Table("period_lock", kernel.ChildOf("company", "company_id"), kernel.Write("period_lock"), kernel.Label("date_from"))
 
 	r.Action("activity", "editable", "not_locked", "not_invoiced", "not_validated", "entry_open", "task_allowed")

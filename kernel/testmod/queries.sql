@@ -22,8 +22,8 @@ where e.person_id = any(@reach::bigint[])
 select id from entry where id = any(@ids::bigint[]) order by id for update;
 
 -- name: EntryValidate :exec
--- Marks the entries validated.
-update entry set validated = true where id = any(@ids::bigint[]);
+-- Marks the locked entries validated.
+update entry set validated = true where id = any(@locked::bigint[]);
 
 -- name: EntryRunCandidates :many
 -- Entries a run creates on day: n of them, for person 1 before index split and person 2 after; index bad is too long.
