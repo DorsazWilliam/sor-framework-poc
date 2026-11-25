@@ -60,7 +60,7 @@
 
   <main>
     {#if screen}
-      {#key screen.id}
+      {#key `${screen.id}:${route.visit}`}
         {#if screen.component === "entry"}<Entry {screen} />{:else}<ViewScreen {screen} />{/if}
       {/key}
     {/if}

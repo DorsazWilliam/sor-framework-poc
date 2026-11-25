@@ -1,400 +1,555 @@
-// Smoke test against the dev server + mock: `npm run dev` then `npm run smoke`.
-import { chromium, type Page } from "playwright";
+// Smoke test against the running stack (`docker compose up`): `npm run smoke` [-- step-name-filter].
+// SMOKE_URL (default http://localhost:8080) may point at the Vite dev server, which proxies to the stack.
+// Everything it creates is deleted again; dates are far in the future so seeded data is not touched.
+import { chromium, type BrowserContext, type Page } from "playwright";
 
-const base = process.env.SMOKE_URL ?? "http://localhost:5173";
+const base = process.env.SMOKE_URL ?? "http://localhost:8080";
+const only = process.argv[2];
 const shots = new URL("./screenshots/", import.meta.url).pathname.replace(/^\/(\w:)/, "$1");
 const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: 1440, height: 860 }, colorScheme: "light" });
 const errors: string[] = [];
-page.on("pageerror", (e) => errors.push(e.message));
-page.on("console", (m) => m.type() === "error" && !m.text().includes("409 (Conflict)") && errors.push(m.text()));
 
+async function login(user: string, viewport = { width: 1440, height: 900 }) {
+  const ctx = await browser.newContext({ viewport, colorScheme: "light" });
+  const page = await ctx.newPage();
+  page.on("pageerror", (e) => errors.push(`${user}: ${e.message}`));
+  page.on("console", (m) => m.type() === "error" && !/\b(401|403|409|422)\b/.test(m.text()) && errors.push(`${user}: ${m.text()}`));
+  await page.goto(`${base}/`);
+  await page.fill('input[name="username"]', user);
+  await page.click('input[type="submit"]');
+  await page.waitForURL((u) => u.pathname === "/" && u.port === "8080");
+  return { ctx, page };
+}
+
+// A failed step is reported (with a screenshot in SMOKE_FAIL, if set) and the next one runs.
+const failed: string[] = [];
 async function step(name: string, fn: () => Promise<unknown>) {
+  if (only && !only.split("|").some((o) => name.includes(o))) return;
   const t0 = performance.now();
-  await fn();
-  console.log(`ok  ${name} (${Math.round(performance.now() - t0)} ms)`);
+  try {
+    await fn();
+    console.log(`ok   ${name} (${Math.round(performance.now() - t0)} ms)`);
+  } catch (e) {
+    failed.push(name);
+    console.log(`FAIL ${name}: ${String((e as Error).message).split("\n")[0]}`);
+    if (process.env.SMOKE_FAIL) await page.screenshot({ path: `${process.env.SMOKE_FAIL}/fail-${failed.length}.png` }).catch(() => {});
+    await page.keyboard.press("Escape").catch(() => {});
+  }
 }
 function check(cond: unknown, what: string) {
   if (!cond) throw new Error(`failed: ${what}`);
 }
-async function until(fn: () => Promise<boolean>, what: string) {
-  for (let i = 0; i < 100; i++) if (await fn()) return;
-  else await page.waitForTimeout(50);
+async function until(page: Page, fn: () => Promise<boolean>, what: string, ms = 10000) {
+  for (const end = Date.now() + ms; Date.now() < end; await page.waitForTimeout(50)) if (await fn()) return;
   throw new Error(`timeout: ${what}`);
 }
-const status = () => page.locator(".status").innerText();
-const ready = (p: Page, id: string) => p.waitForSelector(`[data-screen="${id}"][data-ready]`);
-const firstCell = (col: number) => page.locator(".row[data-id]").first().locator(".cell").nth(col + 1).innerText();
-const colIndex = async (label: string) => (await page.locator(".hrow .hbtn").allInnerTexts()).findIndex((t) => t.trim() === label);
-const home = async () => {
-  for (const b of await page.locator(".toast button").all()) await b.click();
-  await page.locator(".viewport").evaluate((v) => (v.scrollLeft = 0));
-  await page.locator(".row[data-id]").first().waitFor();
-  await page.mouse.move(0, 0);
-};
-const toast = (text: string) => page.locator(".toast", { hasText: text }).first().waitFor();
 
-// ---- entry screen, keyboard only ----
-const kb = page.keyboard;
-const api = (v: string, body: object) => fetch(`${base}/api/v/${v}`, { method: "POST", body: JSON.stringify(body) }).then((r) => r.json());
-const focused = () => page.evaluate(() => {
-  const a = document.activeElement as HTMLElement;
-  const line = a.closest<HTMLElement>("[data-uid]");
-  return { inGrid: !!a.closest(".lines"), col: a.closest<HTMLElement>("[data-col]")?.dataset.col, uid: line?.dataset.uid, row: line?.dataset.row, saved: line?.dataset.saved };
-});
-async function inGrid(what: string) {
-  await until(async () => (await focused()).inGrid, `focus in grid (${what})`);
+// API through the context's session cookie.
+async function post<T = Record<string, unknown>[]>(ctx: BrowserContext, path: string, body: unknown): Promise<T> {
+  const r = await ctx.request.post(`${base}${path}`, { data: body });
+  if (!r.ok()) throw new Error(`${path}: ${r.status()} ${await r.text()}`);
+  return r.json();
 }
-const dayTotal = () => page.locator(".totals span").first().innerText();
-const pressed = () => page.locator(".strip .day[aria-pressed=true]").getAttribute("data-date");
-const [folder] = await api("folder.lookup", { filter: [{ col: "id", op: "eq", value: 12 }] });
-const [project, folderName] = String(folder.label).split(" / ");
-const [task] = await api("folder_task_allowed", { params: { folder_id: 12 } });
-const timings: number[] = [];
-const requests: number[] = [];
-const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
+const view = (ctx: BrowserContext, v: string, body: object) => post(ctx, `/api/v/${v}`, body);
+const call = (ctx: BrowserContext, c: string, body: object) => post<{ ids: number[] }>(ctx, `/api/c/${c}`, body);
 
-// Types one line from its start cell; Enter saves it and moves to the day's new line.
+const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const today = new Date();
+const monday = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7));
+// The test week: a future week never seeded, different on each run (an exported invoice cannot be removed).
+const weeks = 8 + (Math.floor(Date.now() / 60000) % 40);
+const testMonday = monday(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7 * weeks));
+const testDay = (n: number) => iso(new Date(testMonday.getFullYear(), testMonday.getMonth(), testMonday.getDate() + n));
+
+const ready = (p: Page, id: string) => p.waitForSelector(`[data-screen="${id}"][data-ready]`);
+const open = async (p: Page, screen: string, state?: object) => {
+  await p.goto(`${base}/#/${screen}${state ? `?s=${encodeURIComponent(JSON.stringify(state))}` : ""}`);
+  await ready(p, screen);
+};
+const toast = (p: Page, text: string | RegExp) => p.locator(".toast", { hasText: text }).first().waitFor();
+const closeToasts = async (p: Page) => {
+  for (const b of await p.locator(".toast button").all()) await b.click().catch(() => {});
+};
+const status = (p: Page) => p.locator(".status span").first().innerText();
+const colIndex = async (p: Page, label: string) =>
+  (await p.locator(".hrow .hbtn").allInnerTexts()).findIndex((t) => t.trim().replace(/\s*[↑↓]\s*\d*$/, "") === label);
+const cell = (p: Page, row: number, col: number) => p.locator(".row[data-id]").nth(row).locator(".cell").nth(col + 1).innerText();
+
+// A receipt image drawn in the page: the OCR job reads its total.
+async function receipt(p: Page): Promise<Buffer> {
+  const data = await p.evaluate(() => {
+    const c = document.createElement("canvas");
+    c.width = 600;
+    c.height = 520;
+    const g = c.getContext("2d")!;
+    g.fillStyle = "#fff";
+    g.fillRect(0, 0, c.width, c.height);
+    g.fillStyle = "#000";
+    g.font = "32px monospace";
+    const lines = ["CAFE DE LA GARE", "", "Menu du jour     32.50", "Eau minerale      6.80", "Cafe              6.50", "", "Total CHF        45.80", "TVA 8.1%          3.43"];
+    lines.forEach((l, i) => g.fillText(l, 40, 60 + i * 52));
+    return c.toDataURL("image/png").split(",")[1];
+  });
+  return Buffer.from(data, "base64");
+}
+
+const admin = await login("admin");
+const { page } = admin;
+
+// Test data: a folder open to entry with a task billed "always", and its label as typed in the entry screen.
+const folders = await view(admin.ctx, "folder.lookup", { filter: [{ col: "entry_open", op: "eq", value: true }], limit: 50 });
+let folder = folders[0];
+let task: Record<string, unknown> = {};
+for (const f of folders) {
+  const tasks = await view(admin.ctx, "folder_task_allowed", { params: { folder_id: f.id } });
+  const t = tasks.find((x) => x.billing === "always" && x.kind === "service");
+  if (t) {
+    folder = f;
+    task = t;
+    break;
+  }
+}
+const [projectLabel, folderName] = String(folder.label).split(" / ");
+const folderQuery = `${projectLabel.split(" ").pop()} ${folderName}`;
+// The activity the generic screens work on (expenses, drawer, live, invoicing), in the test week.
+const activityId = (await call(admin.ctx, "activity.create", {
+  user_id: (await (await admin.ctx.request.get(`${base}/api/me`)).json()).id,
+  date: testDay(0), start_tod: 480, duration_min: 60, folder_id: folder.id, task_id: task.id, description: "Smoke frais",
+})).ids[0];
+
+// ---- 1 entry ----
+const kb = page.keyboard;
+const focused = () =>
+  page.evaluate(() => {
+    const a = document.activeElement as HTMLElement;
+    const line = a.closest<HTMLElement>("[data-uid]");
+    return { inGrid: !!a.closest(".lines"), col: a.closest<HTMLElement>("[data-col]")?.dataset.col, uid: line?.dataset.uid, row: line?.dataset.row, saved: line?.dataset.saved };
+  });
+const pressed = () => page.locator(".strip .day[aria-pressed=true]").getAttribute("data-date");
+const lines = () => page.locator('.line:not([data-row="new"])');
+
 async function typeLine(start: string, duration: string, description: string) {
-  await until(async () => (await focused()).col === "start_tod" && (await focused()).row === "new", "on the new line");
+  await until(page, async () => (await focused()).col === "start_tod" && (await focused()).row === "new", "on the new line");
   await kb.type(start);
   await kb.press("Tab");
   await kb.type(duration);
   await kb.press("Tab");
-  await kb.type(`${project.split(" ")[1].slice(0, 4)} ${folderName}`);
-  await page.locator(".popover .option").first().waitFor();
+  await kb.type(folderQuery);
+  await page.locator(".popover .option", { hasText: folderName }).first().waitFor();
   await kb.press("Tab");
-  await page.waitForFunction(() => document.activeElement?.closest("[data-col]")?.getAttribute("data-col") === "task_id");
-  await kb.type(String(task.name).slice(0, 4));
+  await until(page, async () => (await focused()).col === "task_id", "on the task");
+  await kb.type(String(task.name).slice(0, 5));
   await page.locator(".popover .option", { hasText: String(task.name) }).first().waitFor();
   await kb.press("Tab");
   if ((await focused()).col === "billed_min") await kb.press("Tab");
   await kb.type(description);
-  // Measured in the page: Enter keydown → data-saved attribute changed.
-  await page.evaluate((uid) => {
-    const el = document.querySelector(`[data-uid="${uid}"]`)!;
-    let t0 = 0;
-    addEventListener("keydown", () => (t0 = performance.now()), { capture: true, once: true });
-    (window as unknown as { saved: Promise<number> }).saved = new Promise((res) =>
-      new MutationObserver((_, o) => (o.disconnect(), res(performance.now() - t0))).observe(el, { attributeFilter: ["data-saved"] }));
-  }, (await focused()).uid);
   await kb.press("Enter");
-  timings.push(await page.evaluate(() => (window as unknown as { saved: Promise<number> }).saved));
-  requests.push(await page.evaluate(() => performance.getEntriesByType("resource").filter((e) => e.name.endsWith("/api/c/activity.create")).at(-1)!.duration));
-  await inGrid("after save");
 }
 
-await step("entry: open, focus on the new line of today", async () => {
-  await page.goto(`${base}/#/entry`);
-  await ready(page, "entry");
-  await inGrid("open");
-});
+async function gotoDay(date: string) {
+  await until(page, async () => (await focused()).inGrid, "focus in the grid");
+  for (let i = 0; i < 60 && (await pressed())! < date; i++) await kb.press((await pressed())! <= iso(new Date(Date.parse(date) - 7 * 864e5)) ? "Alt+ArrowDown" : "Alt+ArrowRight");
+  for (let i = 0; i < 30 && (await pressed())! > date; i++) await kb.press("Alt+ArrowLeft");
+  await until(page, async () => (await pressed()) === date && (await focused()).row === "new", `on ${date}`);
+}
 
-await step("entry: type three activities with the keyboard (create, data-saved)", async () => {
-  await typeLine("13", "1.5", "Analyse des besoins");
-  await typeLine("", "45m", "Revue de code");
-  await typeLine("1530", "1:15", "Correctifs");
-  console.log(`    Enter → data-saved (mock): ${timings.map(Math.round).join(", ")} ms; of which the create request: ${requests.map(Math.round).join(", ")} ms`);
-});
-
-await step("entry: edit a duration, the day total follows after refresh", async () => {
-  const before = await dayTotal();
-  for (let i = 0; i < 20 && (await focused()).col !== "duration_min"; i++) await kb.press("Shift+Tab");
-  const { uid, saved } = await focused();
+let lockId = 0;
+await step("1 entry: keyboard create, update, refused save on a locked day, duplicate, delete", async () => {
+  await open(page, "entry");
+  await gotoDay(testDay(1));
+  const n = await lines().count();
+  await typeLine("9", "1.5", "Smoke analyse");
+  await until(page, async () => (await lines().count()) === n + 1 && (await lines().first().getAttribute("data-saved")) === "1", "line created");
+  await typeLine("", "45m", "Smoke revue");
+  await until(page, async () => (await lines().count()) === n + 2, "second line created");
+  // update: the duration of the first line
+  const first = lines().first();
+  await first.locator('[data-col="duration_min"] input').click();
+  await kb.press("Control+a");
   await kb.type("2h");
   await kb.press("Enter");
-  await page.waitForSelector(`[data-uid="${uid}"][data-saved="${+saved! + 1}"]`);
-  await until(async () => (await dayTotal()) !== before, "day total changed");
-  await inGrid("after edit");
-});
-
-await step("entry: refused save on a locked day shows the condition", async () => {
-  const today = await pressed();
-  await kb.press("Alt+ArrowUp");
-  for (let d = new Date(`${today}T12:00`).getDay(); d !== 1; d = (d + 6) % 7) await kb.press("Alt+ArrowLeft");
+  await page.locator(`[data-uid="${await first.getAttribute("data-uid")}"][data-saved="2"]`).waitFor();
+  await until(page, async () => (await page.locator(".totals span").first().innerText()).includes("2:45"), "day total 2:45");
+  // a lock on the test Wednesday refuses the save with the condition's label
+  lockId = (await call(admin.ctx, "period_lock.create", { company_id: 1, date_from: testDay(2), date_to: testDay(2) })).ids[0];
+  await gotoDay(testDay(2));
   await page.locator(".strip .day[aria-pressed=true] .mark").first().waitFor();
-  await inGrid("after day moves");
-  await typeLineRefused();
-  await page.locator(".reasons", { hasText: "Période non verrouillée" }).waitFor();
-  await kb.press("Alt+ArrowDown");
-  for (let i = 0; (await pressed()) !== today; i++) {
-    check(i < 7, "back to today");
-    await kb.press("Alt+ArrowRight");
-  }
-  await inGrid("back to today");
-});
-
-async function typeLineRefused() {
-  await until(async () => (await focused()).row === "new", "on the new line");
-  await kb.type("17");
-  await kb.press("Tab");
-  await kb.type("1");
-  await kb.press("Tab");
-  await kb.type(`${project.split(" ")[1].slice(0, 4)} ${folderName}`);
-  await page.locator(".popover .option").first().waitFor();
-  await kb.press("Tab");
-  await kb.type(String(task.name).slice(0, 4));
-  await page.locator(".popover .option", { hasText: String(task.name) }).first().waitFor();
-  await kb.press("Tab");
-  await kb.press("Enter");
-}
-
-await step("entry: duplicate with Ctrl+D, delete with Ctrl+Delete", async () => {
-  const count = () => page.locator('.line:not([data-row="new"])').count();
-  const n = await count();
-  await kb.press("Shift+Tab");
-  await kb.press("Control+d");
-  await until(async () => (await focused()).row === "new", "on the new line after duplicate");
-  await kb.press("Enter");
-  await until(async () => (await count()) === n + 1, "one more line");
-  for (let i = 0; i < 12 && (await focused()).row === "new"; i++) await kb.press("Shift+Tab");
-  const { row } = await focused();
-  await kb.press("Control+Delete");
-  await page.locator(`[data-row="${row}"]`).waitFor({ state: "detached" });
-  check((await count()) === n, "line deleted");
-  await inGrid("after delete");
-});
-
-await step("entry: week mode, drawer with F4 (focus stays in the grid)", async () => {
-  await page.locator(".seg button", { hasText: "Semaine" }).click();
-  await page.locator(".dayhead").nth(6).waitFor();
-  await page.locator('.line:not([data-row="new"]) input').last().focus();
-  await kb.press("F4");
-  await page.locator(".drawer [data-screen='activity.expenses'][data-ready]").waitFor();
-  await inGrid("drawer open");
-  const shoot = async (name: string) => {
-    for (const theme of ["light", "dark"]) {
-      await page.evaluate((theme) => (document.documentElement.dataset.theme = theme), theme);
-      await page.mouse.move(0, 0);
-      await page.waitForTimeout(300); // color transitions
-      await page.screenshot({ path: `${shots}entry-${name}-${theme}.png` });
-    }
-    await page.evaluate(() => (document.documentElement.dataset.theme = "light"));
-  };
-  await shoot("week");
-  await page.locator(".seg button", { hasText: "Jour" }).click();
-  await page.locator(".dayhead").first().waitFor({ state: "detached" });
-  await page.locator('.line:not([data-row="new"]) input').last().focus();
-  await shoot("day");
-});
-
-await step("entry drawer: add an expense, attach a receipt, OCR amount arrives live", async () => {
-  const drawer = page.locator(".drawer");
-  await drawer.locator('[data-command="expense.create"]').press("Enter");
-  await page.locator("#f-expense_type_id").focus();
-  await kb.type("Repas");
-  await page.locator(".popover .option", { hasText: "Repas" }).waitFor();
-  await kb.press("Enter");
-  await page.locator("#f-amount").focus();
-  await kb.type("25");
-  await page.locator(".dialog").getByRole("button", { name: "Créer" }).press("Enter");
-  const row = drawer.locator(".row[data-id]").first();
-  await row.waitFor();
-  await row.click();
-  await drawer.locator('[data-command="expense.attach_receipt"]').press("Enter");
-  await page.locator('.dialog input[type="file"]').setInputFiles({ name: "ticket.png", mimeType: "image/png", buffer: png });
-  await page.locator(".dialog-footer").getByRole("button", { name: "Exécuter" }).press("Enter");
-  await drawer.locator(".row[data-id]", { hasText: "42.50" }).first().waitFor();
+  await typeLine("10", "1", "Smoke refusée");
+  await page.locator(".reasons", { hasText: "Date hors période verrouillée" }).waitFor();
   await kb.press("Escape");
+  // duplicate (Ctrl+D) and delete (Ctrl+Delete) on the first day
+  await gotoDay(testDay(1));
+  const m = await lines().count();
+  await first.locator('[data-col="description"] input').click();
+  await kb.press("Control+d");
+  await until(page, async () => (await focused()).row === "new", "on the duplicate");
+  await kb.type("14");
+  await kb.press("Enter");
+  await until(page, async () => (await lines().count()) === m + 1, "duplicated");
+  for (let i = m + 1; i > n; i--) {
+    await lines().last().locator('[data-col="description"] input').click();
+    await kb.press("Control+Delete");
+    await until(page, async () => (await lines().count()) === i - 1, "deleted");
+  }
 });
 
-let all = ""; // row count of the activities grid, as shown in the status bar
-
-await step("open activities (generic screen 1)", async () => {
-  await page.goto(`${base}/#/activities`);
-  await ready(page, "activities");
-  const [{ count }] = await api("activity_grid", { params: { date_from: "2000-01-01", date_to: "2100-01-01" }, agg: [{ col: "id", fn: "count" }] });
-  all = await page.evaluate((n) => new Intl.NumberFormat("de-CH").format(n), count);
-  check((await status()).includes(all), "all rows in status bar");
-  check((await page.locator(".grid").getAttribute("aria-rowcount")) === String(count), "aria-rowcount");
+await step("1 entry: week mode, user picker", async () => {
+  await page.locator(".seg button").nth(1).click();
+  await page.locator(".dayhead").nth(6).waitFor();
+  check((await page.locator("#entry-user").count()) === 1, "user picker for a scope with several users");
+  await page.locator(".seg button").nth(0).click();
 });
 
-await step("sort by duration (server-side)", async () => {
-  const d = await colIndex("Durée");
+await step("2 expenses: create a line, upload a receipt, amount pre-filled live by OCR", async () => {
+  await open(page, "activities", { params: { date_from: testDay(0), date_to: testDay(0) }, wrap: { filter: [{ col: "id", op: "eq", value: activityId }] } });
+  await page.locator(".row[data-id]").first().dblclick();
+  await page.getByRole("tab", { name: "Frais" }).click();
+  const tab = page.locator('.drawer [data-screen="activity_expense"][data-ready]');
+  await tab.waitFor();
+  await tab.locator('[data-command="expense.create"]').click();
+  await page.locator(".dialog #f-expense_type_id").click();
+  await kb.type("Repas");
+  await page.locator(".popover .option", { hasText: "Repas" }).first().click();
+  await page.locator(".dialog").getByRole("button", { name: "Créer" }).click();
+  await tab.locator(".row[data-id]").first().waitFor();
+  await tab.locator(".row[data-id]").first().click();
+  await tab.locator('[data-command="expense.attach_receipt"]').click();
+  await page.locator('.dialog input[type="file"]').setInputFiles({ name: "ticket.png", mimeType: "image/png", buffer: await receipt(page) });
+  await page.locator(".dialog img").waitFor();
+  await page.locator(".dialog-footer").getByRole("button", { name: "Exécuter" }).click();
+  await tab.locator(".row[data-id]", { hasText: "45.80" }).first().waitFor({ timeout: 30000 });
+});
+
+const grid = (p: Page) => p.locator(".row[data-id]");
+const typeDate = async (p: Page, id: string, d: string) => {
+  await p.locator(`#${id}`).locator('[data-segment="day"]').click();
+  await p.keyboard.type(d.split("-").reverse().join(""));
+};
+
+await step("4 activities: sort (number, ref by label), filter, group with totals, drill-down", async () => {
+  await open(page, "activities");
+  const all = await status(page);
+  const d = await colIndex(page, "Durée");
   await page.locator(".hrow .hbtn").nth(d).click();
-  await until(async () => (await firstCell(d)) === "0:15", "shortest duration first");
-});
-
-await step("filter description contains 'Atelier'", async () => {
-  const d = await colIndex("Description");
-  const input = page.locator(".frow .fcell").nth(d).locator("input");
-  await input.fill("Atelier");
+  const minutes = (s: string) => +s.split(":")[0] * 60 + +s.split(":")[1];
+  await until(page, async () => {
+    const ds = await Promise.all([0, 1, 2, 3, 4, 5].map(async (i) => minutes(await cell(page, i, d))));
+    return (await page.locator(".hcell[aria-sort=ascending]").count()) === 1 && ds.every((x, i) => !i || ds[i - 1] <= x);
+  }, "sorted by duration");
+  const u = await colIndex(page, "Utilisateur");
+  await page.locator(".hrow .hbtn").nth(u).click();
+  await until(page, async () => {
+    const names = await Promise.all([0, 1, 2, 3, 4, 5].map((i) => cell(page, i, u)));
+    return names.every((n, i) => !i || names[i - 1].localeCompare(n, "fr") <= 0) && names[0].startsWith("A");
+  }, "sorted by user label");
+  const desc = await colIndex(page, "Description");
+  const input = page.locator(".frow .fcell").nth(desc).locator("input");
+  await input.fill("Rapport");
   await input.press("Enter");
-  await until(async () => !(await status()).includes(all) && (await firstCell(d)) === "Atelier client", "filtered rows");
+  await until(page, async () => (await status(page)) !== all && (await cell(page, 0, desc)) === "Rapport", "filtered");
   await page.getByRole("button", { name: "Effacer les filtres" }).click();
-  await page.waitForFunction((all) => document.querySelector(".status")?.textContent?.includes(all), all);
-});
-
-await step("scroll 50k rows to the end", async () => {
-  await page.locator(".viewport").evaluate((v) => (v.scrollTop = v.scrollHeight));
-  await page.waitForFunction(() => {
-    const ids = [...document.querySelectorAll(".row[data-id]")];
-    const vp = document.querySelector(".viewport")!;
-    return ids.length > 0 && vp.scrollTop > 1_000_000;
-  });
-  await page.locator(".viewport").evaluate((v) => (v.scrollTop = 0));
-});
-
-await step("select rows: click, shift-range, ctrl, keyboard", async () => {
-  const rows = page.locator(".row[data-id]");
-  await rows.nth(0).click();
-  await rows.nth(4).click({ modifiers: ["Shift"] });
-  await rows.nth(7).click({ modifiers: ["Control"] });
-  check((await status()).includes("6 sélectionnée"), "6 selected");
-  await page.keyboard.press("ArrowDown");
-  await page.keyboard.press("Shift+ArrowDown");
-  check((await status()).includes("2 sélectionnée"), "keyboard range");
-});
-
-await step("group by employee, drill down", async () => {
+  await until(page, async () => (await status(page)) === all, "filter cleared");
   await page.locator("#group-activities").click();
-  await page.getByRole("option", { name: "Collaborateur" }).click();
+  await page.getByRole("option", { name: "Utilisateur", exact: true }).first().click();
   await page.locator(".row.group").first().waitFor();
+  check((await page.locator(".total").innerText()).includes(all.split(" ")[0]), "total count");
   await page.locator(".row.group").first().click();
-  await page.locator(".row[data-id]").first().waitFor();
-  await page.locator("#group-activities").click();
-  await page.getByRole("option", { name: "Aucun" }).click();
-  await page.waitForFunction(() => !document.querySelector(".row.group"));
+  await grid(page).first().waitFor();
 });
 
-await step("saved view: save as, apply, duplicate name rejected by constraint", async () => {
-  const name = `Par projet ${Date.now() % 100000}`;
-  await page.locator("#group-activities").click();
-  await page.getByRole("option", { name: "Projet" }).click();
-  await page.locator(".row.group").first().waitFor();
-  const save = async () => {
-    await page.getByRole("button", { name: /^Vues|^Par projet/ }).click();
-    await page.getByRole("menuitem", { name: "Enregistrer la vue sous…" }).click();
-    await page.locator("#sv-name").fill(name);
-    await page.locator(".dialog-footer").getByRole("button", { name: "Enregistrer" }).click();
-  };
-  await save();
+await step("4 activities: saved views save, load, delete", async () => {
+  const name = `Smoke ${weeks}`;
+  await page.getByRole("button", { name: /Vues/ }).click();
+  await page.getByRole("menuitem", { name: "Enregistrer la vue sous…" }).click();
+  await page.locator("#sv-name").fill(name);
+  await page.locator(".dialog-footer").getByRole("button", { name: "Enregistrer" }).click();
   await page.getByRole("button", { name }).waitFor();
   await page.locator("#group-activities").click();
   await page.getByRole("option", { name: "Aucun" }).click();
-  await page.waitForFunction(() => !document.querySelector(".row.group"));
+  await until(page, async () => !(await page.locator(".row.group").count()), "ungrouped");
   await page.getByRole("button", { name }).click();
   await page.getByRole("menuitem", { name }).click();
   await page.locator(".row.group").first().waitFor();
-  await save();
-  await toast("Une vue porte déjà ce nom");
-  await page.locator(".dialog-footer").getByRole("button", { name: "Annuler" }).click();
-  await page.locator("#group-activities").click();
-  await page.getByRole("option", { name: "Aucun" }).click();
-  await page.waitForFunction(() => !document.querySelector(".row.group"));
+  await page.getByRole("button", { name }).click();
+  await page.getByRole("menuitem", { name: "Supprimer la vue" }).click();
+  await page.getByRole("button", { name: /^Vues/ }).waitFor();
 });
 
-await step("screenshots: activities light", async () => {
-  await home();
-  await page.screenshot({ path: `${shots}activities-light.png` });
-});
-
-await step("edit a row in the drawer (partial update, live refresh, history)", async () => {
-  const desc = page.locator("#f-description");
-  await page.locator(".row[data-id]").nth(0).click();
-  await page.keyboard.press("Enter");
-  for (let i = 0; await desc.getAttribute("readonly").catch(() => "") !== null; i++) {
-    check(i < 30, "an editable row");
-    await page.keyboard.press("ArrowDown");
-    await page.waitForTimeout(150);
-  }
-  const text = `Revue ${Date.now() % 100000}`;
-  await desc.fill(text);
-  await page.getByRole("button", { name: "Enregistrer" }).click();
-  await toast("Enregistré");
-  const d = await colIndex("Description");
-  await page.waitForFunction(([i, text]) => document.querySelectorAll(".row.selected .cell")[i + 1]?.textContent?.trim() === text, [d, text] as const);
+await step("4/11 activities: drawer form update, classes, history", async () => {
+  await open(page, "activities", { params: { date_from: testDay(0), date_to: testDay(0) }, wrap: { filter: [{ col: "id", op: "eq", value: activityId }] } });
+  await grid(page).first().dblclick();
+  const text = `Smoke modifiée ${weeks}`;
+  await page.locator("#f-description").fill(text);
+  await page.locator(".drawer").getByRole("button", { name: "Enregistrer" }).click();
+  await toast(page, "Enregistré");
+  await grid(page).filter({ hasText: text }).waitFor();
   await page.getByRole("tab", { name: "Historique" }).click();
-  await page.locator(".history li", { hasText: text }).waitFor();
-  await page.getByRole("tab", { name: "Détails" }).click();
+  await page.locator(".history li", { hasText: text }).first().waitFor();
+  await page.getByRole("tab", { name: "Classes d'heures" }).click();
+  await page.locator('.drawer [data-screen="activity_class"][data-ready]').waitFor();
 });
 
-await step("screenshots: drawer light", async () => {
-  await home();
-  await page.screenshot({ path: `${shots}drawer-light.png` });
+await step("12 live: a commit in one session updates another session", async () => {
+  const other = await login("admin");
+  await open(other.page, "activities", { params: { date_from: testDay(0), date_to: testDay(0) } });
+  const text = `Smoke live ${Date.now() % 100000}`;
+  await call(admin.ctx, "activity.update", { ids: [activityId], description: text });
+  await grid(other.page).filter({ hasText: text }).waitFor({ timeout: 3000 });
+  await other.ctx.close();
 });
 
-await step("rejected command: move a row into a locked period (Ensure)", async () => {
-  const locked = new Date(Date.now() - 300 * 864e5);
-  await page.locator("#f-date").locator('[data-segment="day"]').click();
-  await page.keyboard.type(`${String(locked.getDate()).padStart(2, "0")}${String(locked.getMonth() + 1).padStart(2, "0")}${locked.getFullYear()}`);
-  await page.getByRole("button", { name: "Enregistrer" }).click();
-  await toast("refusé");
-  check(await page.locator(".toast li", { hasText: "Période non verrouillée" }).count(), "condition label in toast");
+await step("3 validation: manager's list, bulk validate, live list", async () => {
+  const mgr = await login("manager");
+  const p = mgr.page;
+  await open(p, "validation");
+  const before = await status(p);
+  await grid(p).nth(0).click();
+  await grid(p).nth(2).click({ modifiers: ["Shift"] });
+  const ids = (await p.locator(".row.selected").evaluateAll((rs) => rs.map((r) => +(r as HTMLElement).dataset.id!))) as number[];
+  check(ids.length === 3, "three rows selected");
+  await p.locator('[data-command="activity.validate"]').click();
+  await until(p, async () => (await status(p)) !== before, "list refreshed");
+  await call(mgr.ctx, "activity.unvalidate", { ids });
+  await until(p, async () => (await status(p)) === before, "back after unvalidate (live)");
+  await mgr.ctx.close();
 });
 
-await step("command disabled with condition tooltip", async () => {
-  await page.locator(".drawer-head button").click();
-  const btn = page.locator('[data-command="activity.unvalidate"]');
-  check(await btn.isDisabled(), "unvalidate disabled on unvalidated rows");
-  await btn.locator("..").hover();
-  await page.locator(".tooltip", { hasText: "Validée" }).waitFor();
-});
-
-await step("switch theme to dark", async () => {
-  await page.getByTestId("user-menu").click();
-  await page.getByRole("menuitem", { name: "Sombre" }).click();
-  check((await page.locator("html").getAttribute("data-theme")) === "dark", "data-theme=dark");
-  await page.locator(".row.selected").first().dblclick();
-  await page.locator(".drawer form").waitFor();
-  await home();
-  await page.mouse.move(0, 0);
-  await page.screenshot({ path: `${shots}drawer-dark.png` });
-  await page.locator(".drawer-head button").click();
-  await home();
-  await page.screenshot({ path: `${shots}activities-dark.png` });
-});
-
-await step("open invoicing (generic screen 2), run with live progress", async () => {
-  await page.goto(`${base}/#/invoicing`);
-  await ready(page, "invoicing");
+let invoiceId = 0;
+await step("7 invoicing: run with live progress and cancel, rerun", async () => {
+  await open(page, "invoicing");
+  const [{ max_id }] = (await view(admin.ctx, "invoice", { agg: [{ col: "id", fn: "max" }] })) as { max_id: number }[];
   await page.locator('[data-command="invoice.run"]').click();
+  await typeDate(page, "run-date_from", "2000-01-01");
+  await typeDate(page, "run-date_to", iso(today));
   await page.getByRole("button", { name: "Démarrer" }).click();
-  await page.locator('[data-run-state="done"]').waitFor({ timeout: 20000 });
+  await page.locator(".run[data-run-state]").waitFor();
+  await page.getByRole("button", { name: "Annuler le traitement" }).click({ timeout: 2000 }).catch(() => {});
+  await page.locator('[data-run-state="cancelled"], [data-run-state="done"]').waitFor({ timeout: 60000 });
+  const cancelled = (await page.locator(".run").getAttribute("data-run-state")) === "cancelled";
+  const created = await view(admin.ctx, "invoice", { filter: [{ col: "id", op: "gt", value: max_id }], limit: 5000 });
+  if (created.length) await call(admin.ctx, "invoice.delete", { ids: created.map((r) => r.id as number) });
+  check(cancelled && !created.length, "cancelled, nothing written");
   await page.locator(".dialog-footer").getByRole("button", { name: "Fermer" }).click();
+  await page.locator('[data-command="invoice.run"]').click();
+  await typeDate(page, "run-date_from", testDay(0));
+  await typeDate(page, "run-date_to", testDay(6));
+  await page.getByRole("button", { name: "Démarrer" }).click();
+  await page.locator('[data-run-state="done"]').waitFor({ timeout: 30000 });
+  await page.locator(".dialog-footer").getByRole("button", { name: "Fermer" }).click();
+  const runs = await view(admin.ctx, "invoice", { filter: [{ col: "date_from", op: "eq", value: testDay(0) }] });
+  invoiceId = runs[0]?.id as number;
+  check(runs.length === 1, "one invoice created by the run");
 });
 
-await step("open profitability (generic screen 3, grouped with aggregates)", async () => {
-  await page.goto(`${base}/#/profitability`);
-  await ready(page, "profitability");
-  check(await page.locator(".row.group").count(), "groups shown");
+await step("7 invoicing: mark invoiced, back to draft, print (PDF tab), export with failures and retry", async () => {
+  check(invoiceId, "an invoice from the run");
+  await open(page, "invoicing", { wrap: { filter: [{ col: "id", op: "eq", value: invoiceId }] } });
+  const row = grid(page).first();
+  const state = () => row.innerText();
+  await row.click();
+  await page.locator('[data-command="invoice.mark_invoiced"]').click();
+  await until(page, async () => (await state()).includes("Facturée"), "invoiced");
+  await page.locator('[data-command="invoice.back_to_draft"]').click();
+  await until(page, async () => (await state()).includes("En cours"), "back to draft");
+  await page.locator('[data-command="invoice.mark_invoiced"]').click();
+  await until(page, async () => (await state()).includes("Facturée"), "invoiced again");
+  await fetch("http://localhost:8070/admin/fail", { method: "POST", body: JSON.stringify({ on: true }) });
+  await page.locator('[data-command="invoice.export"]').click();
+  await row.dblclick();
+  await page.getByRole("tab", { name: "Exports" }).click();
+  const exp = page.locator('.drawer [data-screen="invoice_export"]');
+  await exp.locator(".row[data-id]", { hasText: "En échec" }).waitFor({ timeout: 30000 });
+  await fetch("http://localhost:8070/admin/fail", { method: "POST", body: JSON.stringify({ on: false }) });
+  await exp.locator(".row[data-id]").first().click();
+  await exp.locator('[data-command="delivery.retry"]').click();
+  await exp.locator(".row[data-id]", { hasText: "Exportée" }).waitFor({ timeout: 30000 });
 });
 
-await step("upload a receipt through a child screen command (sha256, presign, PUT, register)", async () => {
-  const post = (v: string, body: object) => fetch(`${base}/api/v/${v}`, { method: "POST", body: JSON.stringify(body) }).then((r) => r.json());
-  const expenses: { activity_id: number }[] = await post("expense", { limit: 5000 });
-  const open: { id: number }[] = await post("activity_grid", {
-    params: { date_from: "2000-01-01", date_to: "2100-01-01" },
-    filter: [{ col: "id", op: "in", value: expenses.map((e) => e.activity_id) }, { col: "not_validated", op: "eq", value: true },
-      { col: "not_locked", op: "eq", value: true }, { col: "not_invoiced", op: "eq", value: true }],
-    limit: 1,
+await step("7 invoicing: print, the PDF tab displays it", async () => {
+  check(invoiceId, "an invoice from the run");
+  await open(page, "invoicing", { wrap: { filter: [{ col: "id", op: "eq", value: invoiceId }] } });
+  await grid(page).first().dblclick();
+  await page.getByRole("tab", { name: "PDF" }).click();
+  await page.locator('.drawer [data-screen="invoice_pdf"][data-ready]').waitFor();
+  await grid(page).first().click();
+  await page.locator('[data-command="invoice.print"]').click();
+  await page.locator('.drawer [data-screen="invoice_pdf"] iframe').waitFor({ timeout: 15000 });
+});
+
+let lockRow = 0;
+await step("8 locks: create and delete in the screen; an activity in the locked period is refused", async () => {
+  await open(page, "locks");
+  await page.locator('[data-command="period_lock.create"]').click();
+  await typeDate(page, "f-date_from", testDay(3));
+  await typeDate(page, "f-date_to", testDay(4));
+  await page.locator(".drawer").getByRole("button", { name: "Créer" }).click();
+  await toast(page, "Enregistré");
+  lockRow = (await view(admin.ctx, "period_lock", { filter: [{ col: "date_from", op: "eq", value: testDay(3) }] }))[0]?.id as number;
+  const r = await call(admin.ctx, "activity.create", { user_id: 1, date: testDay(3), start_tod: 480, duration_min: 30, folder_id: folder.id, task_id: task.id }).catch((e: Error) => e);
+  check(r instanceof Error && r.message.includes("not_locked"), "activity refused in the locked period");
+  await remove("locks", "period_lock", lockRow);
+  lockRow = 0;
+});
+
+// Master data: rows created through the drawer form, removed through the delete command.
+async function createRow(screen: string, fill: () => Promise<void>) {
+  await open(page, screen);
+  await page.locator(`[data-command="${screen}.create"]`).click();
+  await fill();
+  await page.locator(".drawer").getByRole("button", { name: "Créer" }).click();
+  await toast(page, "Enregistré");
+  await closeToasts(page);
+}
+const text = (id: string, v: string) => page.locator(`#f-${id}`).fill(v);
+async function pick(id: string, q: string, scope = page.locator("body")) {
+  await scope.locator(`#f-${id}`).click();
+  await kb.type(q);
+  await page.locator(".popover .option", { hasText: q }).first().click();
+}
+const lastId = async (tbl: string) => (await view(admin.ctx, tbl, { sort: [{ col: "id", dir: "desc" }], limit: 1 }))[0].id as number;
+async function remove(screen: string, tbl: string, id: number) {
+  await open(page, screen, { wrap: { filter: [{ col: "id", op: "eq", value: id }] } });
+  await grid(page).first().click();
+  await page.locator(`[data-command="${tbl}.delete"]`).click();
+  await page.locator(".dialog-footer").getByRole("button", { name: "Supprimer" }).click();
+  await page.locator(".empty-state").waitFor();
+}
+async function child(screen: string, tbl: string, id: number, tab: string, childScreen: string) {
+  await open(page, screen, { wrap: { filter: [{ col: "id", op: "eq", value: id }] } });
+  await grid(page).first().dblclick();
+  await page.getByRole("tab", { name: tab }).click();
+  const c = page.locator(`.drawer [data-screen="${childScreen}"][data-ready]`);
+  await c.waitFor();
+  return c;
+}
+
+await step("9 master data: every screen opens", async () => {
+  for (const s of ["company", "user", "user_group", "account", "project", "folder", "task", "user_task_rate", "work_period", "cost_rate", "public_holiday", "hour_class", "expense_type"]) await open(page, s);
+});
+
+await step("9 master data: task, project, folder with allowed tasks, archive, delete refused by a foreign key", async () => {
+  const tag = `Smoke ${weeks}`;
+  await createRow("task", () => text("name", `${tag} tâche`));
+  const taskId = await lastId("task");
+  await createRow("project", async () => {
+    await text("name", `${tag} projet`);
+    await text("external_id", `S${weeks}-${Date.now() % 100000}`);
+    await pick("account_id", "A0001");
   });
-  const state = { wrap: { filter: [{ col: "id", op: "eq", value: open[0].id }] } };
-  await page.goto(`${base}/#/activities?s=${encodeURIComponent(JSON.stringify(state))}`);
-  await ready(page, "activities");
-  await page.locator(".row[data-id]").first().dblclick();
-  await page.getByRole("tab", { name: "Frais" }).click();
-  await page.locator('[data-screen="activity.expenses"][data-ready] .row[data-id]').first().click();
-  await page.locator('[data-command="expense.attach_receipt"]').click();
-  await page.locator('.dialog input[type="file"]').setInputFiles({ name: "ticket.png", mimeType: "image/png", buffer: png });
-  await page.locator(".dialog img").waitFor();
-  await page.locator(".dialog-footer").getByRole("button", { name: "Exécuter" }).click();
-  await page.locator('[data-screen="activity.expenses"] .row[data-id] svg').first().waitFor();
+  const projectId = await lastId("project");
+  await createRow("folder", async () => {
+    await text("name", `${tag} dossier`);
+    await pick("project_id", `${tag} projet`);
+  });
+  const folderId = await lastId("folder");
+  const tasks = await child("folder", "folder", folderId, "Tâche permise", "folder_task");
+  await tasks.locator('[data-command="folder_task.create"]').click();
+  await pick("task_id", `${tag} tâche`, page.locator(".dialog"));
+  await page.locator(".dialog").getByRole("button", { name: "Créer" }).click();
+  await tasks.locator(".row[data-id]").first().waitFor();
+  await open(page, "project", { wrap: { filter: [{ col: "id", op: "eq", value: projectId }] } });
+  await grid(page).first().dblclick();
+  await page.locator("#f-archived").click();
+  await page.locator(".drawer").getByRole("button", { name: "Enregistrer" }).click();
+  await toast(page, "Enregistré");
+  await open(page, "task", { wrap: { filter: [{ col: "id", op: "eq", value: taskId }] } });
+  await grid(page).first().click();
+  await page.locator('[data-command="task.delete"]').click();
+  await page.locator(".dialog-footer").getByRole("button", { name: "Supprimer" }).click();
+  await toast(page, "Cette tâche est permise dans des dossiers.");
+  await page.locator(".dialog-footer").getByRole("button", { name: "Annuler" }).click();
+  await remove("folder", "folder", folderId);
+  await remove("project", "project", projectId);
+  await remove("task", "task", taskId);
 });
 
-await step("switch language to English", async () => {
-  await page.getByTestId("user-menu").click();
-  await page.getByRole("menuitem", { name: "English" }).click();
-  await page.locator("h1", { hasText: "Activities" }).waitFor();
-  await page.getByTestId("user-menu").click();
-  await page.getByRole("menuitem", { name: "Français" }).click();
-  await page.getByTestId("user-menu").click();
-  await page.getByRole("menuitem", { name: "Clair" }).click();
+await step("9 master data: user and group membership, work period, holiday, hour class with slots, expense type", async () => {
+  const tag = `Smoke ${weeks}`;
+  await createRow("user", async () => {
+    await text("name", `${tag} utilisateur`);
+    await text("subject", `smoke-${weeks}`);
+  });
+  const userId = await lastId("user");
+  const [group] = await view(admin.ctx, "user_group", { filter: [{ col: "name", op: "eq", value: "manager" }] });
+  const members = await child("user_group", "user_group", group.id as number, "Membre", "user_group_member");
+  await members.locator('[data-command="user_group_member.create"]').click();
+  await pick("user_id", `${tag} utilisateur`, page.locator(".dialog"));
+  await page.locator(".dialog").getByRole("button", { name: "Créer" }).click();
+  await members.locator(".row[data-id]", { hasText: `${tag} utilisateur` }).waitFor();
+  const [member] = await view(admin.ctx, "user_group_member", { filter: [{ col: "user_id", op: "eq", value: userId }] });
+  await call(admin.ctx, "user_group_member.delete", { ids: [member.id as number] });
+  await createRow("work_period", async () => {
+    await pick("user_id", `${tag} utilisateur`);
+    await typeDate(page, "f-valid_from", testDay(0));
+  });
+  await remove("work_period", "work_period", await lastId("work_period"));
+  await remove("user", "user", userId);
+  await createRow("public_holiday", async () => {
+    await typeDate(page, "f-date", testDay(5));
+    await text("label", `${tag} férié`);
+  });
+  await remove("public_holiday", "public_holiday", await lastId("public_holiday"));
+  await createRow("hour_class", () => text("label", `${tag} classe`));
+  const classId = await lastId("hour_class");
+  await child("hour_class", "hour_class", classId, "Créneau", "hour_class_slot");
+  await remove("hour_class", "hour_class", classId);
+  await createRow("expense_type", () => text("name", `${tag} frais`));
+  await remove("expense_type", "expense_type", await lastId("expense_type"));
 });
+
+await step("10 accounting: connection, manual pull, last pull time", async () => {
+  await open(page, "accounting");
+  const before = (await view(admin.ctx, "connection", {}))[0].pulled_at;
+  await grid(page).first().click();
+  await page.locator('[data-command="connection.pull"]').click();
+  await until(page, async () => (await view(admin.ctx, "connection", {}))[0].pulled_at !== before, "pulled", 30000);
+});
+
+await step("users: manager, finance and user see their screens", async () => {
+  const nav = async (user: string) => {
+    const s = await login(user);
+    await s.page.locator(".rail .item").first().waitFor();
+    const items = await s.page.locator(".rail a.item").evaluateAll((a) => a.map((x) => (x as HTMLAnchorElement).hash.slice(2)));
+    return { ...s, items };
+  };
+  const fin = await nav("finance");
+  check(fin.items.includes("profitability"), "finance sees profitability");
+  await open(fin.page, "profitability");
+  const { lang } = await (await fin.ctx.request.get(`${base}/api/me`)).json();
+  const cost = (await (await fin.ctx.request.get(`${base}/api/labels/${lang}`)).json())["c.cost_amount"];
+  check((await fin.page.locator(".hrow").innerText()).includes(cost), "finance sees cost columns");
+  await fin.ctx.close();
+  const usr = await nav("user");
+  check(!usr.items.includes("profitability") && !usr.items.includes("validation"), "user sees neither profitability nor validation");
+  await open(usr.page, "entry");
+  check(!(await usr.page.locator("#entry-user").count()), "no user picker for a single-user reach");
+  await usr.ctx.close();
+  const mgr = await nav("manager");
+  check(mgr.items.includes("validation"), "manager sees validation");
+  await open(mgr.page, "entry");
+  check(await mgr.page.locator("#entry-user").count(), "user picker for a manager");
+  await mgr.ctx.close();
+});
+
+await step("unknown user: a clear page, no loop", async () => {
+  const s = await login("nobody");
+  await s.page.locator(".boot-error h1").waitFor();
+  await s.ctx.close();
+});
+
+// cleanup
+if (invoiceId) {
+  await call(admin.ctx, "invoice.back_to_draft", { ids: [invoiceId] }).catch(() => {});
+  await call(admin.ctx, "invoice.delete", { ids: [invoiceId] }).catch(() => {});
+}
+if (activityId) {
+  const ex = await view(admin.ctx, "expense_by_activity", { params: { activity_id: activityId } }).catch(() => []);
+  if (ex.length) await call(admin.ctx, "expense.delete", { ids: ex.map((e) => e.id as number) }).catch(() => {});
+  await call(admin.ctx, "activity.delete", { ids: [activityId] }).catch(() => {});
+}
+for (const id of [lockId, lockRow]) if (id) await call(admin.ctx, "period_lock.delete", { ids: [id] }).catch(() => {});
 
 await browser.close();
-if (errors.length) {
-  console.log("page errors:\n" + errors.join("\n"));
-  process.exit(1);
-}
+if (errors.length) console.log("page errors:\n" + errors.join("\n"));
+if (failed.length || errors.length) process.exit(1);
 console.log("smoke passed");

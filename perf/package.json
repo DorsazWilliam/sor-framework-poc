@@ -1,0 +1,12 @@
+{
+  "name": "sor-perf",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "perf": "node perf.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.3",
+    "playwright": "^1.65.1"
+  }
+}

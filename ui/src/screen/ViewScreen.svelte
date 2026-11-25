@@ -33,7 +33,9 @@
   const v = $derived(screenView(screen)!);
   const tbl = $derived(screen.table ? table(screen.table) : undefined);
   const isParam = (k: string) => v.params.some((p) => p.name === k);
-  const linked = $derived(Object.entries(link ?? {}));
+  // Through its JSON: a parent re-render with the same values does not reset the grid.
+  const linkJson = $derived(JSON.stringify(link ?? {}));
+  const linked = $derived(Object.entries(JSON.parse(linkJson) as Record<string, unknown>));
   const fixed = $derived(linked.filter(([k]) => !isParam(k)).map(([col, value]): Filter => ({ col, op: "eq", value })));
 
   // Full state from a partial one (URL or saved view; ignored for a child screen) over the screen's defaults and wrap.
@@ -139,6 +141,9 @@
   function open(r: Row) {
     if (tbl && r.id != null) detail = { id: r.id as number };
   }
+
+  // The bar names the screen's table: its CRUD commands show the verb only (full name in the title).
+  const crud = new Set(["create", "update", "delete"]);
 </script>
 
 {#snippet commandButtons()}
@@ -146,7 +151,7 @@
     {@const s = evaluate(c, rows, parent)}
     <Tooltip text={s.enabled ? "" : s.reasons.join(" · ")}>
       <Button variant="subtle" icon={kindIcon[c.kind]} disabled={!s.enabled} data-command={c.name} title={s.enabled ? t(`cmd.${c.name}`) : undefined} onclick={() => invoke(c)}>
-        {t(`cmd.${c.name}`)}
+        {t(crud.has(c.kind) && c.table === tbl?.name ? `cmd.${c.kind}` : `cmd.${c.name}`)}
       </Button>
     </Tooltip>
   {/each}
