@@ -1,0 +1,103 @@
+:root {
+  --font: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, Roboto, "Noto Sans", Arial, sans-serif;
+  --fs-caption: 11px;
+  --fs-grid: 12px;
+  --fs-body: 13px;
+  --fs-section: 14px;
+  --fs-title: 18px;
+  --fw-semibold: 600;
+  --lh: 1.4;
+
+  --h-row: 24px;
+  --h-grid-header: 28px;
+  --h-group: 26px;
+  --h-control: 28px;
+  --h-commandbar: 40px;
+  --h-tab: 32px;
+  --h-nav: 32px;
+  --h-params: 36px;
+  --h-status: 24px;
+  --w-nav: 240px;
+  --w-nav-collapsed: 48px;
+  --w-drawer: 420px;
+  --w-check: 28px;
+
+  --s-1: 2px;
+  --s-2: 4px;
+  --s-3: 6px;
+  --s-4: 8px;
+  --s-5: 12px;
+  --s-6: 16px;
+  --s-7: 24px;
+  --s-8: 32px;
+  --cell-pad: 0 8px;
+  --panel-pad: 12px;
+
+  --r-input: 2px;
+  --r-button: 4px;
+  --r-dialog: 6px;
+  --bw: 1px;
+
+  --icon: 16px;
+  --icon-nav: 20px;
+  --dur: 120ms;
+  --z-overlay: 50;
+  --z-toast: 60;
+}
+
+:root,
+[data-theme="light"] {
+  --bg-app: #f5f5f5;
+  --surface: #ffffff;
+  --surface-subtle: #fafafa;
+  --header: #ededed;
+  --border: #d1d1d1;
+  --border-strong: #a8a8a8;
+  --text: #242424;
+  --text-muted: #616161;
+  --text-disabled: #bdbdbd;
+  --text-on-accent: #ffffff;
+  --accent: #0f6cbd;
+  --accent-hover: #115ea3;
+  --accent-pressed: #0f548c;
+  --accent-subtle: #ebf3fc;
+  --selection: #e5f0fb;
+  --hover: #f0f0f0;
+  --pressed: #e0e0e0;
+  --positive: #107c10;
+  --warning: #bc4b09;
+  --negative: #c50f1f;
+  --negative-subtle: #fdf3f4;
+  --scrim: rgb(0 0 0 / 0.4);
+  --shadow-overlay: 0 8px 16px rgb(0 0 0 / 0.14), 0 0 2px rgb(0 0 0 / 0.12);
+  --shadow-drawer: -8px 0 16px rgb(0 0 0 / 0.1);
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  --bg-app: #141414;
+  --surface: #1f1f1f;
+  --surface-subtle: #292929;
+  --header: #2b2b2b;
+  --border: #424242;
+  --border-strong: #666666;
+  --text: #f5f5f5;
+  --text-muted: #adadad;
+  --text-disabled: #5c5c5c;
+  --text-on-accent: #ffffff;
+  --accent: #479ef5;
+  --accent-hover: #62abf5;
+  --accent-pressed: #2886de;
+  --accent-subtle: #12304d;
+  --selection: #12304d;
+  --hover: #2e2e2e;
+  --pressed: #383838;
+  --positive: #54b054;
+  --warning: #f7630c;
+  --negative: #e8484e;
+  --negative-subtle: #3b1a1c;
+  --scrim: rgb(0 0 0 / 0.6);
+  --shadow-overlay: 0 8px 16px rgb(0 0 0 / 0.5), 0 0 2px rgb(0 0 0 / 0.4);
+  --shadow-drawer: -8px 0 16px rgb(0 0 0 / 0.4);
+  color-scheme: dark;
+}

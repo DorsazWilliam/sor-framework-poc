@@ -1,0 +1,112 @@
+<script lang="ts">
+  import type { Row, Table } from "../api/contract";
+  import Button from "../ds/Button.svelte";
+  import Field from "../ds/Field.svelte";
+  import Tooltip from "../ds/Tooltip.svelte";
+  import FieldEditor from "./FieldEditor.svelte";
+  import { evaluate, execute } from "./commands";
+  import { colLabel, command } from "../app/session.svelte";
+  import { toast } from "../ds/toast.svelte";
+  import { t } from "../labels/i18n.svelte";
+  import { ApiError } from "../api/client";
+
+  // Create (row = null) or edit form generated from the table's columns; update sends changed fields only.
+  let {
+    tbl,
+    row,
+    initial = {},
+    file,
+    onsaved,
+  }: {
+    tbl: Table;
+    row: Row | null;
+    initial?: Row;
+    file?: { view: string; params: Record<string, unknown> };
+    onsaved: (id: number) => void;
+  } = $props();
+
+  const cols = $derived(tbl.columns.filter((c) => c.name !== "id" && (!c.guarded || c.ref === "file")));
+  const base = $derived(row ?? initial);
+  let values = $state<Row>({});
+  let errors = $state<Record<string, string>>({});
+  let busy = $state(false);
+
+  $effect(() => {
+    values = structuredClone($state.snapshot(base));
+    errors = {};
+  });
+
+  const cmd = $derived(command(`${tbl.name}.${row ? "update" : "create"}`));
+  const status = $derived(cmd ? evaluate(cmd, row ? [row] : []) : { enabled: false, reasons: [] });
+  const changed = $derived(cols.filter((c) => !c.guarded && JSON.stringify(values[c.name] ?? null) !== JSON.stringify(base[c.name] ?? null)));
+
+  async function save(e: Event) {
+    e.preventDefault();
+    if (!cmd) return;
+    errors = Object.fromEntries(
+      cols
+        .filter((c) => !c.guarded && !c.nullable && !c.has_default && values[c.name] == null)
+        .map((c) => [c.name, t("ui.required")]),
+    );
+    if (Object.keys(errors).length) return;
+    const diff = Object.fromEntries(changed.map((c) => [c.name, values[c.name] ?? null]));
+    busy = true;
+    const res = await execute(cmd, row ? { ids: [row.id], ...diff } : diff);
+    busy = false;
+    if (res instanceof ApiError) {
+      for (const x of (res.problem.errors ?? []) as { location?: string; message?: string }[]) {
+        const k = x.location?.split(".").pop();
+        if (k) errors[k] = x.message ?? "";
+      }
+      return;
+    }
+    toast("success", t("ui.saved"));
+    onsaved(res.ids[0] ?? (row?.id as number));
+  }
+</script>
+
+<form class="form" onsubmit={save}>
+  <div class="fields">
+    {#each cols as c (c.name)}
+      <Field label={colLabel(c.name, tbl.name)} id="f-{c.name}" error={errors[c.name]}>
+        <FieldEditor
+          col={c}
+          id="f-{c.name}"
+          bind:value={values[c.name]}
+          readonly={c.guarded || !status.enabled}
+          file={file && row ? { ...file, id: row.id as number, column: c.name } : undefined}
+        />
+      </Field>
+    {/each}
+  </div>
+  <footer>
+    <Tooltip text={status.enabled ? "" : status.reasons.join(", ")}>
+      <Button variant="primary" type="submit" disabled={!status.enabled || busy || (row != null && !changed.length)}>
+        {t(row ? "ui.save" : "ui.create")}
+      </Button>
+    </Tooltip>
+    {#if changed.length && row}
+      <Button onclick={() => (values = structuredClone($state.snapshot(base)))}>{t("ui.discard")}</Button>
+    {/if}
+  </footer>
+</form>
+
+<style>
+  .form {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .fields {
+    flex: 1;
+    overflow: auto;
+    padding: var(--panel-pad);
+  }
+  footer {
+    display: flex;
+    gap: var(--s-4);
+    padding: var(--s-5) var(--panel-pad);
+    border-top: var(--bw) solid var(--border);
+  }
+</style>
