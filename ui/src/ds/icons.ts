@@ -21,6 +21,7 @@ import WeatherMoon from "~icons/fluent/weather-moon-20-regular";
 import PersonMoney from "~icons/fluent/person-money-20-regular";
 import BuildingBank from "~icons/fluent/building-bank-20-regular";
 import ArrowSync from "~icons/fluent/arrow-sync-20-regular";
+import Board from "~icons/fluent/board-20-regular";
 
 // The Fluent icons the UI bundles, by their Fluent name: a screen names its icon (SPEC §13 Screen.icon).
 const icons: Record<string, Icon> = {
@@ -28,7 +29,7 @@ const icons: Record<string, Icon> = {
   "lock-closed": LockClosed, "document-text": DocumentText, scales: Scales, "data-trending": DataTrending, building: Building,
   briefcase: Briefcase, folder: Folder, tag: Tag, money: Money, person: Person, "people-team": PeopleTeam,
   "calendar-clock": CalendarClock, "money-calculator": MoneyCalculator, "calendar-star": CalendarStar, "weather-moon": WeatherMoon,
-  "person-money": PersonMoney, "building-bank": BuildingBank, "arrow-sync": ArrowSync,
+  "person-money": PersonMoney, "building-bank": BuildingBank, "arrow-sync": ArrowSync, board: Board,
 };
 
 export const icon = (name?: string): Icon => (name && icons[name]) || Other;

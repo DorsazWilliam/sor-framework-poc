@@ -75,6 +75,18 @@
   --scrim: rgb(0 0 0 / 0.4);
   --shadow-overlay: 0 8px 16px rgb(0 0 0 / 0.14), 0 0 2px rgb(0 0 0 / 0.12);
   --shadow-drawer: -8px 0 16px rgb(0 0 0 / 0.1);
+  /* charts: categories in order blue, teal, amber, rose, violet, green; heat from none to most */
+  --chart-1: #2f6fae;
+  --chart-2: #2b8a84;
+  --chart-3: #b7811d;
+  --chart-4: #b9516a;
+  --chart-5: #7559a8;
+  --chart-6: #4d8540;
+  --heat-0: #ebebeb;
+  --heat-1: #cddff2;
+  --heat-2: #96bde4;
+  --heat-3: #5891cc;
+  --heat-4: #2a64a3;
   color-scheme: light;
 }
 
@@ -108,5 +120,16 @@
   --scrim: rgb(0 0 0 / 0.6);
   --shadow-overlay: 0 8px 16px rgb(0 0 0 / 0.5), 0 0 2px rgb(0 0 0 / 0.4);
   --shadow-drawer: -8px 0 16px rgb(0 0 0 / 0.4);
+  --chart-1: #5b9bd9;
+  --chart-2: #4fb0a8;
+  --chart-3: #d6a243;
+  --chart-4: #dc7890;
+  --chart-5: #a08ad4;
+  --chart-6: #79b05f;
+  --heat-0: #2e2e2e;
+  --heat-1: #1d3a58;
+  --heat-2: #275a8c;
+  --heat-3: #3b7fc2;
+  --heat-4: #6eaae6;
   color-scheme: dark;
 }

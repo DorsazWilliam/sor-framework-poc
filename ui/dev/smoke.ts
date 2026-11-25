@@ -308,6 +308,8 @@ await step("12 live: a commit in one session updates another session", async () 
 await step("cache: a return without requests, a change from another session, a reload painted from cache, logout, another user", async () => {
   const { ctx, page: p } = await login("admin");
   const first = await (await ctx.request.get(`${base}/api/me`)).json();
+  // the landing screen first: the shell sends a session without a screen to its first one
+  await p.locator("[data-screen][data-ready]").waitFor();
   await open(p, "locks");
   await p.locator('.live[data-state="live"]').waitFor();
   const a = { params: { date_from: testDay(0), date_to: testDay(0) } };
@@ -575,6 +577,20 @@ await step("10 accounting: connection, manual pull, last pull time", async () =>
   await grid(page).first().click();
   await command(page, "connection.pull");
   await until(page, async () => (await view(admin.ctx, "connection", {}))[0].pulled_at !== before, "pulled", 30000);
+});
+
+await step("dashboard: every permitted tile drawn, a mark opens the linked screen filtered on its axis value", async () => {
+  await open(page, "dashboard");
+  const tiles = await page.locator(".tile").all();
+  check(tiles.length === 10, "admin sees the ten tiles");
+  for (const tile of tiles) {
+    const drawn = (await tile.getAttribute("data-state")) === "shown" && (await tile.locator('.number, [role="graphics-symbol"]').count()) > 0;
+    check(drawn, `tile ${await tile.getAttribute("data-tile")} drawn`);
+  }
+  await page.locator('[data-tile="tile.unbilled_by_project"] [role="graphics-symbol"]').first().click();
+  await ready(page, "profitability");
+  check(decodeURIComponent(page.url()).includes('{"col":"project_id","op":"eq"'), "filtered on the project");
+  await until(page, async () => (await page.locator(".row.group").count()) === 1, "one project");
 });
 
 await step("users: manager, finance and user see their screens", async () => {

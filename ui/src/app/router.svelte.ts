@@ -1,6 +1,6 @@
-import type { Wrap } from "../api/contract";
+import type { Tile, Wrap } from "../api/contract";
 
-export type ScreenState = { params?: Record<string, unknown>; wrap?: Wrap; widths?: Record<string, number> };
+export type ScreenState = { params?: Record<string, unknown>; wrap?: Wrap; widths?: Record<string, number>; tiles?: Tile[] };
 
 // visit counts the navigations (hash changes): a screen is mounted again with the state of the new URL.
 export const route = $state({ screen: "", state: {} as ScreenState, visit: 0 });

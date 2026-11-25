@@ -12,6 +12,7 @@ export type Table = S["Table"];
 export type View = S["View"];
 export type Command = S["Command"];
 export type Screen = S["Screen"];
+export type Tile = S["Tile"];
 export type Col = S["Col"];
 export type TableCol = S["TableCol"];
 export type Format = Col["format"];

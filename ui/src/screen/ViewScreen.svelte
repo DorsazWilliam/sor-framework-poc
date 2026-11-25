@@ -8,7 +8,7 @@
   import Dialog from "../ds/Dialog.svelte";
   import Grid from "../grid/Grid.svelte";
   import { Source } from "../grid/source.svelte";
-  import FieldEditor from "./FieldEditor.svelte";
+  import Params from "./Params.svelte";
   import Detail from "./Detail.svelte";
   import CommandDialog from "./CommandDialog.svelte";
   import RunDialog from "./RunDialog.svelte";
@@ -177,13 +177,7 @@
   {/if}
 
   {#if !nested || shownParams.length || filter.length}
-    <div class="params">
-      {#each shownParams as p (p.name)}
-        <label class="param" class:wide={!!p.ref}>
-          <span>{colLabel(p.name)}</span>
-          <FieldEditor col={p} id="p-{screen.id}-{p.name}" bind:value={params[p.name]} />
-        </label>
-      {/each}
+    <Params cols={shownParams} bind:params id={screen.id} {nested}>
       {#if !nested}
         <label class="param wide">
           <span>{t("ui.group_by")}</span>
@@ -195,7 +189,7 @@
         <Button variant="subtle" icon={FilterOff} onclick={() => (filter = [])}>{t("ui.clear_filters")}</Button>
       {/if}
       {#if !nested}<SavedViews screen={screen.id} {current} {apply} />{/if}
-    </div>
+    </Params>
   {/if}
 
   <div class="content">
@@ -249,34 +243,6 @@
     gap: var(--s-1);
     padding: var(--s-2) var(--s-2);
     border-bottom: var(--bw) solid var(--border);
-  }
-  .params {
-    display: flex;
-    align-items: center;
-    gap: var(--s-5);
-    min-height: var(--h-params);
-    padding: var(--s-1) var(--s-4) var(--s-1) var(--s-6);
-    border-bottom: var(--bw) solid var(--border);
-    background: var(--surface);
-  }
-  .nested .params {
-    padding-left: var(--s-4);
-  }
-  .param {
-    display: flex;
-    align-items: center;
-    gap: var(--s-3);
-    width: 210px;
-    white-space: nowrap;
-  }
-  .param.wide {
-    width: 250px;
-  }
-  .param > span {
-    color: var(--text-muted);
-  }
-  .spacer {
-    flex: 1;
   }
   .content {
     display: flex;
