@@ -66,6 +66,13 @@ const open = async (p: Page, screen: string, state?: object) => {
   await p.goto(`${base}/#/${screen}${state ? `?s=${encodeURIComponent(JSON.stringify(state))}` : ""}`);
   await ready(p, screen);
 };
+// A command of the screen's bar; one that does not fit is in the bar's "more" popover.
+async function command(p: Page, name: string) {
+  const b = p.locator(`.commandbar [data-command="${name}"]`);
+  if (await b.isVisible()) return b.click();
+  await p.locator(".commandbar > button[aria-haspopup]").click();
+  await p.locator(`.more-commands [data-command="${name}"]`).click();
+}
 const toast = (p: Page, text: string | RegExp) => p.locator(".toast", { hasText: text }).first().waitFor();
 const closeToasts = async (p: Page) => {
   for (const b of await p.locator(".toast button").all()) await b.click().catch(() => {});
@@ -307,7 +314,7 @@ await step("3 validation: manager's list, bulk validate, live list", async () =>
   await grid(p).nth(2).click({ modifiers: ["Shift"] });
   const ids = (await p.locator(".row.selected").evaluateAll((rs) => rs.map((r) => +(r as HTMLElement).dataset.id!))) as number[];
   check(ids.length === 3, "three rows selected");
-  await p.locator('[data-command="activity.validate"]').click();
+  await command(p, "activity.validate");
   await until(p, async () => (await status(p)) !== before, "list refreshed");
   await call(mgr.ctx, "activity.unvalidate", { ids });
   await until(p, async () => (await status(p)) === before, "back after unvalidate (live)");
@@ -318,7 +325,7 @@ let invoiceId = 0;
 await step("7 invoicing: run with live progress and cancel, rerun", async () => {
   await open(page, "invoicing");
   const [{ max_id }] = (await view(admin.ctx, "invoice", { agg: [{ col: "id", fn: "max" }] })) as { max_id: number }[];
-  await page.locator('[data-command="invoice.run"]').click();
+  await command(page, "invoice.run");
   await typeDate(page, "run-date_from", "2000-01-01");
   await typeDate(page, "run-date_to", iso(today));
   await page.getByRole("button", { name: "Démarrer" }).click();
@@ -330,7 +337,7 @@ await step("7 invoicing: run with live progress and cancel, rerun", async () => 
   if (created.length) await call(admin.ctx, "invoice.delete", { ids: created.map((r) => r.id as number) });
   check(cancelled && !created.length, "cancelled, nothing written");
   await page.locator(".dialog-footer").getByRole("button", { name: "Fermer" }).click();
-  await page.locator('[data-command="invoice.run"]').click();
+  await command(page, "invoice.run");
   await typeDate(page, "run-date_from", testDay(0));
   await typeDate(page, "run-date_to", testDay(6));
   await page.getByRole("button", { name: "Démarrer" }).click();
@@ -347,14 +354,14 @@ await step("7 invoicing: mark invoiced, back to draft, print (PDF tab), export w
   const row = grid(page).first();
   const state = () => row.innerText();
   await row.click();
-  await page.locator('[data-command="invoice.mark_invoiced"]').click();
+  await command(page, "invoice.mark_invoiced");
   await until(page, async () => (await state()).includes("Facturée"), "invoiced");
-  await page.locator('[data-command="invoice.back_to_draft"]').click();
+  await command(page, "invoice.back_to_draft");
   await until(page, async () => (await state()).includes("En cours"), "back to draft");
-  await page.locator('[data-command="invoice.mark_invoiced"]').click();
+  await command(page, "invoice.mark_invoiced");
   await until(page, async () => (await state()).includes("Facturée"), "invoiced again");
   await fetch("http://localhost:8070/admin/fail", { method: "POST", body: JSON.stringify({ on: true }) });
-  await page.locator('[data-command="invoice.export"]').click();
+  await command(page, "invoice.export");
   await row.dblclick();
   await page.getByRole("tab", { name: "Exports" }).click();
   const exp = page.locator('.drawer [data-screen="invoice_export"]');
@@ -372,14 +379,14 @@ await step("7 invoicing: print, the PDF tab displays it", async () => {
   await page.getByRole("tab", { name: "PDF" }).click();
   await page.locator('.drawer [data-screen="invoice_pdf"][data-ready]').waitFor();
   await grid(page).first().click();
-  await page.locator('[data-command="invoice.print"]').click();
+  await command(page, "invoice.print");
   await page.locator('.drawer [data-screen="invoice_pdf"] iframe').waitFor({ timeout: 15000 });
 });
 
 let lockRow = 0;
 await step("8 locks: create and delete in the screen; an activity in the locked period is refused", async () => {
   await open(page, "locks");
-  await page.locator('[data-command="period_lock.create"]').click();
+  await command(page, "period_lock.create");
   await typeDate(page, "f-date_from", testDay(3));
   await typeDate(page, "f-date_to", testDay(4));
   await page.locator(".drawer").getByRole("button", { name: "Créer" }).click();
@@ -394,7 +401,7 @@ await step("8 locks: create and delete in the screen; an activity in the locked 
 // Master data: rows created through the drawer form, removed through the delete command.
 async function createRow(screen: string, fill: () => Promise<void>) {
   await open(page, screen);
-  await page.locator(`[data-command="${screen}.create"]`).click();
+  await command(page, `${screen}.create`);
   await fill();
   await page.locator(".drawer").getByRole("button", { name: "Créer" }).click();
   await toast(page, "Enregistré");
@@ -410,7 +417,7 @@ const lastId = async (tbl: string) => (await view(admin.ctx, tbl, { sort: [{ col
 async function remove(screen: string, tbl: string, id: number) {
   await open(page, screen, { wrap: { filter: [{ col: "id", op: "eq", value: id }] } });
   await grid(page).first().click();
-  await page.locator(`[data-command="${tbl}.delete"]`).click();
+  await command(page, `${tbl}.delete`);
   await page.locator(".dialog-footer").getByRole("button", { name: "Supprimer" }).click();
   await page.locator(".empty-state").waitFor();
 }
@@ -431,10 +438,11 @@ await step("9 master data: task, project, folder with allowed tasks, archive, de
   const tag = `Smoke ${weeks}`;
   await createRow("task", () => text("name", `${tag} tâche`));
   const taskId = await lastId("task");
+  const [account] = await view(admin.ctx, "account.lookup", { limit: 1 });
   await createRow("project", async () => {
     await text("name", `${tag} projet`);
     await text("external_id", `S${weeks}-${Date.now() % 100000}`);
-    await pick("account_id", "A0001");
+    await pick("account_id", account.label as string);
   });
   const projectId = await lastId("project");
   await createRow("folder", async () => {
@@ -454,7 +462,7 @@ await step("9 master data: task, project, folder with allowed tasks, archive, de
   await toast(page, "Enregistré");
   await open(page, "task", { wrap: { filter: [{ col: "id", op: "eq", value: taskId }] } });
   await grid(page).first().click();
-  await page.locator('[data-command="task.delete"]').click();
+  await command(page, "task.delete");
   await page.locator(".dialog-footer").getByRole("button", { name: "Supprimer" }).click();
   await toast(page, "Cette tâche est permise dans des dossiers.");
   await page.locator(".dialog-footer").getByRole("button", { name: "Annuler" }).click();
@@ -481,6 +489,11 @@ await step("9 master data: user and group membership, work period, holiday, hour
   await createRow("work_period", async () => {
     await pick("user_id", `${tag} utilisateur`);
     await typeDate(page, "f-valid_from", testDay(0));
+    for (let d = 0; d < 7; d++) {
+      await page.locator("#f-week_min input").nth(d).fill(d < 5 ? "8:00" : "0");
+      await kb.press("Tab");
+    }
+    await text("vacation_days", "25");
   });
   await remove("work_period", "work_period", await lastId("work_period"));
   await remove("user", "user", userId);
@@ -501,7 +514,7 @@ await step("10 accounting: connection, manual pull, last pull time", async () =>
   await open(page, "accounting");
   const before = (await view(admin.ctx, "connection", {}))[0].pulled_at;
   await grid(page).first().click();
-  await page.locator('[data-command="connection.pull"]').click();
+  await command(page, "connection.pull");
   await until(page, async () => (await view(admin.ctx, "connection", {}))[0].pulled_at !== before, "pulled", 30000);
 });
 
