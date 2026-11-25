@@ -1,6 +1,7 @@
 -- name: Timesheet :many
 -- Activities of a user over a period, with the billing of their task, by date and start.
 -- @anchor user_id user
+-- @needs activity
 select a.*, t.billing
 from activity_p a
 left join task t on t.id = a.task_id
@@ -10,6 +11,7 @@ order by a.date, a.start_tod, a.id;
 -- name: TimesheetDay :many
 -- Days of a user over a period: minutes due and counted, public holiday, whether the day is locked.
 -- @anchor user_id user
+-- @needs activity
 select @user_id::bigint as user_id, d.date, round(w.due_min)::integer as due_min, coalesce(s.done_min, 0)::integer as done_min,
        h.label as holiday, coalesce(d.date <@ l.dates, false) as locked
 from generate_series(@date_from::date, @date_to::date, interval '1 day') g
@@ -29,6 +31,7 @@ order by d.date;
 -- name: ActivityGrid :many
 -- Activities in reach over a period. Unordered: the wrap sorts, so a page stops early.
 -- @anchor user_id user
+-- @needs activity
 select a.*
 from activity_p a
 where a.date between @date_from and @date_to and a.user_id = any(@reach::bigint[]);
@@ -44,6 +47,7 @@ where a.date between @date_from and @date_to and a.to_validate and a.not_validat
 -- name: ActivityClass :many
 -- Split of an activity by hour class, plus the part outside any class.
 -- @anchor user_id user
+-- @needs activity
 select c.*
 from activity_class c
 where c.activity_id = @activity_id and c.user_id = any(@reach::bigint[])
@@ -52,6 +56,7 @@ order by c.hour_class_id nulls first;
 -- name: ExpenseByActivity :many
 -- Expense lines of an activity with their amounts and whether their type goes by quantity.
 -- @anchor user_id user
+-- @needs expense
 select e.*, t.by_quantity
 from expense_p e
 left join expense_type t on t.id = e.expense_type_id
@@ -71,6 +76,7 @@ where e.activity_id = any(@activity_ids::bigint[]) and e.user_id = any(@reach::b
 -- Hours and vacation balances per user in reach over [date_from, date_to], nothing after today, in minutes.
 -- Carried = done minus due from the first work period of the user to date_from excluded.
 -- @anchor user_id user
+-- @needs activity
 select u.id as user_id, k.carried_min, k.due_min, k.done_min, k.carried_min + k.done_min - k.due_min as balance_min,
        k.vac_carried_min, k.vac_available_min, k.vac_taken_min, k.vac_carried_min + k.vac_available_min - k.vac_taken_min as vac_balance_min
 from "user" u

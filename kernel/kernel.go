@@ -214,7 +214,7 @@ func (p *Principal) Me() Me {
 }
 
 func (p *Principal) can(fn string) *Problem {
-	if fn == "" || slices.Contains(p.Functions, fn) {
+	if fn == Any || fn != "" && slices.Contains(p.Functions, fn) {
 		return nil
 	}
 	pr := problem(403, "forbidden", "needs "+fn)

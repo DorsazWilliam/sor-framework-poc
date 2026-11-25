@@ -74328,7 +74328,8 @@
       ],
       "comments": [
         " Events of a root, newest first. Served after the root is read through its list view.",
-        " @anchor none"
+        " @anchor none",
+        " @needs any"
       ],
       "filename": "queries.sql",
       "insert_into_table": null
@@ -74822,7 +74823,8 @@
       "params": [],
       "comments": [
         " Principals for choices: name, kind and whether archived.",
-        " @anchor none"
+        " @anchor none",
+        " @needs any"
       ],
       "filename": "queries.sql",
       "insert_into_table": null
@@ -74932,7 +74934,8 @@
       "params": [],
       "comments": [
         " Projects for choices, labelled \"client / project\".",
-        " @anchor none"
+        " @anchor none",
+        " @needs any"
       ],
       "filename": "queries.sql",
       "insert_into_table": null
@@ -75050,7 +75053,8 @@
       "params": [],
       "comments": [
         " Folders for choices, labelled \"project / folder path\", with whether activities can be entered.",
-        " @anchor none"
+        " @anchor none",
+        " @needs any"
       ],
       "filename": "queries.sql",
       "insert_into_table": null
@@ -75250,7 +75254,8 @@
       ],
       "comments": [
         " Tasks allowed in a folder, not archived.",
-        " @anchor none"
+        " @anchor none",
+        " @needs any"
       ],
       "filename": "queries.sql",
       "insert_into_table": null
@@ -76053,7 +76058,8 @@
       ],
       "comments": [
         " Activities of a user over a period, with the billing of their task, by date and start.",
-        " @anchor user_id user"
+        " @anchor user_id user",
+        " @needs activity"
       ],
       "filename": "queries.sql",
       "insert_into_table": null
@@ -76304,7 +76310,8 @@
       ],
       "comments": [
         " Days of a user over a period: minutes due and counted, public holiday, whether the day is locked.",
-        " @anchor user_id user"
+        " @anchor user_id user",
+        " @needs activity"
       ],
       "filename": "queries.sql",
       "insert_into_table": null
@@ -77052,7 +77059,8 @@
       ],
       "comments": [
         " Activities in reach over a period. Unordered: the wrap sorts, so a page stops early.",
-        " @anchor user_id user"
+        " @anchor user_id user",
+        " @needs activity"
       ],
       "filename": "queries.sql",
       "insert_into_table": null
@@ -78026,7 +78034,8 @@
       ],
       "comments": [
         " Split of an activity by hour class, plus the part outside any class.",
-        " @anchor user_id user"
+        " @anchor user_id user",
+        " @needs activity"
       ],
       "filename": "queries.sql",
       "insert_into_table": null
@@ -78433,7 +78442,8 @@
       ],
       "comments": [
         " Expense lines of an activity with their amounts and whether their type goes by quantity.",
-        " @anchor user_id user"
+        " @anchor user_id user",
+        " @needs expense"
       ],
       "filename": "queries.sql",
       "insert_into_table": null
@@ -78896,7 +78906,8 @@
       "comments": [
         " Hours and vacation balances per user in reach over [date_from, date_to], nothing after today, in minutes.",
         " Carried = done minus due from the first work period of the user to date_from excluded.",
-        " @anchor user_id user"
+        " @anchor user_id user",
+        " @needs activity"
       ],
       "filename": "queries.sql",
       "insert_into_table": null

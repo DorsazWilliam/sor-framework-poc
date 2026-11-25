@@ -25,12 +25,15 @@ var Manifest []byte
 var Ticks, TickBy atomic.Int64
 
 var Module = kernel.Module{Name: "testmod", Schema: schema, Register: func(r *kernel.Registry) {
-	r.Table("org", kernel.Write("admin"), kernel.Group("setup"))
-	r.Table("person", kernel.Write("admin"))
-	r.Table("org_lock", kernel.ChildOf("org", "org_id"), kernel.Write("admin"))
-	r.Table("entry", kernel.Under("org"), kernel.Anchor("person_id", "user"), kernel.Write("entry"), kernel.Guarded("validated"), kernel.Label("note"))
-	r.Table("entry_line", kernel.ChildOf("entry", "entry_id"), kernel.Write("entry"), kernel.Label("label"))
-	r.Table("delivery", kernel.Write("validate"))
+	anyone, admin := kernel.Read(kernel.Any), kernel.Write("admin")
+	r.Table("org", anyone, admin, kernel.Group("setup"))
+	r.Table("person", anyone, admin)
+	r.Table("org_lock", kernel.ChildOf("org", "org_id"), anyone, admin)
+	r.Table("entry", kernel.Under("org"), kernel.Anchor("person_id", "user"), kernel.Read("entry"), kernel.Write("entry"), kernel.Guarded("validated"), kernel.Label("note"))
+	r.Table("entry_line", kernel.ChildOf("entry", "entry_id"), kernel.Read("entry"), kernel.Write("entry"), kernel.Label("label"))
+	for _, t := range []string{"file", "connection", "delivery", "delivery_result"} {
+		r.Table(t, kernel.Read("admin"), kernel.Write("validate"))
+	}
 	r.Command("delivery.retry", kernel.Needs("admin"))
 	for _, c := range []string{"principal_id", "for_id", "owner_id"} {
 		r.Ref(c, "person")

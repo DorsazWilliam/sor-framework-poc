@@ -17,9 +17,10 @@ var Template string
 
 // Module is the billing module.
 var Module = kernel.Module{Name: "billing", Schema: schema, Register: func(r *kernel.Registry) {
-	r.Table("invoice", kernel.Write("invoice"), kernel.Guarded("invoiced_at", "invoiced_by", "pdf_file_id"))
-	r.Table("invoice_line", kernel.ChildOf("invoice", "invoice_id"), kernel.NoCRUD(), kernel.Label("activity_id"))
-	r.Table("invoice_expense", kernel.ChildOf("invoice", "invoice_id"), kernel.NoCRUD(), kernel.Label("expense_id"))
+	r.Table("invoice", kernel.Read("invoice"), kernel.Write("invoice"), kernel.Guarded("invoiced_at", "invoiced_by", "pdf_file_id"))
+	lines := []kernel.TableOpt{kernel.ChildOf("invoice", "invoice_id"), kernel.Read("invoice"), kernel.Write("invoice_state"), kernel.NoCRUD()}
+	r.Table("invoice_line", append(lines, kernel.Label("activity_id"))...)
+	r.Table("invoice_expense", append(lines, kernel.Label("expense_id"))...)
 
 	r.Action("invoice", "editable", "is_draft")
 	r.Action("invoice", "deletable", "is_draft")

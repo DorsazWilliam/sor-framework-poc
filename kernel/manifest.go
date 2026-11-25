@@ -163,8 +163,11 @@ func (s *Static) effectQueries() map[string]bool {
 // CheckStatic lists the violations visible without a database. labels is labels/fr.json, or nil.
 func (s *Static) CheckStatic(labels map[string]string) []string {
 	p := slices.Clone(s.problems)
-	fn := func(where, f string) {
-		if f != "" && !slices.Contains(s.Functions, f) {
+	fn := func(where, what, f string) {
+		switch {
+		case f == "":
+			p = append(p, fmt.Sprintf("%s: missing %s (a value of enum fn, or any)", where, what))
+		case f != Any && !slices.Contains(s.Functions, f):
 			p = append(p, fmt.Sprintf("%s: function %q is not a value of enum fn", where, f))
 		}
 	}
@@ -186,7 +189,7 @@ func (s *Static) CheckStatic(labels map[string]string) []string {
 		case q.Anchor != nil && !slices.Contains(q.Params, "reach"):
 			p = append(p, fmt.Sprintf("query %s: anchored on %s but has no @reach param", name, q.Anchor.Column))
 		}
-		fn("query "+name, q.Needs)
+		fn("query "+name, "@needs", q.Needs)
 	}
 	for _, c := range s.Commands {
 		for _, e := range c.Effects {
@@ -196,8 +199,8 @@ func (s *Static) CheckStatic(labels map[string]string) []string {
 				p = append(p, fmt.Sprintf("command %s: effect query %s is %s, not :exec", c.Name, e, q.Cmd))
 			}
 		}
-		if c.Needs != nil {
-			fn("command "+c.Name, *c.Needs)
+		if c.Needs != nil || c.On == "" {
+			fn("command "+c.Name, "Needs", deref(c.Needs))
 		}
 		if c.On == "" && !c.Rootless && c.Run == nil {
 			p = append(p, fmt.Sprintf("command %s: needs On(table) or Rootless()", c.Name))
@@ -208,8 +211,8 @@ func (s *Static) CheckStatic(labels map[string]string) []string {
 	}
 	for _, name := range s.tableSeq {
 		t := s.Tables[name]
-		fn("table "+name, t.Read)
-		fn("table "+name, t.Write)
+		fn("table "+name, "Read", t.Read)
+		fn("table "+name, "Write", t.Write)
 	}
 	if labels != nil {
 		for _, k := range s.labelKeys() {
@@ -280,6 +283,13 @@ func viewName(sqlcName string) string {
 		return t + ".lookup"
 	}
 	return n
+}
+
+func deref(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }
 
 func sortedKeys[V any](m map[string]V) []string {

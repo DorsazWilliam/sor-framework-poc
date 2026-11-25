@@ -35,6 +35,7 @@ cross join lateral (
 -- name: UserLookup :many
 -- Principals for choices: name, kind and whether archived.
 -- @anchor none
+-- @needs any
 select u.id, u.name as label, u.kind, u.archived
 from "user" u
 order by u.name;
@@ -42,6 +43,7 @@ order by u.name;
 -- name: ProjectLookup :many
 -- Projects for choices, labelled "client / project".
 -- @anchor none
+-- @needs any
 select p.id, a.name || ' / ' || p.name as label, p.account_id, p.entry_closed or p.archived as closed
 from project p
 join account a on a.id = p.account_id
@@ -50,6 +52,7 @@ order by label;
 -- name: FolderLookup :many
 -- Folders for choices, labelled "project / folder path", with whether activities can be entered.
 -- @anchor none
+-- @needs any
 with recursive tree as (
     select f.id, p.name || ' / ' || f.name as label
     from folder f join project p on p.id = f.project_id
@@ -66,6 +69,7 @@ order by t.label;
 -- name: FolderTaskAllowed :many
 -- Tasks allowed in a folder, not archived.
 -- @anchor none
+-- @needs any
 select t.id, t.name, t.kind, t.billing, t.requires_validation, t.counts_hours
 from folder_task ft
 join task t on t.id = ft.task_id

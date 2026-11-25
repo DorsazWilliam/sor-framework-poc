@@ -14,11 +14,8 @@ const index = { tables: new Map<string, Table>(), views: new Map<string, View>()
 export const table = (name: string) => index.tables.get(name);
 export const view = (name: string) => index.views.get(name);
 export const command = (name: string) => index.commands.get(name);
-export const can = (needs: string) => !needs || session.me.functions.includes(needs);
-
-export function screenView(s: Screen) {
-  return s.views.map(view).find((v) => v && can(v.needs));
-}
+// The meta holds what the principal's capability permits (SPEC §8): a screen's view is its first one.
+export const screenView = (s: Screen) => view(s.views[0])!;
 
 // A screen's label: s.<id>, else the label of its table (SPEC §19).
 export function screenLabel(s: Screen) {

@@ -9,13 +9,13 @@ import (
 //go:embed schema.sql
 var coreSchema string
 
-// Core is the kernel's own module; it comes first. Its commands on delivery need the Write capability
-// of delivery, which a domain module sets by declaring the table again; it adds options to a command by
-// declaring it again.
+// Core is the kernel's own module; it comes first. The rows of run and saved_view are their owner's; the
+// capabilities on file, connection, delivery and delivery_result are set by the module that owns their policy,
+// declaring the table again (options add up), as it adds options to a command by declaring it again.
 var Core = Module{Name: "kernel", Schema: coreSchema, Register: func(r *Registry) {
 	r.Table("file", NoCRUD(), Label("name"))
-	r.Table("run", Anchor("principal_id", "self"), NoCRUD())
-	r.Table("saved_view", Anchor("owner_id", "self"))
+	r.Table("run", Anchor("principal_id", "self"), Read(Any), Write(Any), NoCRUD())
+	r.Table("saved_view", Anchor("owner_id", "self"), Read(Any), Write(Any))
 	r.Table("connection", NoCRUD())
 	r.Table("delivery", AppendOnly(), NoCRUD(), Label("kind"))
 	r.Table("delivery_result", ChildOf("delivery", "delivery_id"), AppendOnly(), NoCRUD(), Label("status"))

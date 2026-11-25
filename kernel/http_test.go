@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -95,9 +96,21 @@ func TestHTTP(t *testing.T) {
 	if _, _, body := do("GET", "/screens/x", "", ""); body != "<p>app" {
 		t.Fatalf("spa fallback: %s", body)
 	}
+	// The meta served to a principal holds what its capability permits only.
+	names := func(m map[string]any, key string) []any {
+		var out []any
+		for _, x := range m[key].([]any) {
+			out = append(out, x.(map[string]any)["name"])
+		}
+		return out
+	}
 	_, m, _ = do("GET", "/api/meta", "alice", "")
-	if len(m["views"].([]any)) == 0 || m["functions"].([]any)[0] != "entry" {
-		t.Fatalf("meta: %v", m)
+	if !slices.Contains(names(m, "views"), "entry_grid") || slices.Contains(names(m, "commands"), "entry.validate") ||
+		slices.Contains(names(m, "views"), "entry_run_candidates") || slices.Contains(names(m, "tables"), "connection") || m["functions"].([]any)[0] != "entry" {
+		t.Fatalf("meta of alice: %v", m)
+	}
+	if _, m, _ = do("GET", "/api/meta", "boss", ""); !slices.Contains(names(m, "commands"), "entry.validate") {
+		t.Fatalf("meta of boss: %v", m["commands"])
 	}
 
 	doc, _ := json.Marshal(api.OpenAPI())

@@ -398,8 +398,9 @@ func TestLive(t *testing.T) {
 
 func TestCheckStatic(t *testing.T) {
 	m := `{"queries":[
- {"name":"Good","cmd":":many","text":"select 1","comments":[" @anchor none"]},
- {"name":"NoReach","cmd":":many","text":"select 1","comments":[" @anchor person_id user"]},
+ {"name":"Good","cmd":":many","text":"select 1","comments":[" @anchor none"," @needs any"]},
+ {"name":"NoNeeds","cmd":":many","text":"select 1","comments":[" @anchor none"]},
+ {"name":"NoReach","cmd":":many","text":"select 1","comments":[" @anchor person_id user"," @needs any"]},
  {"name":"Bare","cmd":":one","text":"select 1","comments":[" Something."]},
  {"name":"BadNeeds","cmd":":many","text":"select 1","comments":[" @anchor none"," @needs nope"]},
  {"name":"Orphan","cmd":":exec","text":"update org set name = 'x'","comments":[]}]}`

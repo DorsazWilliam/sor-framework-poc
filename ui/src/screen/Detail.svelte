@@ -7,7 +7,7 @@
   import FileView from "./FileView.svelte";
   import { api } from "../api/client";
   import { watch } from "../app/live.svelte";
-  import { screenLabel, screenView, view } from "../app/session.svelte";
+  import { screenLabel, view } from "../app/session.svelte";
   import { t } from "../labels/i18n.svelte";
 
   // Drawer content: the form of a row (read through the table's list view), child screens, history.
@@ -39,10 +39,9 @@
     return watch(list?.roots ?? [tbl.root], load);
   });
 
-  const children = $derived(screen.children.filter((c) => screenView(c)));
   const items = $derived([
     { value: "form", label: t("ui.details") },
-    ...(row && tabs ? children.map((c) => ({ value: c.id, label: screenLabel(c) })) : []),
+    ...(row && tabs ? screen.children.map((c) => ({ value: c.id, label: screenLabel(c) })) : []),
     ...(row && tabs ? [{ value: "history", label: t("ui.history") }] : []),
   ]);
   const rootId = $derived(row && (tbl.root === tbl.name ? (row.id as number) : (row[tbl.child_fk!] as number)));
@@ -57,7 +56,7 @@
       {:else if v === "history"}
         <History root={tbl.root} id={rootId!} />
       {:else}
-        {@const child = children.find((c) => c.id === v)!}
+        {@const child = screen.children.find((c) => c.id === v)!}
         {#key row!.id}
           {#if child.component === "pdf"}<FileView screen={child} link={linked(child)} />{:else}<ViewScreen screen={child} link={linked(child)} parent={row!} />{/if}
         {/key}

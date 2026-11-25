@@ -67704,7 +67704,8 @@
       ],
       "comments": [
         " Events of a root, newest first. Served after the root is read through its list view.",
-        " @anchor none"
+        " @anchor none",
+        " @needs any"
       ],
       "filename": "queries.sql",
       "insert_into_table": null
@@ -68323,7 +68324,8 @@
       ],
       "comments": [
         " Entries with the name of their person.",
-        " @anchor person_id user"
+        " @anchor person_id user",
+        " @needs entry"
       ],
       "filename": "queries.sql",
       "insert_into_table": null
@@ -68607,7 +68609,8 @@
       ],
       "comments": [
         " Entries a run creates on day: n of them, for person 1 before index split and person 2 after; index bad is too long.",
-        " @anchor none"
+        " @anchor none",
+        " @needs admin"
       ],
       "filename": "queries.sql",
       "insert_into_table": null

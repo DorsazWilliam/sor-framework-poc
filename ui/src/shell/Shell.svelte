@@ -8,14 +8,14 @@
   import Entry from "../entry/Entry.svelte";
   import Toaster from "../ds/Toaster.svelte";
   import { groupIcons, screenIcons } from "./icons";
-  import { screenLabel, screenView, session, store, stored } from "../app/session.svelte";
+  import { screenLabel, session, store, stored } from "../app/session.svelte";
   import { live } from "../app/live.svelte";
   import { go, route } from "../app/router.svelte";
   import { t, tn } from "../labels/i18n.svelte";
 
   let collapsed = $state(false);
 
-  const allowed = session.meta.screens.filter((s) => screenView(s));
+  const allowed = session.meta.screens;
   const groups = session.meta.groups
     .map((g) => ({ g, screens: allowed.filter((s) => s.group === g) }))
     .filter((x) => x.screens.length);

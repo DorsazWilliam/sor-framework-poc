@@ -21,28 +21,25 @@ func (k *Kernel) mcpHandler() http.Handler {
 	for _, c := range k.Meta.Commands {
 		schemas["c "+c.Name], _ = json.Marshal(c.in)
 	}
-	screens, _ := json.Marshal(k.Meta.Screens)
 	h := mcp.NewStreamableHTTPHandler(func(r *http.Request) *mcp.Server {
 		p := r.Context().Value(principalKey{}).(*Principal)
+		m := k.Permitted(p)
 		s := mcp.NewServer(&mcp.Implementation{Name: "sor", Version: "0.1.0"}, nil)
-		for _, v := range k.Meta.Views {
-			if p.can(v.Needs) == nil {
-				s.AddTool(&mcp.Tool{Name: v.Name, Description: v.Description, InputSchema: schemas["v "+v.Name]},
-					func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-						out, err := k.View(ctx, p, v.Name, req.Params.Arguments)
-						return toolResult(map[string]json.RawMessage{"rows": out}, err)
-					})
-			}
+		for _, v := range m.Views {
+			s.AddTool(&mcp.Tool{Name: v.Name, Description: v.Description, InputSchema: schemas["v "+v.Name]},
+				func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+					out, err := k.View(ctx, p, v.Name, req.Params.Arguments)
+					return toolResult(map[string]json.RawMessage{"rows": out}, err)
+				})
 		}
-		for _, c := range k.Meta.Commands {
-			if p.can(c.Needs) == nil {
-				s.AddTool(&mcp.Tool{Name: c.Name, Description: c.Description, InputSchema: schemas["c "+c.Name]},
-					func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-						res, err := k.Call(ctx, p, c.Name, req.Params.Arguments)
-						return toolResult(res, err)
-					})
-			}
+		for _, c := range m.Commands {
+			s.AddTool(&mcp.Tool{Name: c.Name, Description: c.Description, InputSchema: schemas["c "+c.Name]},
+				func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+					res, err := k.Call(ctx, p, c.Name, req.Params.Arguments)
+					return toolResult(res, err)
+				})
 		}
+		screens, _ := json.Marshal(m.Screens)
 		s.AddResource(&mcp.Resource{URI: "screen://", Name: "screens", Description: "All screens: their views, commands and children.",
 			MIMEType: "application/json"}, func(_ context.Context, req *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
 			return resource(req.Params.URI, screens), nil
@@ -50,7 +47,7 @@ func (k *Kernel) mcpHandler() http.Handler {
 		s.AddResourceTemplate(&mcp.ResourceTemplate{URITemplate: "screen://{id}", Name: "screen",
 			Description: "A screen: its views, commands and children.", MIMEType: "application/json"},
 			func(_ context.Context, req *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
-				sc := findScreen(k.Meta.Screens, strings.TrimPrefix(req.Params.URI, "screen://"))
+				sc := findScreen(m.Screens, strings.TrimPrefix(req.Params.URI, "screen://"))
 				if sc == nil {
 					return nil, mcp.ResourceNotFoundError(req.Params.URI)
 				}

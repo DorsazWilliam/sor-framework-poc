@@ -2,6 +2,7 @@ package kernel
 
 import (
 	"encoding/json"
+	"slices"
 
 	"github.com/danielgtaylor/huma/v2"
 )
@@ -91,6 +92,44 @@ type Meta struct {
 	Enums     map[string][]string `json:"enums"`
 	Functions []string            `json:"functions"`
 	Groups    []string            `json:"groups"`
+}
+
+// Permitted is the registry served to p (GET /api/meta, MCP): the views and commands its capability permits,
+// the tables it reads or those commands act on (with their roots), the screens left with a view.
+func (k *Kernel) Permitted(p *Principal) Meta {
+	m := k.Meta
+	m.Views = slices.DeleteFunc(slices.Clone(m.Views), func(v *View) bool { return p.can(v.Needs) != nil })
+	m.Commands = slices.DeleteFunc(slices.Clone(m.Commands), func(c *Command) bool { return p.can(c.Needs) != nil })
+	used := map[*Table]bool{}
+	for _, c := range m.Commands {
+		if c.table != nil {
+			used[c.table], used[c.table.root] = true, true
+		}
+	}
+	m.Tables = slices.DeleteFunc(slices.Clone(m.Tables), func(t *Table) bool { return !used[t] && p.can(t.Read) != nil })
+	m.Screens = permittedScreens(m.Screens, m.Views, m.Commands)
+	m.Groups = slices.DeleteFunc(slices.Clone(m.Groups), func(g string) bool {
+		return !slices.ContainsFunc(m.Screens, func(s Screen) bool { return s.Group == g })
+	})
+	return m
+}
+
+// permittedScreens keeps the screens with a permitted view, their permitted views and commands.
+func permittedScreens(ss []Screen, views []*View, commands []*Command) []Screen {
+	out := []Screen{}
+	for _, s := range ss {
+		s.Views = slices.DeleteFunc(slices.Clone(s.Views), func(n string) bool {
+			return !slices.ContainsFunc(views, func(v *View) bool { return v.Name == n })
+		})
+		s.Commands = slices.DeleteFunc(slices.Clone(s.Commands), func(n string) bool {
+			return !slices.ContainsFunc(commands, func(c *Command) bool { return c.Name == n })
+		})
+		if len(s.Views) > 0 {
+			s.Children = permittedScreens(s.Children, views, commands)
+			out = append(out, s)
+		}
+	}
+	return out
 }
 
 // Me is the JSON of GET /api/me.

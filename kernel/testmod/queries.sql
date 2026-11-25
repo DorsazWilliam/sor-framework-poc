@@ -11,6 +11,7 @@ where p.subject = any(@subjects::text[]);
 -- name: EntryGrid :many
 -- Entries with the name of their person.
 -- @anchor person_id user
+-- @needs entry
 select e.id, e.person_id, p.name as person, e.day, e.worked_min, e.validated, e.not_locked
 from entry_p e
 join person p on p.id = e.person_id
@@ -28,6 +29,7 @@ update entry set validated = true where id = any(@locked::bigint[]);
 -- name: EntryRunCandidates :many
 -- Entries a run creates on day: n of them, for person 1 before index split and person 2 after; index bad is too long.
 -- @anchor none
+-- @needs admin
 select (case when i < @split::int then 1 else 2 end)::bigint as person_id, @day::date as "day",
        (case when i = @bad::int then 700 else 15 end) as worked_min
 from generate_series(0, 7) i

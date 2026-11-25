@@ -1,7 +1,7 @@
 import type { Changed, Command, Rejected, Row } from "../api/contract";
 import { api, ApiError } from "../api/client";
 import { applied, newCall } from "../app/live.svelte";
-import { can, table } from "../app/session.svelte";
+import { table } from "../app/session.svelte";
 import { toast } from "../ds/toast.svelte";
 import { t } from "../labels/i18n.svelte";
 import type { Icon } from "../ds/types";
@@ -15,10 +15,9 @@ export const kindIcon: Record<Command["kind"], Icon> = { create: Add, update: Ed
 
 export const takesIds = (c: Command) => !c.rootless && c.kind !== "create" && c.kind !== "run";
 
-// Enabled = capability ∧ action true; otherwise the reasons, as labels. The action is the root's:
+// Enabled = action true (the meta holds the permitted commands only); otherwise the reasons, as labels. The action is the root's:
 // read on the rows for a root table, on the parent row for a child table (SPEC §7).
 export function evaluate(c: Command, rows: Row[], parent?: Row): { enabled: boolean; reasons: string[] } {
-  if (!can(c.needs)) return { enabled: false, reasons: [t("ui.forbidden")] };
   if (takesIds(c) && !rows.length) return { enabled: false, reasons: [t("ui.select_rows")] };
   const tbl = table(c.table);
   const conds = (c.when && tbl && table(tbl.root)?.actions[c.when]) || [];

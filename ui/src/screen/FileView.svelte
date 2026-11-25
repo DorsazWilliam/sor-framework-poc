@@ -9,7 +9,7 @@
   // Component "pdf": the file of the screen's row (its first column referencing file), displayed; the link selects the row.
   let { screen, link }: { screen: Screen; link: Record<string, unknown> } = $props();
 
-  const v = $derived(screenView(screen)!);
+  const v = $derived(screenView(screen));
   const column = $derived(v.columns.find((c) => c.ref === "file")?.name);
   let file = $state<{ url: string; name: string; type: string } | null>(null);
   let loaded = $state(false);

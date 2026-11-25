@@ -88,9 +88,8 @@ func (k *Kernel) API(cfg Config) (http.Handler, huma.API) {
 	}
 	a := &authn{cfg: cfg}
 	k.verify = a.verify
-	meta, _ := json.Marshal(k.Meta)
 	mux.HandleFunc("GET /api/meta", func(w http.ResponseWriter, r *http.Request) {
-		k.serve(w, r, "meta", func(*Principal, []byte) (any, error) { return json.RawMessage(meta), nil })
+		k.serve(w, r, "meta", func(p *Principal, _ []byte) (any, error) { return k.Permitted(p), nil })
 	})
 	mux.HandleFunc("GET /api/me", func(w http.ResponseWriter, r *http.Request) {
 		k.serve(w, r, "me", func(p *Principal, _ []byte) (any, error) { return p.Me(), nil })

@@ -13,8 +13,10 @@ var schema string
 
 // Module is the accounting module.
 var Module = kernel.Module{Name: "accounting", Schema: schema, Register: func(r *kernel.Registry) {
-	r.Table("connection", kernel.Write("master_data"))
-	r.Table("delivery", kernel.Write("accounting_sync"))
+	sync := []kernel.TableOpt{kernel.Read("accounting_sync"), kernel.Write("accounting_sync")}
+	r.Table("connection", kernel.Read("accounting_sync"), kernel.Write("master_data"))
+	r.Table("delivery", sync...)
+	r.Table("delivery_result", sync...)
 
 	r.Command("invoice.export", kernel.On("invoice"), kernel.When("exportable"), kernel.Effect("InvoiceExport"), kernel.Needs("invoice"))
 	r.Command("connection.pull", kernel.On("connection"), kernel.Needs("master_data"))

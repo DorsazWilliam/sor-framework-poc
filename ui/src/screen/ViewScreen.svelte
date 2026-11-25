@@ -29,7 +29,7 @@
   let { screen, link, parent }: { screen: Screen; link?: Record<string, unknown>; parent?: Row } = $props();
 
   const nested = $derived(link !== undefined);
-  const v = $derived(screenView(screen)!);
+  const v = $derived(screenView(screen));
   const tbl = $derived(screen.table ? table(screen.table) : undefined);
   // Through its JSON: a parent re-render with the same values does not reset the grid.
   const linkJson = $derived(JSON.stringify(link ?? {}));

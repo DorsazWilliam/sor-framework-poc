@@ -167,6 +167,9 @@ func Under(root string) TableOpt       { return func(t *TableDecl) { t.Under = r
 func Anchor(column, reach string) TableOpt {
 	return func(t *TableDecl) { t.Anchor = &AnchorDecl{column, reach} }
 }
+// Any is the capability of every authenticated principal, said explicitly: nothing is open by default.
+const Any = "any"
+
 func Read(fn string) TableOpt  { return func(t *TableDecl) { t.Read = fn } }
 func Write(fn string) TableOpt { return func(t *TableDecl) { t.Write = fn } }
 func Guarded(columns ...string) TableOpt {

@@ -21,7 +21,7 @@
   import Holiday from "~icons/fluent/star-12-regular";
   import { watch } from "../app/live.svelte";
   import { lookup } from "../app/lookups.svelte";
-  import { colLabel, command, screenLabel, screenView, session, table, view } from "../app/session.svelte";
+  import { colLabel, command, screenLabel, session, table, view } from "../app/session.svelte";
   import { evaluate } from "../screen/commands";
   import { fmtDate, fmtDuration, isoDate } from "../ds/format";
   import { i18n, t } from "../labels/i18n.svelte";
@@ -75,8 +75,7 @@
   const day = $derived(store.dayRow(store.day));
   const balance = $derived(sum("done_min") - sum("due_min"));
   const users = $derived((session.me.reach.user ?? []).map((id) => ({ value: String(id), label: lookup("user", id) ?? "" })));
-  const children = $derived(screen.children.filter((c) => screenView(c)));
-  const tabs = $derived([...children.map((c) => ({ value: c.id, label: screenLabel(c) })), { value: "history", label: t("ui.history") }]);
+  const tabs = $derived([...screen.children.map((c) => ({ value: c.id, label: screenLabel(c) })), { value: "history", label: t("ui.history") }]);
   const canDelete = $derived(!!current?.row && evaluate(command("activity.delete")!, [current.row]).enabled);
 
   const lineOf = (uid: number) => store.lines.find((l) => l.uid === uid);
@@ -305,7 +304,7 @@
               {#if v === "history"}
                 <History {root} id={current!.id!} />
               {:else}
-                {@const child = children.find((c) => c.id === v)!}
+                {@const child = screen.children.find((c) => c.id === v)!}
                 {#key current!.id}<ViewScreen screen={child} link={linked(child)} parent={current!.row!} />{/key}
               {/if}
             {/snippet}
