@@ -17,7 +17,7 @@
 
 <Select.Root type="single" bind:value {items} {onValueChange}>
   <Select.Trigger class="input select" {id}>
-    <span class:muted={!label}>{label ?? placeholder}</span>
+    <span class:muted={!label}>{label || placeholder}</span>
     <Chevron />
   </Select.Trigger>
   <Select.Portal>

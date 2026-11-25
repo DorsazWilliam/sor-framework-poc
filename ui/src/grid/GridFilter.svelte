@@ -62,6 +62,7 @@
   <Select
     items={choices}
     value={filter ? String(filter.value) : ""}
+    placeholder={t("ui.filter_hint")}
     onValueChange={(v) => eq(col.type === "bool" ? (v === "" ? "" : v === "true") : v)}
   />
 {:else if col.ref}
@@ -69,6 +70,7 @@
     value={filter ? String(filter.value) : null}
     label={filter ? lookup(col.ref, filter.value as number) : ""}
     search={(q) => search(col.ref!, q)}
+    placeholder={t("ui.filter_hint")}
     onValueChange={(v) => eq(v == null ? null : +v)}
   />
 {:else}
@@ -77,6 +79,7 @@
     class:num={typed}
     aria-invalid={invalid}
     aria-label={t("ui.filter")}
+    placeholder={t("ui.filter_hint")}
     bind:value={text}
     onblur={commit}
     onkeydown={(e) => e.key === "Enter" && commit()}

@@ -174,6 +174,11 @@
     filter = [...filter.filter((x) => x.col !== c.name), ...(f ? [f] : [])];
   }
 
+  function titleIfTruncated(e: MouseEvent) {
+    const c = (e.target as HTMLElement).closest<HTMLElement>(".cell");
+    if (c) c.title = c.scrollWidth > c.clientWidth ? c.innerText : "";
+  }
+
   function resize(c: Col, e: PointerEvent) {
     const grip = e.currentTarget as HTMLElement;
     const x0 = e.clientX;
@@ -250,7 +255,8 @@
       </div>
     </div>
 
-    <div class="body" style:height="{source.height}px" style:width="{total}px">
+    <!-- svelte-ignore a11y_mouse_events_have_key_events (a native title only, for truncated cells) -->
+    <div class="body" role="rowgroup" style:height="{source.height}px" style:width="{total}px" onmouseover={titleIfTruncated}>
       {#each visible as i (i)}
         {@const e = source.entry(i)}
         {#if e?.kind === "group"}
@@ -384,7 +390,15 @@
   .checkbox {
     width: 14px;
     height: 14px;
-    opacity: 0.85;
+  }
+  /* Row checkboxes show on hover, on selected rows and on the keyboard row (Space selects). */
+  .row .checkbox {
+    opacity: 0;
+  }
+  .row:hover .checkbox,
+  .row.selected .checkbox,
+  .grid:focus-visible .row.active .checkbox {
+    opacity: 1;
   }
   .hcell {
     position: relative;
@@ -455,6 +469,14 @@
   }
   .fcell :global(.field-btn) {
     width: 18px;
+    visibility: hidden;
+  }
+  .fcell:hover :global(.field-btn),
+  .fcell:focus-within :global(.field-btn) {
+    visibility: visible;
+  }
+  .fcell :global(.select .muted) {
+    color: var(--text-disabled);
   }
   .body {
     position: relative;

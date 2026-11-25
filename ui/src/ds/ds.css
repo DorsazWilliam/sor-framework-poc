@@ -91,16 +91,16 @@ svg {
   background: var(--pressed);
 }
 .btn[data-variant="primary"] {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--text-on-accent);
+  background: var(--accent-fill);
+  border-color: var(--accent-fill);
+  color: var(--text-on-fill);
 }
 .btn[data-variant="primary"]:hover {
-  background: var(--accent-hover);
-  border-color: var(--accent-hover);
+  background: var(--accent-fill-hover);
+  border-color: var(--accent-fill-hover);
 }
 .btn[data-variant="primary"]:active {
-  background: var(--accent-pressed);
+  background: var(--accent-fill-pressed);
 }
 .btn[data-variant="subtle"] {
   min-width: 0;
@@ -121,6 +121,12 @@ svg {
   border-color: var(--border);
   color: var(--text-disabled);
   cursor: default;
+}
+/* A disabled primary keeps its weight but loses the brand fill. */
+.btn[data-variant="primary"]:disabled,
+.btn[data-variant="primary"]:disabled:hover {
+  background: var(--header);
+  border-color: var(--header);
 }
 .btn[data-variant="subtle"]:disabled,
 .btn[data-variant="subtle"]:disabled:hover {
@@ -153,6 +159,10 @@ svg {
 .input:focus,
 .input:focus-within {
   border-bottom: 2px solid var(--accent);
+}
+.input::placeholder,
+.input input::placeholder {
+  color: var(--text-disabled);
 }
 .input[aria-invalid="true"] {
   border-bottom: 2px solid var(--negative);

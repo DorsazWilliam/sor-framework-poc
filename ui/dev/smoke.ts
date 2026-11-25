@@ -163,11 +163,20 @@ await step("entry: week mode, drawer with F4 (focus stays in the grid)", async (
   await kb.press("F4");
   await page.locator(".drawer [data-screen='activity.expenses'][data-ready]").waitFor();
   await inGrid("drawer open");
-  await page.screenshot({ path: `${shots}entry-week-light.png` });
+  const shoot = async (name: string) => {
+    for (const theme of ["light", "dark"]) {
+      await page.evaluate((theme) => (document.documentElement.dataset.theme = theme), theme);
+      await page.mouse.move(0, 0);
+      await page.waitForTimeout(300); // color transitions
+      await page.screenshot({ path: `${shots}entry-${name}-${theme}.png` });
+    }
+    await page.evaluate(() => (document.documentElement.dataset.theme = "light"));
+  };
+  await shoot("week");
   await page.locator(".seg button", { hasText: "Jour" }).click();
   await page.locator(".dayhead").first().waitFor({ state: "detached" });
   await page.locator('.line:not([data-row="new"]) input').last().focus();
-  await page.screenshot({ path: `${shots}entry-day-light.png` });
+  await shoot("day");
 });
 
 await step("entry drawer: add an expense, attach a receipt, OCR amount arrives live", async () => {

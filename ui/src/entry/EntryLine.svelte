@@ -48,7 +48,6 @@
   class="line"
   class:ro={!edit.enabled}
   class:refused={line.status === "refused"}
-  class:fresh={line.fresh}
   data-uid={line.uid}
   data-row={line.id ?? "new"}
   data-saved={line.saved}
@@ -71,19 +70,21 @@
       <div class="c" data-col="start_tod"><TimeInput bind:value={line.draft.start_tod} placeholder={fmtTime(start)} aria-label={t("c.start_tod")} /></div>
       <div class="c" data-col="duration_min"><DurationInput bind:value={line.draft.duration_min} aria-label={t("c.duration_min")} /></div>
       <div class="c num end">{end}</div>
-      <div class="c" data-col="folder_id">
+      <div class="c" data-col="folder_id" title={folder}>
         <Combobox
           items={folderItems()}
           value={d.folder_id == null ? null : String(d.folder_id)}
           label={folder}
+          placeholder={line.fresh ? t("c.folder_id") : ""}
           onValueChange={(v) => (line.draft.folder_id = v == null ? null : +v)}
         />
       </div>
-      <div class="c" data-col="task_id">
+      <div class="c" data-col="task_id" title={taskLabel(d.task_id)}>
         <Combobox
           items={active ? allowedTasks(d.folder_id) : []}
           value={d.task_id == null ? null : String(d.task_id)}
           label={taskLabel(d.task_id)}
+          placeholder={line.fresh ? t("c.task_id") : ""}
           onValueChange={(v) => (line.draft.task_id = v == null ? null : +v)}
         />
       </div>
@@ -94,7 +95,7 @@
       {:else}
         <div class="c num end">{num(r.billed_min, fmtDuration)}</div>
       {/if}
-      <div class="c" data-col="description">
+      <div class="c" data-col="description" title={d.description}>
         <Input bind:value={() => d.description ?? "", (v) => (line.draft.description = v || null)} aria-label={t("c.description")} />
       </div>
     {:else}
@@ -190,9 +191,6 @@
   .line:hover :global(.field-btn),
   .c:focus-within :global(.field-btn) {
     visibility: visible;
-  }
-  .fresh :global(input::placeholder) {
-    color: var(--text-disabled);
   }
   .ind {
     justify-content: center;

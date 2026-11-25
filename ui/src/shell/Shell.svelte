@@ -1,23 +1,18 @@
 <script lang="ts">
   import Toggle from "~icons/fluent/navigation-20-regular";
-  import Time from "~icons/fluent/clock-20-regular";
-  import Billing from "~icons/fluent/receipt-20-regular";
-  import Analysis from "~icons/fluent/data-bar-vertical-20-regular";
-  import MasterData from "~icons/fluent/database-20-regular";
-  import System from "~icons/fluent/settings-20-regular";
   import Other from "~icons/fluent/text-bullet-list-square-20-regular";
+  import Open from "~icons/fluent/chevron-down-12-regular";
+  import Closed from "~icons/fluent/chevron-right-12-regular";
   import Dot from "~icons/fluent/circle-12-filled";
   import ViewScreen from "../screen/ViewScreen.svelte";
   import Entry from "../entry/Entry.svelte";
   import Toaster from "../ds/Toaster.svelte";
-  import type { Icon } from "../ds/types";
-  import { screenView, session } from "../app/session.svelte";
+  import { groupIcons, screenIcons } from "./icons";
+  import { screenView, session, store, stored } from "../app/session.svelte";
   import { live } from "../app/live.svelte";
   import { go, route } from "../app/router.svelte";
   import { fmtNumber } from "../ds/format";
   import { t } from "../labels/i18n.svelte";
-
-  const groupIcons: Record<string, Icon> = { time: Time, billing: Billing, analysis: Analysis, master_data: MasterData, system: System };
 
   let collapsed = $state(false);
 
@@ -26,6 +21,15 @@
     .map((g) => ({ g, screens: allowed.filter((s) => s.group === g) }))
     .filter((x) => x.screens.length);
   const screen = $derived(allowed.find((s) => s.id === route.screen));
+
+  // Closed groups are remembered; by default long groups start closed. The current screen's group stays open.
+  let closed = $state<string[]>(JSON.parse(stored("nav.closed") ?? "null") ?? groups.filter((x) => x.screens.length > 6).map((x) => x.g));
+  const isOpen = (g: string) => !closed.includes(g) || screen?.group === g;
+  function toggle(g: string) {
+    if (collapsed) collapsed = false;
+    else closed = isOpen(g) ? [...closed, g] : closed.filter((x) => x !== g);
+    store("nav.closed", JSON.stringify(closed));
+  }
 
   $effect(() => {
     if (!screen && allowed.length) go(allowed[0].id);
@@ -40,12 +44,14 @@
     {#each groups as { g, screens } (g)}
       {@const I = groupIcons[g] ?? Other}
       <div class="group">
-        <button class="ghead" tabindex={collapsed ? 0 : -1} title={t(`g.${g}`)} onclick={() => (collapsed = false)}>
+        <button class="ghead" title={t(`g.${g}`)} aria-expanded={!collapsed && isOpen(g)} onclick={() => toggle(g)}>
           <I /><span>{t(`g.${g}`)}</span>
+          {#if !collapsed}<span class="chev">{#if isOpen(g)}<Open />{:else}<Closed />{/if}</span>{/if}
         </button>
-        {#if !collapsed}
+        {#if !collapsed && isOpen(g)}
           {#each screens as s (s.id)}
-            <a class="item" href="#/{s.id}" aria-current={s.id === route.screen ? "page" : undefined}>{t(`s.${s.id}`)}</a>
+            {@const SI = screenIcons[s.id] ?? I}
+            <a class="item" href="#/{s.id}" aria-current={s.id === route.screen ? "page" : undefined}><SI /><span>{t(`s.${s.id}`)}</span></a>
           {/each}
         {/if}
       </div>
@@ -112,28 +118,47 @@
     width: 36px;
     padding: 0 var(--s-3);
   }
-  .ghead {
-    font-weight: var(--fw-semibold);
-    cursor: default;
+  .group + .group {
+    margin-top: var(--s-3);
   }
-  .collapsed .ghead {
-    cursor: pointer;
+  .ghead {
+    width: 100%;
+    color: var(--text-muted);
+    font-size: var(--fs-grid);
+    font-weight: var(--fw-semibold);
+  }
+  .ghead .chev {
+    display: flex;
+    margin-left: auto;
+  }
+  .ghead .chev :global(svg) {
+    width: 12px;
+    height: 12px;
   }
   .collapsed .ghead span {
     display: none;
   }
   .item {
     position: relative;
-    padding-left: 40px;
+    gap: var(--s-4);
+    padding-left: 34px;
+  }
+  .item :global(svg) {
+    width: var(--icon);
+    height: var(--icon);
+    color: var(--text-muted);
   }
   .toggle:hover,
   .item:hover,
-  .collapsed .ghead:hover {
+  .ghead:hover {
     background: var(--hover);
   }
   .item[aria-current="page"] {
     background: var(--surface);
     font-weight: var(--fw-semibold);
+  }
+  .item[aria-current="page"] :global(svg) {
+    color: var(--accent);
   }
   .item[aria-current="page"]::before {
     content: "";

@@ -25,14 +25,14 @@ export function colLabel(name: string, tbl?: string) {
   return has(`c.${name}`) ? t(`c.${name}`) : name;
 }
 
-const stored = (k: string) => {
+export const stored = (k: string) => {
   try {
     return localStorage.getItem(k);
   } catch {
     return null;
   }
 };
-const store = (k: string, v: string) => {
+export const store = (k: string, v: string) => {
   try {
     localStorage.setItem(k, v);
   } catch {

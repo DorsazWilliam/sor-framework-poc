@@ -475,7 +475,7 @@
     min-width: 0;
   }
   .lines {
-    --cols: 22px 60px 60px 48px minmax(160px, 300px) minmax(110px, 180px) 60px minmax(120px, 1fr) 64px 88px;
+    --cols: 22px 56px 56px 48px minmax(150px, 300px) minmax(110px, 180px) 56px minmax(110px, 1fr) 56px 84px;
     flex: 1;
     overflow: auto;
     background: var(--surface);
