@@ -41,11 +41,11 @@ from "user" u
 order by u.name;
 
 -- name: ProjectLookup :many
--- Projects for choices, labelled "client / project".
+-- Projects for choices, labelled "client / project", with whether activities can be entered.
 -- @anchor none
 -- @needs any
-select p.id, a.name || ' / ' || p.name as label, p.account_id, p.entry_closed or p.archived as closed
-from project p
+select p.id, a.name || ' / ' || p.name as label, p.account_id, p.entry_open
+from project_p p
 join account a on a.id = p.account_id
 order by label;
 

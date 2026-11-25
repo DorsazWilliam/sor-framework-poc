@@ -81,20 +81,20 @@ comment on column invoice_item.activity_id is 'Activity.';
 create view activity_p as
 select q.id, q.user_id, q.date, q.start_tod, q.duration_min, q.folder_id, q.task_id, q.description,
        q.validated_by, q.validated_at, q.invoice_id,
-       q.project_id, q.day_type, q.kind, q.billed_min, q.rate,
+       q.project_id, q.day_type, q.span_tod, q.kind, q.billed_min, q.rate,
        coalesce(q.line_amount, round(q.rate * q.billed_min / 60.0
-           * case when q.span && dp.classed then (q.duration_min + hour_class_extra(q.span, dp.slots, dp.rate_extra)) / q.duration_min else 1 end, 2)) as amount,
+           * case when q.span_tod && dp.classed then (q.duration_min + hour_class_extra(q.span_tod, dp.slots, dp.rate_extra)) / q.duration_min else 1 end, 2)) as amount,
        case when not q.counts_hours then 0
-            when q.span && dp.classed then round(q.duration_min + hour_class_extra(q.span, dp.slots, dp.hours_extra))::integer
+            when q.span_tod && dp.classed then round(q.duration_min + hour_class_extra(q.span_tod, dp.slots, dp.hours_extra))::integer
             else q.duration_min::integer end as counted_min,
-       q.requires_validation or coalesce(q.span && dp.validating, false) or coalesce(fs.spent_min > fs.estimated_min, false) as to_validate,
+       q.requires_validation or coalesce(q.span_tod && dp.validating, false) or coalesce(fs.spent_min > fs.estimated_min, false) as to_validate,
        q.not_locked, q.not_invoiced, q.not_validated, q.is_validated, q.entry_open, q.task_allowed
 from (
     select a.id, a.user_id, a.date, a.start_tod, a.duration_min, a.folder_id, a.task_id, a.description,
            a.validated_by, a.validated_at, l.invoice_id, l.amount as line_amount,
            f.project_id, f.entry_open, t.kind, t.counts_hours, t.requires_validation,
            case when h.id is not null then 8 else extract(isodow from a.date)::integer end as day_type,
-           int4range(a.start_tod, a.start_tod + a.duration_min) as span,
+           int4range(a.start_tod, a.start_tod + a.duration_min) as span_tod,
            coalesce(l.billed_min, case t.billing when 'always' then a.duration_min
                                                  when 'sometimes' then coalesce(a.billed_min, a.duration_min) else 0 end) as billed_min,
            coalesce(l.rate, ur.rate, f.rate, p.rate, t.rate, 0) as rate,
@@ -119,6 +119,7 @@ comment on view activity_p is 'Projection of activity: rates, amounts, counted m
 comment on column activity_p.invoice_id is 'Invoice of its invoice line.';
 comment on column activity_p.project_id is 'Project of the folder.';
 comment on column activity_p.day_type is 'ISO weekday 1 to 7, or 8 on a full public holiday.';
+comment on column activity_p.span_tod is 'Minutes of the day worked: from the start, for the duration.';
 comment on column activity_p.kind is 'Kind of the task.';
 comment on column activity_p.billed_min is 'Billed duration: that of its invoice line, else the real duration (always), the entered one or the real one (sometimes), 0 (never).';
 comment on column activity_p.rate is 'Hourly rate: that of its invoice line, else user and task, folder, project, task, 0.';
@@ -133,28 +134,25 @@ comment on column activity_p.entry_open is 'The folder and its project accept ac
 comment on column activity_p.task_allowed is 'The task is allowed in the folder.';
 
 create view activity_class as
-select p.id as activity_id, p.user_id, o.hour_class_id, o.minutes as duration_min,
-       case when t.counts_hours then o.minutes * coalesce(c.hours_coef, 1) else 0 end as counted_min,
-       round(p.rate * p.billed_min / 60.0 * o.minutes * coalesce(c.rate_coef, 1) / p.duration_min, 2) as amount
-from activity_p p
-join (
-    select a.id as activity_id, s.hour_class_id,
-           sum(upper(s.span_tod * int4range(a.start_tod, a.start_tod + a.duration_min))
-               - lower(s.span_tod * int4range(a.start_tod, a.start_tod + a.duration_min)))::integer as minutes
-    from activity_p a
-    join hour_class_slot s on s.day_type = a.day_type and s.span_tod && int4range(a.start_tod, a.start_tod + a.duration_min)
-    group by a.id, s.hour_class_id
-    union all
-    select a.id, null::bigint,
-           (a.duration_min - coalesce((select sum(upper(s.span_tod * int4range(a.start_tod, a.start_tod + a.duration_min))
-                                                  - lower(s.span_tod * int4range(a.start_tod, a.start_tod + a.duration_min)))
-                                       from hour_class_slot s
-                                       where s.day_type = a.day_type and s.span_tod && int4range(a.start_tod, a.start_tod + a.duration_min)), 0))::integer
-    from activity_p a
-) o on o.activity_id = p.id and o.minutes > 0
-left join task t on t.id = p.task_id
-left join hour_class c on c.id = o.hour_class_id;
-comment on view activity_class is 'Split of each activity by hour class touched, plus the part outside any class.';
+select q.activity_id, q.user_id, q.hour_class_id, q.minutes as duration_min,
+       coalesce(q.counted_min * q.minutes * q.hours_coef / nullif(sum(q.minutes * q.hours_coef) over w, 0), 0) as counted_min,
+       coalesce(round(q.amount * q.minutes * q.rate_coef / nullif(sum(q.minutes * q.rate_coef) over w, 0), 2), 0) as amount
+from (
+    select p.id as activity_id, p.user_id, p.counted_min, p.amount, o.hour_class_id,
+           case when o.hour_class_id is null then p.duration_min - coalesce(o.minutes, 0) else o.minutes end as minutes,
+           coalesce(c.hours_coef, 1) as hours_coef, coalesce(c.rate_coef, 1) as rate_coef
+    from activity_p p
+    cross join lateral (
+        select s.hour_class_id, sum(upper(s.span_tod * p.span_tod) - lower(s.span_tod * p.span_tod))::integer as minutes
+        from hour_class_slot s
+        where s.day_type = p.day_type and s.span_tod && p.span_tod
+        group by rollup (s.hour_class_id)
+    ) o
+    left join hour_class c on c.id = o.hour_class_id
+) q
+where q.minutes > 0
+window w as (partition by q.activity_id);
+comment on view activity_class is 'Split of each activity by hour class touched, plus the part outside any class: its minutes, and its share of the counted minutes and of the amount of the activity, weighted by the coefficients of the class.';
 comment on column activity_class.activity_id is 'Activity.';
 comment on column activity_class.hour_class_id is 'Hour class; empty = outside any class.';
 comment on column activity_class.duration_min is 'Real minutes in the class.';

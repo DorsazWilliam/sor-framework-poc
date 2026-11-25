@@ -105,6 +105,12 @@ comment on column project.archived is 'Archived projects accept no activity.';
 comment on column project.lead_user_id is 'User responsible for the project.';
 create index project_account on project (account_id);
 
+create view project_p as
+select p.*, not p.entry_closed and not p.archived as entry_open
+from project p;
+comment on view project_p is 'Projection of project.';
+comment on column project_p.entry_open is 'Activities can be entered: the project is open and not archived.';
+
 create table folder (
     id bigint generated always as identity primary key,
     project_id bigint not null references project,
@@ -126,11 +132,11 @@ comment on column folder.estimated_min is 'Estimated duration; activities of a f
 comment on column folder.entry_closed is 'No activity can be entered in the folder.';
 
 create view folder_p as
-select f.*, not f.entry_closed and not p.entry_closed and not p.archived as entry_open
+select f.*, not f.entry_closed and p.entry_open as entry_open
 from folder f
-left join project p on p.id = f.project_id;
+left join project_p p on p.id = f.project_id;
 comment on view folder_p is 'Projection of folder.';
-comment on column folder_p.entry_open is 'Activities can be entered: the folder and its project are open and the project is not archived.';
+comment on column folder_p.entry_open is 'Activities can be entered: the folder is open and so is its project.';
 
 create table task (
     id bigint generated always as identity primary key,
