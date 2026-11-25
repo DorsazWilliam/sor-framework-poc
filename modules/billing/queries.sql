@@ -2,11 +2,8 @@
 -- Activities of an invoice: attached once invoiced, candidates while draft.
 -- @anchor none
 -- @needs invoice
-select a.*, u.name as user_name, f.name as folder_name, t.name as task_name
+select a.*
 from activity_p a
-left join "user" u on u.id = a.user_id
-left join folder f on f.id = a.folder_id
-left join task t on t.id = a.task_id
 where a.id = any(array(select l.activity_id from invoice_line l where l.invoice_id = @invoice_id))
 order by a.date, a.start_tod, a.id;
 

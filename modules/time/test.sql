@@ -104,7 +104,7 @@ select pg_temp.eq('split rows', (select count(*) from activity_class where activ
 select pg_temp.eq('split inside one class', (select count(*) || '/' || sum(duration_min) from activity_class where activity_id = pg_temp.aid('s3') and hour_class_id is not null), '1/60');
 select pg_temp.eq('split outside', (select count(*) from activity_class where activity_id = pg_temp.aid('s3') and hour_class_id is null), 0::bigint);
 create temp table ac as execute activityclass(pg_temp.aid('s1'), array[pg_temp.uid('bob')]);
-select pg_temp.eq('activity_class view', (select string_agg(coalesce(label, '-') || ':' || duration_min, ',' order by label nulls first) from ac), '-:60,night:60');
+select pg_temp.eq('activity_class view', (select string_agg(coalesce(h.label, '-') || ':' || ac.duration_min, ',' order by h.label nulls first) from ac left join hour_class h on h.id = ac.hour_class_id), '-:60,night:60');
 
 -- To validate: by the task, by a class requiring it, by the folder estimate exceeded; else not.
 select pg_temp.eq('to_validate task', (pg_temp.p('v1')).to_validate, true);

@@ -1,10 +1,8 @@
 -- name: Timesheet :many
--- Activities of a user over a period, with their project, folder and task, by date and start.
+-- Activities of a user over a period, with the billing of their task, by date and start.
 -- @anchor user_id user
-select a.*, p.name as project_name, f.name as folder_name, t.name as task_name, t.billing
+select a.*, t.billing
 from activity_p a
-left join project p on p.id = a.project_id
-left join folder f on f.id = a.folder_id
 left join task t on t.id = a.task_id
 where a.user_id = @user_id and a.date between @date_from and @date_to and a.user_id = any(@reach::bigint[])
 order by a.date, a.start_tod, a.id;
@@ -29,41 +27,32 @@ where @user_id::bigint = any(@reach::bigint[])
 order by d.date;
 
 -- name: ActivityGrid :many
--- Activities in reach over a period, with user, project, folder and task names. Unordered: the wrap sorts, so a page stops early.
+-- Activities in reach over a period. Unordered: the wrap sorts, so a page stops early.
 -- @anchor user_id user
-select a.*, u.name as user_name, p.name as project_name, f.name as folder_name, t.name as task_name
+select a.*
 from activity_p a
-left join "user" u on u.id = a.user_id
-left join project p on p.id = a.project_id
-left join folder f on f.id = a.folder_id
-left join task t on t.id = a.task_id
 where a.date between @date_from and @date_to and a.user_id = any(@reach::bigint[]);
 
 -- name: ActivityToValidate :many
 -- Activities of the team over a period that need a validation and are not validated. Unordered: the wrap sorts.
 -- @anchor user_id team
 -- @needs validation
-select a.*, u.name as user_name, p.name as project_name, f.name as folder_name, t.name as task_name
+select a.*
 from activity_p a
-left join "user" u on u.id = a.user_id
-left join project p on p.id = a.project_id
-left join folder f on f.id = a.folder_id
-left join task t on t.id = a.task_id
 where a.date between @date_from and @date_to and a.to_validate and a.not_validated and a.user_id = any(@reach::bigint[]);
 
 -- name: ActivityClass :many
 -- Split of an activity by hour class, plus the part outside any class.
 -- @anchor user_id user
-select c.*, h.label
+select c.*
 from activity_class c
-left join hour_class h on h.id = c.hour_class_id
 where c.activity_id = @activity_id and c.user_id = any(@reach::bigint[])
-order by h.label nulls first;
+order by c.hour_class_id nulls first;
 
 -- name: ExpenseByActivity :many
--- Expense lines of an activity with their amounts.
+-- Expense lines of an activity with their amounts and whether their type goes by quantity.
 -- @anchor user_id user
-select e.*, t.name as type_name, t.by_quantity
+select e.*, t.by_quantity
 from expense_p e
 left join expense_type t on t.id = e.expense_type_id
 where e.activity_id = @activity_id and e.user_id = any(@reach::bigint[])

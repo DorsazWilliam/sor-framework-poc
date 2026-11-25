@@ -1579,7 +1579,7 @@ export interface paths {
         put?: never;
         /**
          * activity_grid
-         * @description Activities in reach over a period, with user, project, folder and task names. Unordered: the wrap sorts, so a page stops early.
+         * @description Activities in reach over a period. Unordered: the wrap sorts, so a page stops early.
          */
         post: operations["view_activity_grid"];
         delete?: never;
@@ -1881,7 +1881,7 @@ export interface paths {
         put?: never;
         /**
          * expense_by_activity
-         * @description Expense lines of an activity with their amounts.
+         * @description Expense lines of an activity with their amounts and whether their type goes by quantity.
          */
         post: operations["view_expense_by_activity"];
         delete?: never;
@@ -2548,7 +2548,7 @@ export interface paths {
         put?: never;
         /**
          * timesheet
-         * @description Activities of a user over a period, with their project, folder and task, by date and start.
+         * @description Activities of a user over a period, with the billing of their task, by date and start.
          */
         post: operations["view_timesheet"];
         delete?: never;
@@ -7601,18 +7601,18 @@ export interface operations {
                 "application/json": {
                     agg?: {
                         /** @enum {string} */
-                        col?: "activity_id" | "user_id" | "hour_class_id" | "duration_min" | "counted_min" | "amount" | "label";
+                        col?: "activity_id" | "user_id" | "hour_class_id" | "duration_min" | "counted_min" | "amount";
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
                     filter?: {
                         /** @enum {string} */
-                        col: "activity_id" | "user_id" | "hour_class_id" | "duration_min" | "counted_min" | "amount" | "label";
+                        col: "activity_id" | "user_id" | "hour_class_id" | "duration_min" | "counted_min" | "amount";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
                     }[];
-                    group?: ("activity_id" | "user_id" | "hour_class_id" | "duration_min" | "counted_min" | "amount" | "label")[];
+                    group?: ("activity_id" | "user_id" | "hour_class_id" | "duration_min" | "counted_min" | "amount")[];
                     limit?: number;
                     offset?: number;
                     params?: {
@@ -7654,8 +7654,6 @@ export interface operations {
                          * @description Hour class; empty = outside any class.
                          */
                         hour_class_id: number;
-                        /** @description Name of the class. */
-                        label: string | null;
                         /** Format: int64 */
                         user_id: number;
                     }[];
@@ -7684,18 +7682,18 @@ export interface operations {
                 "application/json": {
                     agg?: {
                         /** @enum {string} */
-                        col?: "id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "frozen_rate" | "frozen_billed_min" | "frozen_amount" | "project_id" | "day_type" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed" | "user_name" | "project_name" | "folder_name" | "task_name";
+                        col?: "id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "frozen_rate" | "frozen_billed_min" | "frozen_amount" | "project_id" | "day_type" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed";
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
                     filter?: {
                         /** @enum {string} */
-                        col: "id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "frozen_rate" | "frozen_billed_min" | "frozen_amount" | "project_id" | "day_type" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed" | "user_name" | "project_name" | "folder_name" | "task_name";
+                        col: "id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "frozen_rate" | "frozen_billed_min" | "frozen_amount" | "project_id" | "day_type" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
                     }[];
-                    group?: ("id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "frozen_rate" | "frozen_billed_min" | "frozen_amount" | "project_id" | "day_type" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed" | "user_name" | "project_name" | "folder_name" | "task_name")[];
+                    group?: ("id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "frozen_rate" | "frozen_billed_min" | "frozen_amount" | "project_id" | "day_type" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed")[];
                     limit?: number;
                     offset?: number;
                     params?: {
@@ -7746,8 +7744,6 @@ export interface operations {
                         entry_open: boolean | null;
                         /** Format: int64 */
                         folder_id: number;
-                        /** @description Folder name. */
-                        folder_name: string | null;
                         frozen_amount: number | null;
                         /** Format: int64 */
                         frozen_billed_min: number | null;
@@ -7774,8 +7770,6 @@ export interface operations {
                          * @description Project of the folder.
                          */
                         project_id: number | null;
-                        /** @description Project name. */
-                        project_name: string | null;
                         /** @description Hourly rate: frozen, else user and task, folder, project, task, 0. */
                         rate: number;
                         /** Format: int64 */
@@ -7784,14 +7778,10 @@ export interface operations {
                         task_allowed: boolean | null;
                         /** Format: int64 */
                         task_id: number;
-                        /** @description Task name. */
-                        task_name: string | null;
                         /** @description Needs a manager validation: the task, an hour class touched, or the folder estimate exceeded. */
                         to_validate: boolean | null;
                         /** Format: int64 */
                         user_id: number;
-                        /** @description Display name. */
-                        user_name: string | null;
                         /** Format: date-time */
                         validated_at: string | null;
                         /** Format: int64 */
@@ -7822,18 +7812,18 @@ export interface operations {
                 "application/json": {
                     agg?: {
                         /** @enum {string} */
-                        col?: "id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "frozen_rate" | "frozen_billed_min" | "frozen_amount" | "project_id" | "day_type" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed" | "user_name" | "project_name" | "folder_name" | "task_name";
+                        col?: "id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "frozen_rate" | "frozen_billed_min" | "frozen_amount" | "project_id" | "day_type" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed";
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
                     filter?: {
                         /** @enum {string} */
-                        col: "id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "frozen_rate" | "frozen_billed_min" | "frozen_amount" | "project_id" | "day_type" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed" | "user_name" | "project_name" | "folder_name" | "task_name";
+                        col: "id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "frozen_rate" | "frozen_billed_min" | "frozen_amount" | "project_id" | "day_type" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
                     }[];
-                    group?: ("id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "frozen_rate" | "frozen_billed_min" | "frozen_amount" | "project_id" | "day_type" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed" | "user_name" | "project_name" | "folder_name" | "task_name")[];
+                    group?: ("id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "frozen_rate" | "frozen_billed_min" | "frozen_amount" | "project_id" | "day_type" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed")[];
                     limit?: number;
                     offset?: number;
                     params?: {
@@ -7884,8 +7874,6 @@ export interface operations {
                         entry_open: boolean | null;
                         /** Format: int64 */
                         folder_id: number;
-                        /** @description Folder name. */
-                        folder_name: string | null;
                         frozen_amount: number | null;
                         /** Format: int64 */
                         frozen_billed_min: number | null;
@@ -7912,8 +7900,6 @@ export interface operations {
                          * @description Project of the folder.
                          */
                         project_id: number | null;
-                        /** @description Project name. */
-                        project_name: string | null;
                         /** @description Hourly rate: frozen, else user and task, folder, project, task, 0. */
                         rate: number;
                         /** Format: int64 */
@@ -7922,14 +7908,10 @@ export interface operations {
                         task_allowed: boolean | null;
                         /** Format: int64 */
                         task_id: number;
-                        /** @description Task name. */
-                        task_name: string | null;
                         /** @description Needs a manager validation: the task, an hour class touched, or the folder estimate exceeded. */
                         to_validate: boolean | null;
                         /** Format: int64 */
                         user_id: number;
-                        /** @description Display name. */
-                        user_name: string | null;
                         /** Format: date-time */
                         validated_at: string | null;
                         /** Format: int64 */
@@ -8957,18 +8939,18 @@ export interface operations {
                 "application/json": {
                     agg?: {
                         /** @enum {string} */
-                        col?: "id" | "activity_id" | "expense_type_id" | "quantity" | "amount" | "mode" | "receipt_file_id" | "ocr_amount" | "frozen_user_amount" | "frozen_billed_amount" | "user_id" | "effective_mode" | "user_amount" | "billed_amount" | "type_name" | "by_quantity";
+                        col?: "id" | "activity_id" | "expense_type_id" | "quantity" | "amount" | "mode" | "receipt_file_id" | "ocr_amount" | "frozen_user_amount" | "frozen_billed_amount" | "user_id" | "effective_mode" | "user_amount" | "billed_amount" | "by_quantity";
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
                     filter?: {
                         /** @enum {string} */
-                        col: "id" | "activity_id" | "expense_type_id" | "quantity" | "amount" | "mode" | "receipt_file_id" | "ocr_amount" | "frozen_user_amount" | "frozen_billed_amount" | "user_id" | "effective_mode" | "user_amount" | "billed_amount" | "type_name" | "by_quantity";
+                        col: "id" | "activity_id" | "expense_type_id" | "quantity" | "amount" | "mode" | "receipt_file_id" | "ocr_amount" | "frozen_user_amount" | "frozen_billed_amount" | "user_id" | "effective_mode" | "user_amount" | "billed_amount" | "by_quantity";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
                     }[];
-                    group?: ("id" | "activity_id" | "expense_type_id" | "quantity" | "amount" | "mode" | "receipt_file_id" | "ocr_amount" | "frozen_user_amount" | "frozen_billed_amount" | "user_id" | "effective_mode" | "user_amount" | "billed_amount" | "type_name" | "by_quantity")[];
+                    group?: ("id" | "activity_id" | "expense_type_id" | "quantity" | "amount" | "mode" | "receipt_file_id" | "ocr_amount" | "frozen_user_amount" | "frozen_billed_amount" | "user_id" | "effective_mode" | "user_amount" | "billed_amount" | "by_quantity")[];
                     limit?: number;
                     offset?: number;
                     params?: {
@@ -9015,8 +8997,6 @@ export interface operations {
                         quantity: number | null;
                         /** Format: int64 */
                         receipt_file_id: number | null;
-                        /** @description Name of the type. */
-                        type_name: string | null;
                         /** @description Amount reimbursed to the user: frozen, else 0 (billing only), quantity times unit price, or the amount. */
                         user_amount: number | null;
                         /**
@@ -10245,18 +10225,18 @@ export interface operations {
                 "application/json": {
                     agg?: {
                         /** @enum {string} */
-                        col?: "id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "frozen_rate" | "frozen_billed_min" | "frozen_amount" | "project_id" | "day_type" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed" | "user_name" | "folder_name" | "task_name";
+                        col?: "id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "frozen_rate" | "frozen_billed_min" | "frozen_amount" | "project_id" | "day_type" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed";
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
                     filter?: {
                         /** @enum {string} */
-                        col: "id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "frozen_rate" | "frozen_billed_min" | "frozen_amount" | "project_id" | "day_type" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed" | "user_name" | "folder_name" | "task_name";
+                        col: "id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "frozen_rate" | "frozen_billed_min" | "frozen_amount" | "project_id" | "day_type" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
                     }[];
-                    group?: ("id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "frozen_rate" | "frozen_billed_min" | "frozen_amount" | "project_id" | "day_type" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed" | "user_name" | "folder_name" | "task_name")[];
+                    group?: ("id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "frozen_rate" | "frozen_billed_min" | "frozen_amount" | "project_id" | "day_type" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed")[];
                     limit?: number;
                     offset?: number;
                     params?: {
@@ -10305,8 +10285,6 @@ export interface operations {
                         entry_open: boolean | null;
                         /** Format: int64 */
                         folder_id: number;
-                        /** @description Folder name. */
-                        folder_name: string | null;
                         frozen_amount: number | null;
                         /** Format: int64 */
                         frozen_billed_min: number | null;
@@ -10341,14 +10319,10 @@ export interface operations {
                         task_allowed: boolean | null;
                         /** Format: int64 */
                         task_id: number;
-                        /** @description Task name. */
-                        task_name: string | null;
                         /** @description Needs a manager validation: the task, an hour class touched, or the folder estimate exceeded. */
                         to_validate: boolean | null;
                         /** Format: int64 */
                         user_id: number;
-                        /** @description Display name. */
-                        user_name: string | null;
                         /** Format: date-time */
                         validated_at: string | null;
                         /** Format: int64 */
@@ -11532,18 +11506,18 @@ export interface operations {
                 "application/json": {
                     agg?: {
                         /** @enum {string} */
-                        col?: "id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "frozen_rate" | "frozen_billed_min" | "frozen_amount" | "project_id" | "day_type" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed" | "project_name" | "folder_name" | "task_name" | "billing";
+                        col?: "id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "frozen_rate" | "frozen_billed_min" | "frozen_amount" | "project_id" | "day_type" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed" | "billing";
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
                     filter?: {
                         /** @enum {string} */
-                        col: "id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "frozen_rate" | "frozen_billed_min" | "frozen_amount" | "project_id" | "day_type" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed" | "project_name" | "folder_name" | "task_name" | "billing";
+                        col: "id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "frozen_rate" | "frozen_billed_min" | "frozen_amount" | "project_id" | "day_type" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed" | "billing";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
                     }[];
-                    group?: ("id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "frozen_rate" | "frozen_billed_min" | "frozen_amount" | "project_id" | "day_type" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed" | "project_name" | "folder_name" | "task_name" | "billing")[];
+                    group?: ("id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "frozen_rate" | "frozen_billed_min" | "frozen_amount" | "project_id" | "day_type" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed" | "billing")[];
                     limit?: number;
                     offset?: number;
                     params?: {
@@ -11601,8 +11575,6 @@ export interface operations {
                         entry_open: boolean | null;
                         /** Format: int64 */
                         folder_id: number;
-                        /** @description Folder name. */
-                        folder_name: string | null;
                         frozen_amount: number | null;
                         /** Format: int64 */
                         frozen_billed_min: number | null;
@@ -11629,8 +11601,6 @@ export interface operations {
                          * @description Project of the folder.
                          */
                         project_id: number | null;
-                        /** @description Project name. */
-                        project_name: string | null;
                         /** @description Hourly rate: frozen, else user and task, folder, project, task, 0. */
                         rate: number;
                         /** Format: int64 */
@@ -11639,8 +11609,6 @@ export interface operations {
                         task_allowed: boolean | null;
                         /** Format: int64 */
                         task_id: number;
-                        /** @description Task name. */
-                        task_name: string | null;
                         /** @description Needs a manager validation: the task, an hour class touched, or the folder estimate exceeded. */
                         to_validate: boolean | null;
                         /** Format: int64 */

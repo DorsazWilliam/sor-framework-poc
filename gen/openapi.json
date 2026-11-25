@@ -10574,8 +10574,7 @@
                             "hour_class_id",
                             "duration_min",
                             "counted_min",
-                            "amount",
-                            "label"
+                            "amount"
                           ],
                           "type": "string"
                         },
@@ -10608,8 +10607,7 @@
                             "hour_class_id",
                             "duration_min",
                             "counted_min",
-                            "amount",
-                            "label"
+                            "amount"
                           ],
                           "type": "string"
                         },
@@ -10646,8 +10644,7 @@
                         "hour_class_id",
                         "duration_min",
                         "counted_min",
-                        "amount",
-                        "label"
+                        "amount"
                       ],
                       "type": "string"
                     },
@@ -10734,13 +10731,6 @@
                         "format": "int64",
                         "type": "integer"
                       },
-                      "label": {
-                        "description": "Name of the class.",
-                        "type": [
-                          "string",
-                          "null"
-                        ]
-                      },
                       "user_id": {
                         "format": "int64",
                         "type": "integer"
@@ -10752,8 +10742,7 @@
                       "hour_class_id",
                       "duration_min",
                       "counted_min",
-                      "amount",
-                      "label"
+                      "amount"
                     ],
                     "type": "object"
                   },
@@ -10782,7 +10771,7 @@
     },
     "/api/v/activity_grid": {
       "post": {
-        "description": "Activities in reach over a period, with user, project, folder and task names. Unordered: the wrap sorts, so a page stops early.",
+        "description": "Activities in reach over a period. Unordered: the wrap sorts, so a page stops early.",
         "operationId": "view_activity_grid",
         "requestBody": {
           "content": {
@@ -10823,11 +10812,7 @@
                             "not_validated",
                             "is_validated",
                             "entry_open",
-                            "task_allowed",
-                            "user_name",
-                            "project_name",
-                            "folder_name",
-                            "task_name"
+                            "task_allowed"
                           ],
                           "type": "string"
                         },
@@ -10882,11 +10867,7 @@
                             "not_validated",
                             "is_validated",
                             "entry_open",
-                            "task_allowed",
-                            "user_name",
-                            "project_name",
-                            "folder_name",
-                            "task_name"
+                            "task_allowed"
                           ],
                           "type": "string"
                         },
@@ -10945,11 +10926,7 @@
                         "not_validated",
                         "is_validated",
                         "entry_open",
-                        "task_allowed",
-                        "user_name",
-                        "project_name",
-                        "folder_name",
-                        "task_name"
+                        "task_allowed"
                       ],
                       "type": "string"
                     },
@@ -11067,13 +11044,6 @@
                         "format": "int64",
                         "type": "integer"
                       },
-                      "folder_name": {
-                        "description": "Folder name.",
-                        "type": [
-                          "string",
-                          "null"
-                        ]
-                      },
                       "frozen_amount": {
                         "type": [
                           "number",
@@ -11152,13 +11122,6 @@
                           "null"
                         ]
                       },
-                      "project_name": {
-                        "description": "Project name.",
-                        "type": [
-                          "string",
-                          "null"
-                        ]
-                      },
                       "rate": {
                         "description": "Hourly rate: frozen, else user and task, folder, project, task, 0.",
                         "type": "number"
@@ -11178,13 +11141,6 @@
                         "format": "int64",
                         "type": "integer"
                       },
-                      "task_name": {
-                        "description": "Task name.",
-                        "type": [
-                          "string",
-                          "null"
-                        ]
-                      },
                       "to_validate": {
                         "description": "Needs a manager validation: the task, an hour class touched, or the folder estimate exceeded.",
                         "type": [
@@ -11195,13 +11151,6 @@
                       "user_id": {
                         "format": "int64",
                         "type": "integer"
-                      },
-                      "user_name": {
-                        "description": "Display name.",
-                        "type": [
-                          "string",
-                          "null"
-                        ]
                       },
                       "validated_at": {
                         "format": "date-time",
@@ -11246,11 +11195,7 @@
                       "not_validated",
                       "is_validated",
                       "entry_open",
-                      "task_allowed",
-                      "user_name",
-                      "project_name",
-                      "folder_name",
-                      "task_name"
+                      "task_allowed"
                     ],
                     "type": "object"
                   },
@@ -11320,11 +11265,7 @@
                             "not_validated",
                             "is_validated",
                             "entry_open",
-                            "task_allowed",
-                            "user_name",
-                            "project_name",
-                            "folder_name",
-                            "task_name"
+                            "task_allowed"
                           ],
                           "type": "string"
                         },
@@ -11379,11 +11320,7 @@
                             "not_validated",
                             "is_validated",
                             "entry_open",
-                            "task_allowed",
-                            "user_name",
-                            "project_name",
-                            "folder_name",
-                            "task_name"
+                            "task_allowed"
                           ],
                           "type": "string"
                         },
@@ -11442,11 +11379,7 @@
                         "not_validated",
                         "is_validated",
                         "entry_open",
-                        "task_allowed",
-                        "user_name",
-                        "project_name",
-                        "folder_name",
-                        "task_name"
+                        "task_allowed"
                       ],
                       "type": "string"
                     },
@@ -11564,13 +11497,6 @@
                         "format": "int64",
                         "type": "integer"
                       },
-                      "folder_name": {
-                        "description": "Folder name.",
-                        "type": [
-                          "string",
-                          "null"
-                        ]
-                      },
                       "frozen_amount": {
                         "type": [
                           "number",
@@ -11649,13 +11575,6 @@
                           "null"
                         ]
                       },
-                      "project_name": {
-                        "description": "Project name.",
-                        "type": [
-                          "string",
-                          "null"
-                        ]
-                      },
                       "rate": {
                         "description": "Hourly rate: frozen, else user and task, folder, project, task, 0.",
                         "type": "number"
@@ -11675,13 +11594,6 @@
                         "format": "int64",
                         "type": "integer"
                       },
-                      "task_name": {
-                        "description": "Task name.",
-                        "type": [
-                          "string",
-                          "null"
-                        ]
-                      },
                       "to_validate": {
                         "description": "Needs a manager validation: the task, an hour class touched, or the folder estimate exceeded.",
                         "type": [
@@ -11692,13 +11604,6 @@
                       "user_id": {
                         "format": "int64",
                         "type": "integer"
-                      },
-                      "user_name": {
-                        "description": "Display name.",
-                        "type": [
-                          "string",
-                          "null"
-                        ]
                       },
                       "validated_at": {
                         "format": "date-time",
@@ -11743,11 +11648,7 @@
                       "not_validated",
                       "is_validated",
                       "entry_open",
-                      "task_allowed",
-                      "user_name",
-                      "project_name",
-                      "folder_name",
-                      "task_name"
+                      "task_allowed"
                     ],
                     "type": "object"
                   },
@@ -14681,7 +14582,7 @@
     },
     "/api/v/expense_by_activity": {
       "post": {
-        "description": "Expense lines of an activity with their amounts.",
+        "description": "Expense lines of an activity with their amounts and whether their type goes by quantity.",
         "operationId": "view_expense_by_activity",
         "requestBody": {
           "content": {
@@ -14709,7 +14610,6 @@
                             "effective_mode",
                             "user_amount",
                             "billed_amount",
-                            "type_name",
                             "by_quantity"
                           ],
                           "type": "string"
@@ -14752,7 +14652,6 @@
                             "effective_mode",
                             "user_amount",
                             "billed_amount",
-                            "type_name",
                             "by_quantity"
                           ],
                           "type": "string"
@@ -14799,7 +14698,6 @@
                         "effective_mode",
                         "user_amount",
                         "billed_amount",
-                        "type_name",
                         "by_quantity"
                       ],
                       "type": "string"
@@ -14947,13 +14845,6 @@
                           "null"
                         ]
                       },
-                      "type_name": {
-                        "description": "Name of the type.",
-                        "type": [
-                          "string",
-                          "null"
-                        ]
-                      },
                       "user_amount": {
                         "description": "Amount reimbursed to the user: frozen, else 0 (billing only), quantity times unit price, or the amount.",
                         "type": [
@@ -14985,7 +14876,6 @@
                       "effective_mode",
                       "user_amount",
                       "billed_amount",
-                      "type_name",
                       "by_quantity"
                     ],
                     "type": "object"
@@ -18541,10 +18431,7 @@
                             "not_validated",
                             "is_validated",
                             "entry_open",
-                            "task_allowed",
-                            "user_name",
-                            "folder_name",
-                            "task_name"
+                            "task_allowed"
                           ],
                           "type": "string"
                         },
@@ -18599,10 +18486,7 @@
                             "not_validated",
                             "is_validated",
                             "entry_open",
-                            "task_allowed",
-                            "user_name",
-                            "folder_name",
-                            "task_name"
+                            "task_allowed"
                           ],
                           "type": "string"
                         },
@@ -18661,10 +18545,7 @@
                         "not_validated",
                         "is_validated",
                         "entry_open",
-                        "task_allowed",
-                        "user_name",
-                        "folder_name",
-                        "task_name"
+                        "task_allowed"
                       ],
                       "type": "string"
                     },
@@ -18775,13 +18656,6 @@
                         "format": "int64",
                         "type": "integer"
                       },
-                      "folder_name": {
-                        "description": "Folder name.",
-                        "type": [
-                          "string",
-                          "null"
-                        ]
-                      },
                       "frozen_amount": {
                         "type": [
                           "number",
@@ -18879,13 +18753,6 @@
                         "format": "int64",
                         "type": "integer"
                       },
-                      "task_name": {
-                        "description": "Task name.",
-                        "type": [
-                          "string",
-                          "null"
-                        ]
-                      },
                       "to_validate": {
                         "description": "Needs a manager validation: the task, an hour class touched, or the folder estimate exceeded.",
                         "type": [
@@ -18896,13 +18763,6 @@
                       "user_id": {
                         "format": "int64",
                         "type": "integer"
-                      },
-                      "user_name": {
-                        "description": "Display name.",
-                        "type": [
-                          "string",
-                          "null"
-                        ]
                       },
                       "validated_at": {
                         "format": "date-time",
@@ -18947,10 +18807,7 @@
                       "not_validated",
                       "is_validated",
                       "entry_open",
-                      "task_allowed",
-                      "user_name",
-                      "folder_name",
-                      "task_name"
+                      "task_allowed"
                     ],
                     "type": "object"
                   },
@@ -22275,7 +22132,7 @@
     },
     "/api/v/timesheet": {
       "post": {
-        "description": "Activities of a user over a period, with their project, folder and task, by date and start.",
+        "description": "Activities of a user over a period, with the billing of their task, by date and start.",
         "operationId": "view_timesheet",
         "requestBody": {
           "content": {
@@ -22317,9 +22174,6 @@
                             "is_validated",
                             "entry_open",
                             "task_allowed",
-                            "project_name",
-                            "folder_name",
-                            "task_name",
                             "billing"
                           ],
                           "type": "string"
@@ -22376,9 +22230,6 @@
                             "is_validated",
                             "entry_open",
                             "task_allowed",
-                            "project_name",
-                            "folder_name",
-                            "task_name",
                             "billing"
                           ],
                           "type": "string"
@@ -22439,9 +22290,6 @@
                         "is_validated",
                         "entry_open",
                         "task_allowed",
-                        "project_name",
-                        "folder_name",
-                        "task_name",
                         "billing"
                       ],
                       "type": "string"
@@ -22579,13 +22427,6 @@
                         "format": "int64",
                         "type": "integer"
                       },
-                      "folder_name": {
-                        "description": "Folder name.",
-                        "type": [
-                          "string",
-                          "null"
-                        ]
-                      },
                       "frozen_amount": {
                         "type": [
                           "number",
@@ -22664,13 +22505,6 @@
                           "null"
                         ]
                       },
-                      "project_name": {
-                        "description": "Project name.",
-                        "type": [
-                          "string",
-                          "null"
-                        ]
-                      },
                       "rate": {
                         "description": "Hourly rate: frozen, else user and task, folder, project, task, 0.",
                         "type": "number"
@@ -22689,13 +22523,6 @@
                       "task_id": {
                         "format": "int64",
                         "type": "integer"
-                      },
-                      "task_name": {
-                        "description": "Task name.",
-                        "type": [
-                          "string",
-                          "null"
-                        ]
                       },
                       "to_validate": {
                         "description": "Needs a manager validation: the task, an hour class touched, or the folder estimate exceeded.",
@@ -22752,9 +22579,6 @@
                       "is_validated",
                       "entry_open",
                       "task_allowed",
-                      "project_name",
-                      "folder_name",
-                      "task_name",
                       "billing"
                     ],
                     "type": "object"
