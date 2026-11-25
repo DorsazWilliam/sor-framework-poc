@@ -558,6 +558,7 @@ textarea.input {
   background: var(--surface);
 }
 .commandbar h1 {
+  flex: none;
   margin: 0 var(--s-6) 0 0;
   font-size: var(--fs-title);
   font-weight: var(--fw-semibold);
@@ -569,7 +570,25 @@ textarea.input {
   margin: 0 var(--s-2);
   background: var(--border);
 }
+/* Commands shrink to their icon and an ellipsis when the bar is too narrow; the full label stays in the title. */
+.commandbar .commands {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+}
+.commandbar .commands > *,
+.commandbar .commands .btn {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.btn .label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .commandbar .end {
+  flex: none;
   display: flex;
   align-items: center;
   gap: var(--s-2);

@@ -1,4 +1,4 @@
-import type { Changed, Commands, Labels, Lang, Me, Meta, Problem, ViewBody, Views } from "./contract";
+import type { Changed, Commands, Labels, Lang, Me, Meta, Problem, Row, ViewBody, Views } from "./contract";
 
 export class ApiError extends Error {
   constructor(public problem: Problem) {
@@ -9,11 +9,11 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+async function request<T>(method: string, path: string, body?: unknown, headers: Record<string, string> = {}): Promise<T> {
   const res = await fetch(path, {
     method,
     credentials: "same-origin",
-    headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+    headers: body === undefined ? headers : { "Content-Type": "application/json", ...headers },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (res.status === 401) {
@@ -27,14 +27,22 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   return res.json() as Promise<T>;
 }
 
+// A literal name is typed by the OpenAPI document; a name read from the meta (string) is not.
+type Known<K, M, T, U> = K extends keyof M ? T : U;
+
+const view = <K extends string>(name: K, body: Known<K, Views, ViewBody<Views[K & keyof Views]["params"]>, ViewBody>) =>
+  request<Known<K, Views, Views[K & keyof Views]["row"], Row>[]>("POST", `/api/v/${name}`, body);
+
+// `id` is the invocation id (Sor-Call header): the live keys of the command carry it as `e`.
+const call = <K extends string>(name: K, input: Known<K, Commands, Commands[K & keyof Commands]["input"], Record<string, unknown>>, id: string) =>
+  request<Changed>("POST", `/api/c/${name}`, input, { "Sor-Call": id });
+
 export const api = {
   me: () => request<Me>("GET", "/api/me"),
   meta: () => request<Meta>("GET", "/api/meta"),
   labels: (lang: Lang) => request<Labels>("GET", `/api/labels/${lang}`),
-  view: <K extends keyof Views & string>(name: K, body: ViewBody<Views[K]["params"]>) =>
-    request<Views[K]["row"][]>("POST", `/api/v/${name}`, body),
-  call: <K extends keyof Commands & string>(name: K, input: Commands[K]["input"]) =>
-    request<Changed>("POST", `/api/c/${name}`, input),
+  view,
+  call,
   presign: (b: { hash: string; size: number; type: string }) =>
     request<{ exists: boolean; url?: string; headers?: Record<string, string> }>("POST", "/api/files/presign", b),
   register: (b: { hash: string; name: string; type: string }) => request<{ id: number }>("POST", "/api/files", b),

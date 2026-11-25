@@ -4,6 +4,7 @@
   import Form from "./Form.svelte";
   import History from "./History.svelte";
   import ViewScreen from "./ViewScreen.svelte";
+  import FileView from "./FileView.svelte";
   import { api } from "../api/client";
   import { watch } from "../app/live.svelte";
   import { screenView, view } from "../app/session.svelte";
@@ -57,7 +58,9 @@
         <History root={tbl.root} id={rootId!} />
       {:else}
         {@const child = children.find((c) => c.id === v)!}
-        {#key row!.id}<ViewScreen screen={child} link={linked(child)} parent={row!} />{/key}
+        {#key row!.id}
+          {#if child.component === "pdf"}<FileView screen={child} link={linked(child)} />{:else}<ViewScreen screen={child} link={linked(child)} parent={row!} />{/if}
+        {/key}
       {/if}
     {/snippet}
   </Tabs>

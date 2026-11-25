@@ -1,4 +1,5 @@
-// JSON contract of SPEC §13. Replaced or narrowed by openapi-typescript output in src/gen/.
+// JSON contract of SPEC §13. Views and commands are typed by name from the OpenAPI document (src/gen/api.d.ts).
+import type { operations } from "../gen/api";
 
 export type Lang = "fr" | "de" | "en";
 
@@ -70,6 +71,10 @@ export type LiveKey = { t: string; ids?: number[]; c: string; e: string };
 
 export type Labels = Record<string, string>;
 
-// Name-indexed maps; generated types narrow them per view and command.
-export interface Views { [name: string]: { params: Record<string, unknown>; row: Row } }
-export interface Commands { [name: string]: { input: Record<string, unknown> } }
+// Views and commands by registry name, from the operations view_<name> and command_<name>.
+type Ops<P extends string> = { [K in keyof operations as K extends `${P}${infer N}` ? N : never]: operations[K] };
+type Body<O> = O extends { requestBody?: { content: { "application/json": infer B } } } ? B : never;
+type Rows<O> = O extends { responses: { 200: { content: { "application/json": (infer R)[] } } } } ? R : never;
+
+export type Views = { [N in keyof Ops<"view_">]: { params: NonNullable<Body<Ops<"view_">[N]>["params"]>; row: Rows<Ops<"view_">[N]> } };
+export type Commands = { [N in keyof Ops<"command_">]: { input: Body<Ops<"command_">[N]> } };

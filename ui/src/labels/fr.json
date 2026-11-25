@@ -1,5 +1,6 @@
 {
   "ui.applies_to": "S'applique à {n} ligne(s).",
+  "ui.boot_failed": "L'application n'a pas pu démarrer",
   "ui.cancel": "Annuler",
   "ui.clear_filters": "Effacer les filtres",
   "ui.close": "Fermer",
@@ -46,6 +47,7 @@
   "ui.navigation": "Navigation",
   "ui.new_row": "Nouveau : {table}",
   "ui.no": "Non",
+  "ui.no_file": "Aucun fichier.",
   "ui.no_grouping": "Aucun",
   "ui.no_history": "Aucun changement enregistré.",
   "ui.no_results": "Aucun résultat",
@@ -74,6 +76,8 @@
   "ui.to": "À",
   "ui.toggle_nav": "Afficher ou masquer la navigation",
   "ui.total": "Total",
+  "ui.unknown_user": "Utilisateur inconnu",
+  "ui.unknown_user_hint": "Le fournisseur d'identité vous reconnaît, mais aucun utilisateur de l'application ne correspond à votre identité. Déconnectez-vous et connectez-vous avec un autre nom d'utilisateur.",
   "ui.unmet": "Conditions non remplies : {list}",
   "ui.upload": "Téléverser",
   "ui.yes": "Oui"

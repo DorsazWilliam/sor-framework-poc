@@ -1,5 +1,5 @@
 import { SvelteMap } from "svelte/reactivity";
-import type { Row } from "../api/contract";
+import type { Commands, Row } from "../api/contract";
 import type { Item } from "../ds/types";
 import { api, ApiError } from "../api/client";
 import { all, lookup } from "../app/lookups.svelte";
@@ -15,6 +15,8 @@ export type Draft = {
   start_tod: number | null; duration_min: number | null; folder_id: number | null; task_id: number | null;
   billed_min: number | null; description: string | null;
 };
+
+type Patch = Omit<Commands["activity.update"]["input"], "ids">;
 
 const blank = (): Draft => ({ start_tod: null, duration_min: null, folder_id: null, task_id: null, billed_min: null, description: null });
 const fromRow = (r: Row) => Object.fromEntries(FIELDS.map((f) => [f, r[f] ?? null])) as Draft;
@@ -189,11 +191,14 @@ export class Entry {
     const fields =
       l.id == null ? FIELDS.filter((f) => d[f] != null && (f !== "billed_min" || billing(d.task_id) === "sometimes")) : l.changed;
     if (!fields.length) return;
-    const input = Object.fromEntries(fields.map((f) => [f, d[f] === "" ? null : d[f]]));
+    const input: Patch = Object.fromEntries(fields.map((f) => [f, f === "description" ? (d.description ?? "") : d[f]]));
     const name = l.id == null ? "activity.create" : "activity.update";
     l.draft.start_tod = d.start_tod;
     l.status = "saving";
-    const res = await call(command(name)!, l.id == null ? { user_id: this.user, date: l.date, ...input } : { ids: [l.id], ...input });
+    const res =
+      l.id == null
+        ? await call("activity.create", { ...input, user_id: this.user, date: l.date, start_tod: d.start_tod, duration_min: d.duration_min, folder_id: d.folder_id, task_id: d.task_id })
+        : await call("activity.update", { ...input, ids: [l.id] });
     if (res instanceof ApiError) return this.#refuse(l, res, name);
     if (l.id == null) {
       l.id = res.ids[0];
@@ -211,7 +216,7 @@ export class Entry {
       else this.lines = this.lines.filter((x) => x !== l);
       return;
     }
-    const res = await call(command("activity.delete")!, { ids: [l.id] });
+    const res = await call("activity.delete", { ids: [l.id] });
     if (res instanceof ApiError) return this.#refuse(l, res, "activity.delete");
     this.lines = this.lines.filter((x) => x !== l);
   }

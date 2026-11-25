@@ -6,6 +6,6 @@
 
 <div class="commandbar" role="toolbar" aria-label={title}>
   <h1>{title}</h1>
-  {@render children?.()}
+  <div class="commands">{@render children?.()}</div>
   {#if end}<div class="end">{@render end()}</div>{/if}
 </div>

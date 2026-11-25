@@ -13,5 +13,5 @@
 
 <button type="button" class="btn" data-variant={variant} {...rest}>
   {#if I}<I />{/if}
-  {@render children?.()}
+  {#if children}<span class="label">{@render children()}</span>{/if}
 </button>

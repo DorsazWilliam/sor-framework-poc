@@ -1,5 +1,6 @@
 {
   "ui.applies_to": "Applies to {n} row(s).",
+  "ui.boot_failed": "The application could not start",
   "ui.cancel": "Cancel",
   "ui.clear_filters": "Clear filters",
   "ui.close": "Close",
@@ -46,6 +47,7 @@
   "ui.navigation": "Navigation",
   "ui.new_row": "New: {table}",
   "ui.no": "No",
+  "ui.no_file": "No file.",
   "ui.no_grouping": "None",
   "ui.no_history": "No recorded changes.",
   "ui.no_results": "No results",
@@ -74,6 +76,8 @@
   "ui.to": "To",
   "ui.toggle_nav": "Show or hide navigation",
   "ui.total": "Total",
+  "ui.unknown_user": "Unknown user",
+  "ui.unknown_user_hint": "The identity provider knows you, but no user of the application matches your identity. Sign out and sign in with another username.",
   "ui.unmet": "Unmet conditions: {list}",
   "ui.upload": "Upload",
   "ui.yes": "Yes"

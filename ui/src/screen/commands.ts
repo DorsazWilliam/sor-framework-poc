@@ -1,6 +1,6 @@
 import type { Changed, Command, Rejected, Row } from "../api/contract";
 import { api, ApiError } from "../api/client";
-import { applied } from "../app/live.svelte";
+import { applied, newCall } from "../app/live.svelte";
 import { can, table } from "../app/session.svelte";
 import { toast } from "../ds/toast.svelte";
 import { t } from "../labels/i18n.svelte";
@@ -28,9 +28,9 @@ export function evaluate(c: Command, rows: Row[], parent?: Row): { enabled: bool
 }
 
 // The command and its own refresh through the live store; an ApiError is returned, not thrown.
-export async function call(c: Command, input: Record<string, unknown>): Promise<Changed | ApiError> {
+export async function call<K extends string>(name: K, input: Parameters<typeof api.call<K>>[1]): Promise<Changed | ApiError> {
   try {
-    const res = await api.call(c.name, input);
+    const res = await api.call(name, input, newCall());
     applied(res);
     return res;
   } catch (e) {
@@ -44,7 +44,7 @@ export async function execute(
   input: Record<string, unknown>,
   onRejected?: (r: Rejected[]) => void,
 ): Promise<Changed | ApiError> {
-  const res = await call(c, input);
+  const res = await call(c.name, input);
   if (res instanceof ApiError) {
     report(c, res);
     if (res.problem.rejected) onRejected?.(res.problem.rejected);

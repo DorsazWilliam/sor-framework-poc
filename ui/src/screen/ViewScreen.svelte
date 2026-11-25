@@ -25,18 +25,22 @@
   import { t } from "../labels/i18n.svelte";
 
   // Renders any Screen of the meta: params, grid on its first permitted view, commands, detail drawer.
-  // A child screen (in a drawer tab) gets its params through `link` and keeps no URL state.
+  // A child screen (in a drawer tab) keeps no URL state; its `link` values are params of the view, or else
+  // equality filters on the view's columns (a child table's list read by its foreign key).
   let { screen, link, parent }: { screen: Screen; link?: Record<string, unknown>; parent?: Row } = $props();
 
   const nested = $derived(link !== undefined);
   const v = $derived(screenView(screen)!);
   const tbl = $derived(screen.table ? table(screen.table) : undefined);
+  const isParam = (k: string) => v.params.some((p) => p.name === k);
+  const linked = $derived(Object.entries(link ?? {}));
+  const fixed = $derived(linked.filter(([k]) => !isParam(k)).map(([col, value]): Filter => ({ col, op: "eq", value })));
 
   // Full state from a partial one (URL or saved view; ignored for a child screen) over the screen's defaults and wrap.
   const merge = (given: ScreenState) => {
     const s = link ? {} : given;
     return {
-    params: { ...defaults(screen.defaults, session.me), ...s.params, ...link },
+    params: { ...defaults(screen.defaults, session.me), ...s.params, ...Object.fromEntries(linked.filter(([k]) => isParam(k))) },
     filter: s.wrap?.filter ?? screen.wrap?.filter ?? [],
     sort: s.wrap?.sort ?? screen.wrap?.sort ?? [],
     group: s.wrap?.group ?? screen.wrap?.group ?? [],
@@ -60,7 +64,8 @@
   const source = $derived(
     new Source({
       view: v.name,
-      ...$state.snapshot({ params, filter, sort, group }),
+      ...$state.snapshot({ params, sort, group }),
+      filter: [...fixed, ...$state.snapshot(filter)],
       agg: screen.wrap?.agg ?? [],
       count: v.columns[0].name,
     }),
@@ -81,7 +86,10 @@
     ...columns.filter((c) => !isNumeric(c) && c.type !== "bool").map((c) => ({ value: c.name, label: colLabel(c.name, tbl?.name) })),
   ]);
   const initial = $derived(
-    tbl ? Object.fromEntries(tbl.columns.filter((c) => params[c.name] !== undefined).map((c) => [c.name, params[c.name]])) : {},
+    tbl ? Object.fromEntries(tbl.columns.flatMap((c) => {
+      const v = link?.[c.name] ?? params[c.name];
+      return v === undefined ? [] : [[c.name, v]];
+    })) : {},
   );
 
   // The grid keeps showing the previous result until the new query has its first answer.
@@ -137,7 +145,7 @@
   {#each cmds as c (c.name)}
     {@const s = evaluate(c, rows, parent)}
     <Tooltip text={s.enabled ? "" : s.reasons.join(" · ")}>
-      <Button variant="subtle" icon={kindIcon[c.kind]} disabled={!s.enabled} data-command={c.name} onclick={() => invoke(c)}>
+      <Button variant="subtle" icon={kindIcon[c.kind]} disabled={!s.enabled} data-command={c.name} title={s.enabled ? t(`cmd.${c.name}`) : undefined} onclick={() => invoke(c)}>
         {t(`cmd.${c.name}`)}
       </Button>
     </Tooltip>
