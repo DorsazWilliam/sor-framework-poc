@@ -286,8 +286,9 @@ group by w.user_id;
 comment on view work_start is 'First day of the first work period of each user: where balances start.';
 comment on column work_start.first_day is 'First day worked.';
 
+-- Its plan does not depend on the arguments: generic, so that it is not planned again at every call.
 create function work_due(user_id bigint, date_from date, date_to date, out due_min numeric, out vacation_min numeric)
-language sql stable parallel safe as $$
+language sql stable parallel safe set plan_cache_mode = force_generic_plan as $$
   select coalesce(sum((d.week_total - d.holiday_total) * s.activity_pct / 100), 0),
          coalesce(sum((s.e - s.s + 1)::numeric / s.year_days * s.vacation_days * s.week_sum / 5 * s.activity_pct / 100), 0)
   from (

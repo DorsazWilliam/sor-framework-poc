@@ -38,7 +38,7 @@ comment on column activity.frozen_billed_min is 'Billed duration frozen when inv
 comment on column activity.frozen_amount is 'Amount frozen when invoiced.';
 create index activity_user_date on activity (user_id, date) include (start_tod, duration_min, task_id);
 create index activity_date on activity (date, id);
-create index activity_folder on activity (folder_id) include (duration_min);
+create index activity_folder on activity (folder_id, date) include (duration_min);
 create index activity_invoice on activity (invoice_id) where invoice_id is not null;
 
 create table expense_type (

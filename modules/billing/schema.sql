@@ -60,9 +60,10 @@ comment on column delivery_state.last_at is 'Instant of the last attempt.';
 comment on column delivery_state.last_status is 'HTTP status of the last attempt.';
 comment on column delivery_state.last_detail is 'Detail of the last attempt.';
 
+-- Its plan does not depend on the argument: generic, so that it is not planned again at every call.
 create function invoice_totals(invoice_id bigint, out activity_count bigint, out billed_min bigint,
                                out services_amount numeric, out expenses_amount numeric)
-language sql stable as $$
+language sql stable set plan_cache_mode = force_generic_plan as $$
   select count(*), coalesce(sum(a.billed_min), 0), coalesce(sum(a.amount), 0),
          coalesce(sum((select sum(e.billed_amount) from expense_p e where e.activity_id = a.id)), 0)
   from invoice_line l
