@@ -54,7 +54,8 @@ func (b *booter) fail(format string, args ...any) {
 // The error lists every violation found.
 func Boot(ctx context.Context, pool *pgxpool.Pool, s *Static) (*Kernel, error) {
 	k := &Kernel{Static: s, Pool: pool, tables: map[string]*Table{}, views: map[string]*View{}, commands: map[string]*Command{},
-		types: map[uint32]pgType{}, refs: map[string]string{}, Meta: Meta{Screens: s.Screens, Enums: map[string][]string{}}}
+		types: map[uint32]pgType{}, refs: map[string]string{},
+		Meta: Meta{Tables: []*Table{}, Views: []*View{}, Commands: []*Command{}, Enums: map[string][]string{}}}
 	conn, err := pool.Acquire(ctx)
 	if err != nil {
 		return nil, err
@@ -431,7 +432,7 @@ func (b *booter) bootCommands(ctx context.Context) {
 		if !t.CRUD {
 			continue
 		}
-		var writable []Col
+		writable := []Col{}
 		for _, c := range t.Columns {
 			if c.Name != "id" && !c.generated && !c.Guarded {
 				c.required = !c.Nullable && !c.HasDefault
@@ -573,10 +574,7 @@ func (b *booter) effect(ctx context.Context, q *Query, c *Command) *effect {
 }
 
 func (b *booter) meta() {
-	b.Meta.Functions = b.Meta.Enums["fn"]
-	if b.Meta.Functions == nil {
-		b.Meta.Functions = []string{}
-	}
+	b.Meta.Functions = nonNil(b.Meta.Enums["fn"])
 	groups := []string{}
 	add := func(g string) {
 		if g != "" && !slices.Contains(groups, g) {
@@ -595,9 +593,7 @@ func (b *booter) meta() {
 		add(t.decl.Group)
 	}
 	b.Meta.Groups = groups
-	if b.Meta.Screens == nil {
-		b.Meta.Screens = []Screen{}
-	}
+	b.Meta.Screens = screens(b.Screens)
 	slices.SortFunc(b.Meta.Views, func(x, y *View) int { return strings.Compare(x.Name, y.Name) })
 	slices.SortFunc(b.Meta.Commands, func(x, y *Command) int { return strings.Compare(x.Name, y.Name) })
 	for _, v := range b.Meta.Views {
@@ -606,6 +602,26 @@ func (b *booter) meta() {
 	for _, c := range b.Meta.Commands {
 		b.commandSchema(c)
 	}
+}
+
+// screens copies ss with the lists and maps of the contract never null.
+func screens(ss []Screen) []Screen {
+	out := make([]Screen, len(ss))
+	for i, s := range ss {
+		s.Views, s.Commands, s.Children = nonNil(s.Views), nonNil(s.Commands), screens(s.Children)
+		if s.Defaults == nil {
+			s.Defaults = map[string]string{}
+		}
+		out[i] = s
+	}
+	return out
+}
+
+func nonNil[T any](s []T) []T {
+	if s == nil {
+		return []T{}
+	}
+	return s
 }
 
 // ident quotes an SQL identifier.

@@ -1,6 +1,8 @@
 package kernel_test
 
 import (
+	"encoding/json"
+	"fmt"
 	"slices"
 	"testing"
 
@@ -61,4 +63,32 @@ func TestContract(t *testing.T) {
 	if rows = view(t, k, boss, "entry_grid", `{"filter":[{"col":"person_id","op":"eq","value":1}]}`); len(rows) != 1 {
 		t.Fatalf("filter on ref: %v", rows)
 	}
+}
+
+// TestMetaNotNull: every list and map of the meta is present, empty rather than null (SPEC §13); optional
+// fields are omitted, so no value of the meta JSON is null.
+func TestMetaNotNull(t *testing.T) {
+	k := setup(t)
+	raw, err := json.Marshal(k.Meta)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var meta any
+	json.Unmarshal(raw, &meta)
+	var walk func(path string, v any)
+	walk = func(path string, v any) {
+		switch v := v.(type) {
+		case nil:
+			t.Errorf("null at %s", path)
+		case map[string]any:
+			for k, x := range v {
+				walk(path+"."+k, x)
+			}
+		case []any:
+			for i, x := range v {
+				walk(fmt.Sprintf("%s[%d]", path, i), x)
+			}
+		}
+	}
+	walk("meta", meta)
 }
