@@ -28,7 +28,9 @@ type liveKey struct {
 	E   string  `json:"e"`
 }
 
-// Subscribe returns the stream of live keys visible to p, until cancel is called.
+// Subscribe returns the stream of live keys visible to p, until cancel is called. A stream never loses a key
+// silently: when the hub cannot deliver a key to it, or may have missed keys, it closes the channel, and the
+// client reconnects and revalidates.
 func (k *Kernel) Subscribe(p *Principal) (<-chan []byte, func()) {
 	s := &subscriber{p: p, ch: make(chan []byte, 64)}
 	k.hub.mu.Lock()
@@ -39,8 +41,16 @@ func (k *Kernel) Subscribe(p *Principal) (<-chan []byte, func()) {
 	k.hub.mu.Unlock()
 	return s.ch, func() {
 		k.hub.mu.Lock()
-		delete(k.hub.subs, s)
+		k.hub.drop(s)
 		k.hub.mu.Unlock()
+	}
+}
+
+// drop removes s and closes its channel, once; h.mu is held.
+func (h *hub) drop(s *subscriber) {
+	if _, ok := h.subs[s]; ok {
+		delete(h.subs, s)
+		close(s.ch)
 	}
 }
 
@@ -67,22 +77,26 @@ func (k *Kernel) publish(payload string) {
 		}
 		select {
 		case s.ch <- out:
-		default: // a stream that does not keep up drops keys; its client reloads on reconnect
+		default: // a stream that does not keep up is closed rather than missing the key
+			k.hub.drop(s)
 		}
 	}
 }
 
 // Listen holds one LISTEN connection and publishes every sor_live notification until ctx ends.
 func (k *Kernel) Listen(ctx context.Context) {
+	again := false
 	for ctx.Err() == nil {
-		if err := k.listen(ctx); err != nil && ctx.Err() == nil {
+		if err := k.listen(ctx, &again); err != nil && ctx.Err() == nil {
 			slog.Error("live listener", "err", err)
 			time.Sleep(time.Second)
 		}
 	}
 }
 
-func (k *Kernel) listen(ctx context.Context) error {
+// listen LISTENs on one connection; on a re-listen (again), keys may have been missed meanwhile, so every
+// stream is closed.
+func (k *Kernel) listen(ctx context.Context, again *bool) error {
 	conn, err := k.Pool.Acquire(ctx)
 	if err != nil {
 		return err
@@ -91,6 +105,14 @@ func (k *Kernel) listen(ctx context.Context) error {
 	if _, err := conn.Exec(ctx, "listen sor_live"); err != nil {
 		return err
 	}
+	if *again {
+		k.hub.mu.Lock()
+		for s := range k.hub.subs {
+			k.hub.drop(s)
+		}
+		k.hub.mu.Unlock()
+	}
+	*again = true
 	defer conn.Exec(context.WithoutCancel(ctx), "unlisten sor_live")
 	for {
 		n, err := conn.Conn().WaitForNotification(ctx)

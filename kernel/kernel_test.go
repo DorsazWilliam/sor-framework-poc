@@ -408,6 +408,101 @@ func TestLive(t *testing.T) {
 	}
 }
 
+// notify sends n distinct live keys of an unanchored table, visible to every stream.
+func notify(t *testing.T, k *kernel.Kernel, n int) {
+	t.Helper()
+	if _, err := k.Pool.Exec(context.Background(), `select pg_notify('sor_live', '{"t":"x","c":"c","e":"'||i||'"}') from generate_series(1, $1::int) i`, n); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// closed reports whether ch is closed once its buffered keys are drained.
+func closed(ch <-chan []byte) bool {
+	for {
+		select {
+		case _, ok := <-ch:
+			if !ok {
+				return true
+			}
+		case <-time.After(3 * time.Second):
+			return false
+		}
+	}
+}
+
+// TestLiveOverflow: a stream that cannot take a key is closed, never left open having missed it.
+func TestLiveOverflow(t *testing.T) {
+	k := setup(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go k.Listen(ctx)
+	boss := principal(t, k, "boss")
+	lazy, stop := k.Subscribe(boss)
+	defer stop()
+	reader, stop2 := k.Subscribe(boss)
+	defer stop2()
+	time.Sleep(200 * time.Millisecond) // LISTEN in place
+	got := make(chan int)
+	go func() {
+		n := 0
+		for n < 80 {
+			select {
+			case _, ok := <-reader:
+				if !ok {
+					got <- -1
+					return
+				}
+				n++
+			case <-time.After(3 * time.Second):
+				got <- n
+				return
+			}
+		}
+		got <- n
+	}()
+	notify(t, k, 80)
+	if n := <-got; n != 80 {
+		t.Fatalf("reader got %d keys of 80", n)
+	}
+	if !closed(lazy) {
+		t.Fatal("the stream that did not read is still open")
+	}
+}
+
+// TestLiveRelisten: when the hub's LISTEN connection is lost and re-established, every stream is closed, and a
+// new stream receives keys again.
+func TestLiveRelisten(t *testing.T) {
+	k := setup(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go k.Listen(ctx)
+	boss := principal(t, k, "boss")
+	old, stop := k.Subscribe(boss)
+	defer stop()
+	time.Sleep(200 * time.Millisecond) // LISTEN in place
+	if n := count(t, k, `select count(pg_terminate_backend(pid))::int from pg_stat_activity
+where datname = current_database() and query = 'listen sor_live' and pid <> pg_backend_pid()`); n != 1 {
+		t.Fatalf("listen connections terminated: %d", n)
+	}
+	if !closed(old) {
+		t.Fatal("the stream is still open after the re-listen")
+	}
+	fresh, stop2 := k.Subscribe(boss)
+	defer stop2()
+	notify(t, k, 1)
+	select {
+	case msg, ok := <-fresh:
+		if !ok {
+			t.Fatal("the new stream is closed")
+		}
+		if !strings.Contains(string(msg), `"t":"x"`) {
+			t.Fatalf("key: %s", msg)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("no live key after the re-listen")
+	}
+}
+
 func TestCheckStatic(t *testing.T) {
 	m := `{"queries":[
  {"name":"Good","cmd":":many","text":"select 1","comments":[" @anchor none"," @needs any"]},

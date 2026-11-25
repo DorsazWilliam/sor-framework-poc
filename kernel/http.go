@@ -193,7 +193,10 @@ func (k *Kernel) live(w http.ResponseWriter, r *http.Request) {
 		select {
 		case <-r.Context().Done():
 			return
-		case msg := <-ch:
+		case msg, ok := <-ch:
+			if !ok { // the hub closed the stream: the client reconnects and revalidates
+				return
+			}
 			fmt.Fprintf(w, "data: %s\n\n", msg)
 		case <-tick.C:
 			io.WriteString(w, ": ping\n\n")
