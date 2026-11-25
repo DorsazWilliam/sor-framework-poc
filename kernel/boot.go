@@ -2,6 +2,8 @@ package kernel
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -633,6 +635,48 @@ func (b *booter) meta() {
 	for _, c := range b.Meta.Commands {
 		b.commandSchema(c)
 	}
+	b.tiles(b.Meta.Screens)
+	raw, _ := json.Marshal(b.Meta)
+	sum := sha256.Sum256(raw)
+	b.Meta.Version = hex.EncodeToString(sum[:8])
+}
+
+// tiles checks the tiles of ss: a view, a wrap valid on it, a form, a screen to link to.
+func (b *booter) tiles(ss []Screen) {
+	for _, s := range ss {
+		for _, t := range s.Tiles {
+			at := fmt.Sprintf("screen %s: tile %s", s.ID, t.Title)
+			if !slices.Contains([]string{"number", "bar", "line", "donut", "progress", "heatmap", "table"}, t.Form) {
+				b.fail("%s: unknown form %q", at, t.Form)
+			}
+			if t.Link != "" && findScreen(b.Meta.Screens, t.Link) == nil {
+				b.fail("%s: link %s is not a screen", at, t.Link)
+			}
+			v := b.views[t.View]
+			if v == nil {
+				b.fail("%s: view %s does not exist", at, t.View)
+				continue
+			}
+			w := Wrap{}
+			if t.Wrap != nil {
+				w = *t.Wrap
+			}
+			raw, _ := json.Marshal(w)
+			var x any
+			json.Unmarshal(raw, &x)
+			p := v.validate(x)
+			if p == nil {
+				_, _, p = v.wrap(w, nil, b.tables)
+			}
+			if p != nil {
+				for _, e := range p.Errors {
+					p.Detail += "; " + e.Location + " " + e.Message
+				}
+				b.fail("%s: wrap on %s: %s", at, t.View, p.Detail)
+			}
+		}
+		b.tiles(s.Children)
+	}
 }
 
 // tableScreen is the generated screen of a table declared with Group (SPEC §19): its list view, its CRUD and a
@@ -649,7 +693,7 @@ func tableScreen(t *Table) Screen {
 func screens(ss []Screen) []Screen {
 	out := make([]Screen, len(ss))
 	for i, s := range ss {
-		s.Views, s.Commands, s.Children = nonNil(s.Views), nonNil(s.Commands), screens(s.Children)
+		s.Views, s.Commands, s.Tiles, s.Children = nonNil(s.Views), nonNil(s.Commands), nonNil(s.Tiles), screens(s.Children)
 		if s.Defaults == nil {
 			s.Defaults = map[string]string{}
 		}

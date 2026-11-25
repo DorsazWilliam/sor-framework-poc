@@ -1,13 +1,100 @@
 package kernel_test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/DorsazWilliam/sor-framework-poc/kernel"
+	"github.com/DorsazWilliam/sor-framework-poc/kernel/testmod"
 )
+
+// TestDashboard: a date grouped by period, tiles in the meta and filtered by capability, the version of the registry,
+// the boot check of tiles.
+func TestDashboard(t *testing.T) {
+	k := setup(t)
+	ctx := context.Background()
+	boss := principal(t, k, "boss")
+
+	// ISO weeks start on Monday: 2026-11-02..04 are one week (boss reads his and alice's entries); sort and aggregates go with the period column.
+	rows := view(t, k, boss, "entry_grid", `{"group":[{"col":"day","by":"week"}],"agg":[{"col":"worked_min","fn":"sum"},{"fn":"count"}]}`)
+	if len(rows) != 1 || rows[0]["day_week"] != "2026-11-02" || rows[0]["sum_worked_min"].(float64) != 270 || rows[0]["count"].(float64) != 3 {
+		t.Fatalf("by week: %v", rows)
+	}
+	rows = view(t, k, boss, "entry_grid", `{"group":[{"col":"day","by":"day"},"person_id"],"agg":[{"col":"worked_min","fn":"sum"}],"sort":[{"col":"day_day","dir":"desc"}]}`)
+	if len(rows) != 3 || rows[0]["day_day"] != "2026-11-04" || rows[2]["day_day"] != "2026-11-02" {
+		t.Fatalf("by day, sorted: %v", rows)
+	}
+	rows = view(t, k, boss, "entry_grid", `{"group":[{"col":"day","by":"month"}],"agg":[{"fn":"count"}],"sort":[{"col":"day_month"}]}`)
+	if len(rows) != 1 || rows[0]["day_month"] != "2026-11-01" {
+		t.Fatalf("by month: %v", rows)
+	}
+	for _, g := range []string{`{"col":"worked_min","by":"week"}`, `{"col":"day","by":"hour"}`, `{"col":"nope","by":"week"}`} {
+		if _, err := k.View(ctx, boss, "entry_grid", []byte(`{"group":[`+g+`]}`)); err == nil || err.(*kernel.Problem).Code != "invalid" {
+			t.Fatalf("group %s: %v", g, err)
+		}
+	}
+
+	// Tiles are in the meta; a tile whose view is not permitted is dropped, and a screen left without content.
+	screen := func(m kernel.Meta, id string) *kernel.Screen {
+		i := slices.IndexFunc(m.Screens, func(s kernel.Screen) bool { return s.ID == id })
+		if i < 0 {
+			return nil
+		}
+		return &m.Screens[i]
+	}
+	b := screen(k.Permitted(boss), "board")
+	if b == nil || len(b.Tiles) != 2 || b.Tiles[0].Wrap.Group[0] != (kernel.GroupBy{Col: "day", By: "week"}) || screen(k.Permitted(boss), "admin_board") == nil {
+		t.Fatalf("boss board: %+v", b)
+	}
+	raw, _ := json.Marshal(b.Tiles[0])
+	if !strings.Contains(string(raw), `"group":[{"col":"day","by":"week"}]`) {
+		t.Fatalf("tile json: %s", raw)
+	}
+	alice := k.Permitted(principal(t, k, "user"))
+	if b := screen(alice, "board"); b == nil || len(b.Tiles) != 1 || b.Tiles[0].View != "entry_grid" || screen(alice, "admin_board") != nil {
+		t.Fatalf("alice board: %+v", b)
+	}
+	if s := screen(alice, "entries"); s == nil || s.Tiles == nil {
+		t.Fatalf("tiles never null: %+v", s)
+	}
+
+	// The version is stable across boots and changes with a declaration; a bad tile fails the boot.
+	boot := func(screens ...kernel.Screen) (*kernel.Kernel, error) {
+		s, err := kernel.Load(testmod.Manifest, testmod.Module, kernel.Module{Name: "extra", Register: func(r *kernel.Registry) {
+			for _, sc := range screens {
+				r.Screen(sc)
+			}
+		}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return kernel.Boot(ctx, k.Pool, s)
+	}
+	again, err := boot()
+	if err != nil || again.Meta.Version != k.Meta.Version || len(k.Meta.Version) != 16 || k.Permitted(boss).Version != k.Meta.Version {
+		t.Fatalf("version %q, again %q: %v", k.Meta.Version, again.Meta.Version, err)
+	}
+	more, err := boot(kernel.Screen{ID: "more", Group: "time", Tiles: []kernel.Tile{{Title: "tile.x", View: "org", Form: "table"}}})
+	if err != nil || more.Meta.Version == k.Meta.Version {
+		t.Fatalf("version after a declaration: %q: %v", more.Meta.Version, err)
+	}
+	_, err = boot(kernel.Screen{ID: "bad", Group: "time", Tiles: []kernel.Tile{
+		{Title: "tile.a", View: "nope", Form: "number"},
+		{Title: "tile.b", View: "entry_grid", Form: "pie", Link: "nowhere"},
+		{Title: "tile.c", View: "entry_grid", Form: "bar", Wrap: &kernel.Wrap{Group: []kernel.GroupBy{{Col: "person", By: "week"}}}},
+		{Title: "tile.d", View: "entry_grid", Form: "bar", Wrap: &kernel.Wrap{Agg: []kernel.Agg{{Col: "nope", Fn: "sum"}}}},
+	}})
+	for _, want := range []string{"tile tile.a: view nope does not exist", `tile tile.b: unknown form "pie"`, "tile tile.b: link nowhere is not a screen",
+		"tile tile.c: wrap on entry_grid", "tile tile.d: wrap on entry_grid"} {
+		if err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("boot: missing %q in %v", want, err)
+		}
+	}
+}
 
 // TestContract: call id in the result, history stamps as ids, Ref, sort on a ref by its label.
 func TestContract(t *testing.T) {

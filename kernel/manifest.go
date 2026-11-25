@@ -263,6 +263,9 @@ func (s *Static) labelKeys() []string {
 			if sc.Group != "" {
 				keys["g."+sc.Group] = true
 			}
+			for _, t := range sc.Tiles {
+				keys[t.Title] = true
+			}
 			walk(sc.Children)
 		}
 	}

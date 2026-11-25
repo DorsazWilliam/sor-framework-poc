@@ -92,16 +92,78 @@ type Screen struct {
 	Children  []Screen          `json:"children"`
 	Link      map[string]string `json:"link,omitempty"`
 	Component string            `json:"component,omitempty"`
+	Tiles     []Tile            `json:"tiles"`
+}
+
+// Tile is a wrapped view drawn on a screen (SPEC §20 Dashboard): the first group of its wrap is the axis, the second the series.
+type Tile struct {
+	Title      string            `json:"title" doc:"Label key, else the text"`
+	View       string            `json:"view"`
+	Params     map[string]string `json:"params,omitempty"`
+	Wrap       *Wrap             `json:"wrap,omitempty"`
+	Form       string            `json:"form" enum:"number,bar,line,donut,progress,heatmap,table"`
+	Stacked    bool              `json:"stacked,omitempty"`
+	Horizontal bool              `json:"horizontal,omitempty"`
+	Span       int               `json:"span,omitempty" enum:"1,2,3,4" doc:"Width, over 4 columns"`
+	Link       string            `json:"link,omitempty" doc:"Screen opened on click"`
 }
 
 // Wrap is the filter, sort, group, aggregate and page applied around a view.
 type Wrap struct {
-	Filter []Filter `json:"filter,omitempty"`
-	Sort   []Sort   `json:"sort,omitempty"`
-	Group  []string `json:"group,omitempty"`
-	Agg    []Agg    `json:"agg,omitempty"`
-	Limit  int      `json:"limit,omitempty"`
-	Offset int      `json:"offset,omitempty"`
+	Filter []Filter  `json:"filter,omitempty"`
+	Sort   []Sort    `json:"sort,omitempty"`
+	Group  []GroupBy `json:"group,omitempty"`
+	Agg    []Agg     `json:"agg,omitempty"`
+	Limit  int       `json:"limit,omitempty"`
+	Offset int       `json:"offset,omitempty"`
+}
+
+// GroupBy is a group of a wrap: a column, or a date column by period ({col, by}), output as <col>_<by>.
+type GroupBy struct {
+	Col string `json:"col"`
+	By  string `json:"by,omitempty"`
+}
+
+// Name is the output column of the group.
+func (g GroupBy) Name() string {
+	if g.By == "" {
+		return g.Col
+	}
+	return g.Col + "_" + g.By
+}
+
+// MarshalJSON writes a column as its name.
+func (g GroupBy) MarshalJSON() ([]byte, error) {
+	if g.By == "" {
+		return json.Marshal(g.Col)
+	}
+	type plain GroupBy
+	return json.Marshal(plain(g))
+}
+
+func (g *GroupBy) UnmarshalJSON(b []byte) error {
+	if json.Unmarshal(b, &g.Col) == nil {
+		g.By = ""
+		return nil
+	}
+	type plain GroupBy
+	return json.Unmarshal(b, (*plain)(g))
+}
+
+// Schema is that of a column or of a column by period (SPEC §13).
+func (GroupBy) Schema(huma.Registry) *huma.Schema {
+	col := &huma.Schema{Type: huma.TypeString}
+	return groupSchema(col, col)
+}
+
+var periods = []string{"day", "week", "month", "year"}
+
+// groupSchema is col, or {col: date, by: period}; without date column, col.
+func groupSchema(col, date *huma.Schema) *huma.Schema {
+	if date == nil {
+		return col
+	}
+	return &huma.Schema{OneOf: []*huma.Schema{col, object(map[string]*huma.Schema{"col": date, "by": enumOf(periods...)}, []string{"col", "by"})}}
 }
 
 // Filter is a condition on a column, or an action: the rows where every condition of the action is true.

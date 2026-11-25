@@ -431,6 +431,9 @@ func TestCheckStatic(t *testing.T) {
 		t.Errorf("Good flagged:\n%s", got)
 	}
 	s, _ = kernel.Load(testmod.Manifest, testmod.Module)
+	if got := strings.Join(s.CheckStatic(map[string]string{}), "\n"); !strings.Contains(got, `labels/fr.json: missing "tile.weeks"`) {
+		t.Errorf("tile title without a label:\n%s", got)
+	}
 	if p := s.CheckStatic(nil); len(p) > 0 {
 		t.Fatalf("fixture: %v", p)
 	}

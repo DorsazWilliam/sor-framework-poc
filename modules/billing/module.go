@@ -39,7 +39,7 @@ var Module = kernel.Module{Name: "billing", Schema: schema, Register: func(r *ke
 
 	r.Screen(kernel.Screen{ID: "profitability", Group: "analysis", Icon: "data-trending", Views: []string{"profitability_cost", "profitability"},
 		Defaults: map[string]string{"date_from": "$year_start", "date_to": "$today"},
-		Wrap: &kernel.Wrap{Group: []string{"project_id"}, Agg: kernel.Sum("duration_min", "billed_min", "services_amount", "expense_billed_amount",
+		Wrap: &kernel.Wrap{Group: []kernel.GroupBy{{Col: "project_id"}}, Agg: kernel.Sum("duration_min", "billed_min", "services_amount", "expense_billed_amount",
 			"expense_user_amount", "realized_amount", "invoiced_amount", "balance_amount", "counted_min", "cost_amount", "services_margin_amount",
 			"balance_margin_amount")}})
 	r.Screen(kernel.Screen{ID: "invoicing", Group: "billing", Icon: "document-text", Views: []string{"invoice"}, Table: "invoice",

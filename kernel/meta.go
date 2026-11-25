@@ -87,6 +87,7 @@ type Command struct {
 }
 
 type Meta struct {
+	Version   string              `json:"version" doc:"Fingerprint of the registry"`
 	Tables    []*Table            `json:"tables"`
 	Views     []*View             `json:"views"`
 	Commands  []*Command          `json:"commands"`
@@ -116,17 +117,17 @@ func (k *Kernel) Permitted(p *Principal) Meta {
 	return m
 }
 
-// permittedScreens keeps the screens with a permitted view, their permitted views and commands.
+// permittedScreens keeps the screens with a permitted view or tile, their permitted views, tiles and commands.
 func permittedScreens(ss []Screen, views []*View, commands []*Command) []Screen {
 	out := []Screen{}
+	view := func(n string) bool { return slices.ContainsFunc(views, func(v *View) bool { return v.Name == n }) }
 	for _, s := range ss {
-		s.Views = slices.DeleteFunc(slices.Clone(s.Views), func(n string) bool {
-			return !slices.ContainsFunc(views, func(v *View) bool { return v.Name == n })
-		})
+		s.Views = slices.DeleteFunc(slices.Clone(s.Views), func(n string) bool { return !view(n) })
+		s.Tiles = slices.DeleteFunc(slices.Clone(s.Tiles), func(t Tile) bool { return !view(t.View) })
 		s.Commands = slices.DeleteFunc(slices.Clone(s.Commands), func(n string) bool {
 			return !slices.ContainsFunc(commands, func(c *Command) bool { return c.Name == n })
 		})
-		if len(s.Views) > 0 {
+		if len(s.Views)+len(s.Tiles) > 0 {
 			s.Children = permittedScreens(s.Children, views, commands)
 			out = append(out, s)
 		}

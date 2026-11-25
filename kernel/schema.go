@@ -68,20 +68,27 @@ func (k *Kernel) rowSchema(cols []Col) *huma.Schema {
 
 func (b *booter) viewSchemas(v *View) {
 	params := map[string]*huma.Schema{}
-	var names []string
+	var names, dates []string
 	for _, p := range v.Params {
 		params[p.Name] = b.colSchema(p)
 	}
 	for _, c := range v.Columns {
 		names = append(names, c.Name)
+		if c.Type == "date" || c.Type == "timestamptz" {
+			dates = append(dates, c.Name)
+		}
 	}
 	col := enumOf(names...)
+	var date *huma.Schema
+	if len(dates) > 0 {
+		date = enumOf(dates...)
+	}
 	one, zero, max := 1.0, 0.0, float64(maxLimit)
 	v.in = object(map[string]*huma.Schema{
 		"params": object(params, nil),
 		"filter": {Type: huma.TypeArray, Items: filterSchema(col)},
 		"sort":   {Type: huma.TypeArray, Items: object(map[string]*huma.Schema{"col": {Type: huma.TypeString}, "dir": enumOf("asc", "desc")}, []string{"col"})},
-		"group":  {Type: huma.TypeArray, Items: col},
+		"group":  {Type: huma.TypeArray, Items: groupSchema(col, date)},
 		"agg":    {Type: huma.TypeArray, Items: object(map[string]*huma.Schema{"col": col, "fn": enumOf("sum", "count", "min", "max", "avg")}, []string{"fn"})},
 		"limit":  {Type: huma.TypeInteger, Minimum: &one, Maximum: &max},
 		"offset": {Type: huma.TypeInteger, Minimum: &zero},

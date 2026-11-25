@@ -276,6 +276,10 @@
             },
             "type": "array"
           },
+          "version": {
+            "description": "Fingerprint of the registry",
+            "type": "string"
+          },
           "views": {
             "items": {
               "$ref": "#/components/schemas/View"
@@ -284,6 +288,7 @@
           }
         },
         "required": [
+          "version",
           "tables",
           "views",
           "commands",
@@ -462,6 +467,12 @@
           "table": {
             "type": "string"
           },
+          "tiles": {
+            "items": {
+              "$ref": "#/components/schemas/Tile"
+            },
+            "type": "array"
+          },
           "views": {
             "items": {
               "type": "string"
@@ -478,7 +489,8 @@
           "views",
           "defaults",
           "commands",
-          "children"
+          "children",
+          "tiles"
         ],
         "type": "object"
       },
@@ -619,6 +631,66 @@
         ],
         "type": "object"
       },
+      "Tile": {
+        "additionalProperties": false,
+        "properties": {
+          "form": {
+            "enum": [
+              "number",
+              "bar",
+              "line",
+              "donut",
+              "progress",
+              "heatmap",
+              "table"
+            ],
+            "type": "string"
+          },
+          "horizontal": {
+            "type": "boolean"
+          },
+          "link": {
+            "description": "Screen opened on click",
+            "type": "string"
+          },
+          "params": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "span": {
+            "description": "Width, over 4 columns",
+            "enum": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "format": "int64",
+            "type": "integer"
+          },
+          "stacked": {
+            "type": "boolean"
+          },
+          "title": {
+            "description": "Label key, else the text",
+            "type": "string"
+          },
+          "view": {
+            "type": "string"
+          },
+          "wrap": {
+            "$ref": "#/components/schemas/Wrap"
+          }
+        },
+        "required": [
+          "title",
+          "view",
+          "form"
+        ],
+        "type": "object"
+      },
       "View": {
         "additionalProperties": false,
         "properties": {
@@ -721,7 +793,33 @@
           },
           "group": {
             "items": {
-              "type": "string"
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "by": {
+                      "enum": [
+                        "day",
+                        "week",
+                        "month",
+                        "year"
+                      ],
+                      "type": "string"
+                    },
+                    "col": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "col",
+                    "by"
+                  ],
+                  "type": "object"
+                }
+              ]
             },
             "type": "array"
           },
@@ -6812,17 +6910,47 @@
                   },
                   "group": {
                     "items": {
-                      "enum": [
-                        "id",
-                        "connection_id",
-                        "created_at",
-                        "state",
-                        "attempts",
-                        "last_at",
-                        "last_status",
-                        "last_detail"
-                      ],
-                      "type": "string"
+                      "oneOf": [
+                        {
+                          "enum": [
+                            "id",
+                            "connection_id",
+                            "created_at",
+                            "state",
+                            "attempts",
+                            "last_at",
+                            "last_status",
+                            "last_detail"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "by": {
+                              "enum": [
+                                "day",
+                                "week",
+                                "month",
+                                "year"
+                              ],
+                              "type": "string"
+                            },
+                            "col": {
+                              "enum": [
+                                "created_at",
+                                "last_at"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "col",
+                            "by"
+                          ],
+                          "type": "object"
+                        }
+                      ]
                     },
                     "type": "array"
                   },
@@ -6885,6 +7013,7 @@
                     "additionalProperties": false,
                     "properties": {
                       "attempts": {
+                        "description": "Number of attempts.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -6901,16 +7030,19 @@
                         "type": "integer"
                       },
                       "last_at": {
+                        "description": "Instant of the last attempt.",
                         "format": "date-time",
                         "type": "string"
                       },
                       "last_detail": {
+                        "description": "Detail of the last attempt.",
                         "type": [
                           "string",
                           "null"
                         ]
                       },
                       "last_status": {
+                        "description": "HTTP status of the last attempt.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -6918,6 +7050,7 @@
                         ]
                       },
                       "state": {
+                        "description": "Exported once accepted; failed if the last attempt failed; created before any attempt.",
                         "enum": [
                           "none",
                           "created",
@@ -7103,35 +7236,65 @@
                   },
                   "group": {
                     "items": {
-                      "enum": [
-                        "id",
-                        "user_id",
-                        "date",
-                        "start_tod",
-                        "duration_min",
-                        "folder_id",
-                        "task_id",
-                        "description",
-                        "validated_by",
-                        "validated_at",
-                        "invoice_id",
-                        "project_id",
-                        "day_type",
-                        "span_tod",
-                        "kind",
-                        "billed_min",
-                        "rate",
-                        "amount",
-                        "counted_min",
-                        "to_validate",
-                        "not_locked",
-                        "not_invoiced",
-                        "not_validated",
-                        "is_validated",
-                        "entry_open",
-                        "task_allowed"
-                      ],
-                      "type": "string"
+                      "oneOf": [
+                        {
+                          "enum": [
+                            "id",
+                            "user_id",
+                            "date",
+                            "start_tod",
+                            "duration_min",
+                            "folder_id",
+                            "task_id",
+                            "description",
+                            "validated_by",
+                            "validated_at",
+                            "invoice_id",
+                            "project_id",
+                            "day_type",
+                            "span_tod",
+                            "kind",
+                            "billed_min",
+                            "rate",
+                            "amount",
+                            "counted_min",
+                            "to_validate",
+                            "not_locked",
+                            "not_invoiced",
+                            "not_validated",
+                            "is_validated",
+                            "entry_open",
+                            "task_allowed"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "by": {
+                              "enum": [
+                                "day",
+                                "week",
+                                "month",
+                                "year"
+                              ],
+                              "type": "string"
+                            },
+                            "col": {
+                              "enum": [
+                                "date",
+                                "validated_at"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "col",
+                            "by"
+                          ],
+                          "type": "object"
+                        }
+                      ]
                     },
                     "type": "array"
                   },
@@ -7185,12 +7348,14 @@
                     "additionalProperties": false,
                     "properties": {
                       "amount": {
+                        "description": "Amount: frozen, else rate times billed hours, weighted by the rate coefficients of the hour classes touched.",
                         "type": [
                           "number",
                           "null"
                         ]
                       },
                       "billed_min": {
+                        "description": "Billed duration: frozen, else the real duration (always), the entered one or the real one (sometimes), 0 (never).",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -7198,6 +7363,7 @@
                         ]
                       },
                       "counted_min": {
+                        "description": "Minutes counted in the hours done: 0 for a task not counting hours, else weighted by the hours coefficients of the hour classes touched.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -7209,6 +7375,7 @@
                         "type": "string"
                       },
                       "day_type": {
+                        "description": "ISO weekday 1 to 7, or 8 on a full public holiday.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -7223,6 +7390,7 @@
                         "type": "integer"
                       },
                       "entry_open": {
+                        "description": "The folder and its project accept activities.",
                         "type": [
                           "boolean",
                           "null"
@@ -7244,12 +7412,14 @@
                         ]
                       },
                       "is_validated": {
+                        "description": "Validated.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "kind": {
+                        "description": "Kind of the task.",
                         "enum": [
                           "service",
                           "absence",
@@ -7261,24 +7431,28 @@
                         ]
                       },
                       "not_invoiced": {
+                        "description": "Not stamped with an invoice.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "not_locked": {
+                        "description": "The date is in no locked period of the user or of all.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "not_validated": {
+                        "description": "Not validated.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "project_id": {
+                        "description": "Project of the folder.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -7286,12 +7460,14 @@
                         ]
                       },
                       "rate": {
+                        "description": "Hourly rate: frozen, else user and task, folder, project, task, 0.",
                         "type": [
                           "number",
                           "null"
                         ]
                       },
                       "span_tod": {
+                        "description": "Minutes of the day worked: from the start, for the duration.",
                         "type": [
                           "string",
                           "null"
@@ -7302,6 +7478,7 @@
                         "type": "integer"
                       },
                       "task_allowed": {
+                        "description": "The task is allowed in the folder.",
                         "type": [
                           "boolean",
                           "null"
@@ -7312,6 +7489,7 @@
                         "type": "integer"
                       },
                       "to_validate": {
+                        "description": "Needs a manager validation: the task, an hour class touched, or the folder estimate exceeded.",
                         "type": [
                           "boolean",
                           "null"
@@ -7751,22 +7929,26 @@
                     "additionalProperties": false,
                     "properties": {
                       "activity_id": {
+                        "description": "Activity.",
                         "format": "int64",
                         "type": "integer"
                       },
                       "amount": {
+                        "description": "Share of the amount, weighted by the rate coefficient.",
                         "type": [
                           "number",
                           "null"
                         ]
                       },
                       "counted_min": {
+                        "description": "Minutes counted, weighted by the hours coefficient.",
                         "type": [
                           "number",
                           "null"
                         ]
                       },
                       "duration_min": {
+                        "description": "Real minutes in the class.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -7774,6 +7956,7 @@
                         ]
                       },
                       "hour_class_id": {
+                        "description": "Hour class; empty = outside any class.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -7956,35 +8139,65 @@
                   },
                   "group": {
                     "items": {
-                      "enum": [
-                        "id",
-                        "user_id",
-                        "date",
-                        "start_tod",
-                        "duration_min",
-                        "folder_id",
-                        "task_id",
-                        "description",
-                        "validated_by",
-                        "validated_at",
-                        "invoice_id",
-                        "project_id",
-                        "day_type",
-                        "span_tod",
-                        "kind",
-                        "billed_min",
-                        "rate",
-                        "amount",
-                        "counted_min",
-                        "to_validate",
-                        "not_locked",
-                        "not_invoiced",
-                        "not_validated",
-                        "is_validated",
-                        "entry_open",
-                        "task_allowed"
-                      ],
-                      "type": "string"
+                      "oneOf": [
+                        {
+                          "enum": [
+                            "id",
+                            "user_id",
+                            "date",
+                            "start_tod",
+                            "duration_min",
+                            "folder_id",
+                            "task_id",
+                            "description",
+                            "validated_by",
+                            "validated_at",
+                            "invoice_id",
+                            "project_id",
+                            "day_type",
+                            "span_tod",
+                            "kind",
+                            "billed_min",
+                            "rate",
+                            "amount",
+                            "counted_min",
+                            "to_validate",
+                            "not_locked",
+                            "not_invoiced",
+                            "not_validated",
+                            "is_validated",
+                            "entry_open",
+                            "task_allowed"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "by": {
+                              "enum": [
+                                "day",
+                                "week",
+                                "month",
+                                "year"
+                              ],
+                              "type": "string"
+                            },
+                            "col": {
+                              "enum": [
+                                "date",
+                                "validated_at"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "col",
+                            "by"
+                          ],
+                          "type": "object"
+                        }
+                      ]
                     },
                     "type": "array"
                   },
@@ -8054,12 +8267,14 @@
                     "additionalProperties": false,
                     "properties": {
                       "amount": {
+                        "description": "Amount: frozen, else rate times billed hours, weighted by the rate coefficients of the hour classes touched.",
                         "type": [
                           "number",
                           "null"
                         ]
                       },
                       "billed_min": {
+                        "description": "Billed duration: frozen, else the real duration (always), the entered one or the real one (sometimes), 0 (never).",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -8067,6 +8282,7 @@
                         ]
                       },
                       "counted_min": {
+                        "description": "Minutes counted in the hours done: 0 for a task not counting hours, else weighted by the hours coefficients of the hour classes touched.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -8075,6 +8291,7 @@
                         "type": "string"
                       },
                       "day_type": {
+                        "description": "ISO weekday 1 to 7, or 8 on a full public holiday.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -8086,6 +8303,7 @@
                         "type": "integer"
                       },
                       "entry_open": {
+                        "description": "The folder and its project accept activities.",
                         "type": [
                           "boolean",
                           "null"
@@ -8107,12 +8325,14 @@
                         ]
                       },
                       "is_validated": {
+                        "description": "Validated.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "kind": {
+                        "description": "Kind of the task.",
                         "enum": [
                           "service",
                           "absence",
@@ -8124,24 +8344,28 @@
                         ]
                       },
                       "not_invoiced": {
+                        "description": "Not stamped with an invoice.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "not_locked": {
+                        "description": "The date is in no locked period of the user or of all.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "not_validated": {
+                        "description": "Not validated.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "project_id": {
+                        "description": "Project of the folder.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -8149,9 +8373,11 @@
                         ]
                       },
                       "rate": {
+                        "description": "Hourly rate: frozen, else user and task, folder, project, task, 0.",
                         "type": "number"
                       },
                       "span_tod": {
+                        "description": "Minutes of the day worked: from the start, for the duration.",
                         "type": "string"
                       },
                       "start_tod": {
@@ -8159,6 +8385,7 @@
                         "type": "integer"
                       },
                       "task_allowed": {
+                        "description": "The task is allowed in the folder.",
                         "type": [
                           "boolean",
                           "null"
@@ -8169,6 +8396,7 @@
                         "type": "integer"
                       },
                       "to_validate": {
+                        "description": "Needs a manager validation: the task, an hour class touched, or the folder estimate exceeded.",
                         "type": [
                           "boolean",
                           "null"
@@ -8387,35 +8615,65 @@
                   },
                   "group": {
                     "items": {
-                      "enum": [
-                        "id",
-                        "user_id",
-                        "date",
-                        "start_tod",
-                        "duration_min",
-                        "folder_id",
-                        "task_id",
-                        "description",
-                        "validated_by",
-                        "validated_at",
-                        "invoice_id",
-                        "project_id",
-                        "day_type",
-                        "span_tod",
-                        "kind",
-                        "billed_min",
-                        "rate",
-                        "amount",
-                        "counted_min",
-                        "to_validate",
-                        "not_locked",
-                        "not_invoiced",
-                        "not_validated",
-                        "is_validated",
-                        "entry_open",
-                        "task_allowed"
-                      ],
-                      "type": "string"
+                      "oneOf": [
+                        {
+                          "enum": [
+                            "id",
+                            "user_id",
+                            "date",
+                            "start_tod",
+                            "duration_min",
+                            "folder_id",
+                            "task_id",
+                            "description",
+                            "validated_by",
+                            "validated_at",
+                            "invoice_id",
+                            "project_id",
+                            "day_type",
+                            "span_tod",
+                            "kind",
+                            "billed_min",
+                            "rate",
+                            "amount",
+                            "counted_min",
+                            "to_validate",
+                            "not_locked",
+                            "not_invoiced",
+                            "not_validated",
+                            "is_validated",
+                            "entry_open",
+                            "task_allowed"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "by": {
+                              "enum": [
+                                "day",
+                                "week",
+                                "month",
+                                "year"
+                              ],
+                              "type": "string"
+                            },
+                            "col": {
+                              "enum": [
+                                "date",
+                                "validated_at"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "col",
+                            "by"
+                          ],
+                          "type": "object"
+                        }
+                      ]
                     },
                     "type": "array"
                   },
@@ -8485,12 +8743,14 @@
                     "additionalProperties": false,
                     "properties": {
                       "amount": {
+                        "description": "Amount: frozen, else rate times billed hours, weighted by the rate coefficients of the hour classes touched.",
                         "type": [
                           "number",
                           "null"
                         ]
                       },
                       "billed_min": {
+                        "description": "Billed duration: frozen, else the real duration (always), the entered one or the real one (sometimes), 0 (never).",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -8498,6 +8758,7 @@
                         ]
                       },
                       "counted_min": {
+                        "description": "Minutes counted in the hours done: 0 for a task not counting hours, else weighted by the hours coefficients of the hour classes touched.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -8506,6 +8767,7 @@
                         "type": "string"
                       },
                       "day_type": {
+                        "description": "ISO weekday 1 to 7, or 8 on a full public holiday.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -8517,6 +8779,7 @@
                         "type": "integer"
                       },
                       "entry_open": {
+                        "description": "The folder and its project accept activities.",
                         "type": [
                           "boolean",
                           "null"
@@ -8538,12 +8801,14 @@
                         ]
                       },
                       "is_validated": {
+                        "description": "Validated.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "kind": {
+                        "description": "Kind of the task.",
                         "enum": [
                           "service",
                           "absence",
@@ -8555,24 +8820,28 @@
                         ]
                       },
                       "not_invoiced": {
+                        "description": "Not stamped with an invoice.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "not_locked": {
+                        "description": "The date is in no locked period of the user or of all.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "not_validated": {
+                        "description": "Not validated.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "project_id": {
+                        "description": "Project of the folder.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -8580,9 +8849,11 @@
                         ]
                       },
                       "rate": {
+                        "description": "Hourly rate: frozen, else user and task, folder, project, task, 0.",
                         "type": "number"
                       },
                       "span_tod": {
+                        "description": "Minutes of the day worked: from the start, for the duration.",
                         "type": "string"
                       },
                       "start_tod": {
@@ -8590,6 +8861,7 @@
                         "type": "integer"
                       },
                       "task_allowed": {
+                        "description": "The task is allowed in the folder.",
                         "type": [
                           "boolean",
                           "null"
@@ -8600,6 +8872,7 @@
                         "type": "integer"
                       },
                       "to_validate": {
+                        "description": "Needs a manager validation: the task, an hour class touched, or the folder estimate exceeded.",
                         "type": [
                           "boolean",
                           "null"
@@ -9446,18 +9719,47 @@
                   },
                   "group": {
                     "items": {
-                      "enum": [
-                        "id",
-                        "kind",
-                        "name",
-                        "endpoint",
-                        "secret_name",
-                        "subject",
-                        "cursor",
-                        "pulled_at",
-                        "pull_error"
-                      ],
-                      "type": "string"
+                      "oneOf": [
+                        {
+                          "enum": [
+                            "id",
+                            "kind",
+                            "name",
+                            "endpoint",
+                            "secret_name",
+                            "subject",
+                            "cursor",
+                            "pulled_at",
+                            "pull_error"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "by": {
+                              "enum": [
+                                "day",
+                                "week",
+                                "month",
+                                "year"
+                              ],
+                              "type": "string"
+                            },
+                            "col": {
+                              "enum": [
+                                "pulled_at"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "col",
+                            "by"
+                          ],
+                          "type": "object"
+                        }
+                      ]
                     },
                     "type": "array"
                   },
@@ -9893,18 +10195,48 @@
                   },
                   "group": {
                     "items": {
-                      "enum": [
-                        "id",
-                        "root_table",
-                        "root_id",
-                        "created_at",
-                        "state",
-                        "attempts",
-                        "last_at",
-                        "last_status",
-                        "last_detail"
-                      ],
-                      "type": "string"
+                      "oneOf": [
+                        {
+                          "enum": [
+                            "id",
+                            "root_table",
+                            "root_id",
+                            "created_at",
+                            "state",
+                            "attempts",
+                            "last_at",
+                            "last_status",
+                            "last_detail"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "by": {
+                              "enum": [
+                                "day",
+                                "week",
+                                "month",
+                                "year"
+                              ],
+                              "type": "string"
+                            },
+                            "col": {
+                              "enum": [
+                                "created_at",
+                                "last_at"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "col",
+                            "by"
+                          ],
+                          "type": "object"
+                        }
+                      ]
                     },
                     "type": "array"
                   },
@@ -9967,6 +10299,7 @@
                     "additionalProperties": false,
                     "properties": {
                       "attempts": {
+                        "description": "Number of attempts.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -9979,16 +10312,19 @@
                         "type": "integer"
                       },
                       "last_at": {
+                        "description": "Instant of the last attempt.",
                         "format": "date-time",
                         "type": "string"
                       },
                       "last_detail": {
+                        "description": "Detail of the last attempt.",
                         "type": [
                           "string",
                           "null"
                         ]
                       },
                       "last_status": {
+                        "description": "HTTP status of the last attempt.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -10003,6 +10339,7 @@
                         "type": "string"
                       },
                       "state": {
+                        "description": "Exported once accepted; failed if the last attempt failed; created before any attempt.",
                         "enum": [
                           "none",
                           "created",
@@ -10145,13 +10482,42 @@
                   },
                   "group": {
                     "items": {
-                      "enum": [
-                        "id",
-                        "user_id",
-                        "valid_from",
-                        "hourly_cost"
-                      ],
-                      "type": "string"
+                      "oneOf": [
+                        {
+                          "enum": [
+                            "id",
+                            "user_id",
+                            "valid_from",
+                            "hourly_cost"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "by": {
+                              "enum": [
+                                "day",
+                                "week",
+                                "month",
+                                "year"
+                              ],
+                              "type": "string"
+                            },
+                            "col": {
+                              "enum": [
+                                "valid_from"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "col",
+                            "by"
+                          ],
+                          "type": "object"
+                        }
+                      ]
                     },
                     "type": "array"
                   },
@@ -10550,18 +10916,47 @@
                   },
                   "group": {
                     "items": {
-                      "enum": [
-                        "id",
-                        "connection_id",
-                        "path",
-                        "content_type",
-                        "body",
-                        "root_table",
-                        "root_id",
-                        "principal_id",
-                        "created_at"
-                      ],
-                      "type": "string"
+                      "oneOf": [
+                        {
+                          "enum": [
+                            "id",
+                            "connection_id",
+                            "path",
+                            "content_type",
+                            "body",
+                            "root_table",
+                            "root_id",
+                            "principal_id",
+                            "created_at"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "by": {
+                              "enum": [
+                                "day",
+                                "week",
+                                "month",
+                                "year"
+                              ],
+                              "type": "string"
+                            },
+                            "col": {
+                              "enum": [
+                                "created_at"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "col",
+                            "by"
+                          ],
+                          "type": "object"
+                        }
+                      ]
                     },
                     "type": "array"
                   },
@@ -10982,15 +11377,44 @@
                   },
                   "group": {
                     "items": {
-                      "enum": [
-                        "id",
-                        "delivery_id",
-                        "at",
-                        "ok",
-                        "status",
-                        "detail"
-                      ],
-                      "type": "string"
+                      "oneOf": [
+                        {
+                          "enum": [
+                            "id",
+                            "delivery_id",
+                            "at",
+                            "ok",
+                            "status",
+                            "detail"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "by": {
+                              "enum": [
+                                "day",
+                                "week",
+                                "month",
+                                "year"
+                              ],
+                              "type": "string"
+                            },
+                            "col": {
+                              "enum": [
+                                "at"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "col",
+                            "by"
+                          ],
+                          "type": "object"
+                        }
+                      ]
                     },
                     "type": "array"
                   },
@@ -11490,12 +11914,14 @@
                         ]
                       },
                       "billed_amount": {
+                        "description": "Amount billed: frozen, else 0 (user only), quantity times billing unit price, or the amount.",
                         "type": [
                           "number",
                           "null"
                         ]
                       },
                       "effective_mode": {
+                        "description": "Mode of the expense, else of its type.",
                         "enum": [
                           "both",
                           "user_only",
@@ -11545,12 +11971,14 @@
                         ]
                       },
                       "user_amount": {
+                        "description": "Amount reimbursed to the user: frozen, else 0 (billing only), quantity times unit price, or the amount.",
                         "type": [
                           "number",
                           "null"
                         ]
                       },
                       "user_id": {
+                        "description": "User of the activity.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -11989,6 +12417,7 @@
                         ]
                       },
                       "billed_amount": {
+                        "description": "Amount billed: frozen, else 0 (user only), quantity times billing unit price, or the amount.",
                         "type": [
                           "number",
                           "null"
@@ -12002,6 +12431,7 @@
                         ]
                       },
                       "effective_mode": {
+                        "description": "Mode of the expense, else of its type.",
                         "enum": [
                           "both",
                           "user_only",
@@ -12048,12 +12478,14 @@
                         ]
                       },
                       "user_amount": {
+                        "description": "Amount reimbursed to the user: frozen, else 0 (billing only), quantity times unit price, or the amount.",
                         "type": [
                           "number",
                           "null"
                         ]
                       },
                       "user_id": {
+                        "description": "User of the activity.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -12850,15 +13282,44 @@
                   },
                   "group": {
                     "items": {
-                      "enum": [
-                        "id",
-                        "hash",
-                        "size",
-                        "type",
-                        "name",
-                        "created_at"
-                      ],
-                      "type": "string"
+                      "oneOf": [
+                        {
+                          "enum": [
+                            "id",
+                            "hash",
+                            "size",
+                            "type",
+                            "name",
+                            "created_at"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "by": {
+                              "enum": [
+                                "day",
+                                "week",
+                                "month",
+                                "year"
+                              ],
+                              "type": "string"
+                            },
+                            "col": {
+                              "enum": [
+                                "created_at"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "col",
+                            "by"
+                          ],
+                          "type": "object"
+                        }
+                      ]
                     },
                     "type": "array"
                   },
@@ -13333,6 +13794,7 @@
                         "type": "boolean"
                       },
                       "entry_open": {
+                        "description": "Activities can be entered: the folder is open and so is its project.",
                         "type": [
                           "boolean",
                           "null"
@@ -13562,6 +14024,7 @@
                     "additionalProperties": false,
                     "properties": {
                       "entry_open": {
+                        "description": "Activities can be entered: the folder is open and so is its project.",
                         "type": [
                           "boolean",
                           "null"
@@ -14342,16 +14805,45 @@
                   },
                   "group": {
                     "items": {
-                      "enum": [
-                        "at",
-                        "command",
-                        "principal_id",
-                        "for_id",
-                        "tbl",
-                        "row_id",
-                        "changes"
-                      ],
-                      "type": "string"
+                      "oneOf": [
+                        {
+                          "enum": [
+                            "at",
+                            "command",
+                            "principal_id",
+                            "for_id",
+                            "tbl",
+                            "row_id",
+                            "changes"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "by": {
+                              "enum": [
+                                "day",
+                                "week",
+                                "month",
+                                "year"
+                              ],
+                              "type": "string"
+                            },
+                            "col": {
+                              "enum": [
+                                "at"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "col",
+                            "by"
+                          ],
+                          "type": "object"
+                        }
+                      ]
                     },
                     "type": "array"
                   },
@@ -15412,28 +15904,59 @@
                   },
                   "group": {
                     "items": {
-                      "enum": [
-                        "id",
-                        "project_id",
-                        "date_from",
-                        "date_to",
-                        "invoiced_at",
-                        "invoiced_by",
-                        "pdf_file_id",
-                        "account_id",
-                        "state",
-                        "activity_count",
-                        "billed_min",
-                        "services_amount",
-                        "expenses_amount",
-                        "total_amount",
-                        "export_state",
-                        "is_draft",
-                        "is_invoiced",
-                        "has_activities",
-                        "not_exported"
-                      ],
-                      "type": "string"
+                      "oneOf": [
+                        {
+                          "enum": [
+                            "id",
+                            "project_id",
+                            "date_from",
+                            "date_to",
+                            "invoiced_at",
+                            "invoiced_by",
+                            "pdf_file_id",
+                            "account_id",
+                            "state",
+                            "activity_count",
+                            "billed_min",
+                            "services_amount",
+                            "expenses_amount",
+                            "total_amount",
+                            "export_state",
+                            "is_draft",
+                            "is_invoiced",
+                            "has_activities",
+                            "not_exported"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "by": {
+                              "enum": [
+                                "day",
+                                "week",
+                                "month",
+                                "year"
+                              ],
+                              "type": "string"
+                            },
+                            "col": {
+                              "enum": [
+                                "date_from",
+                                "date_to",
+                                "invoiced_at"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "col",
+                            "by"
+                          ],
+                          "type": "object"
+                        }
+                      ]
                     },
                     "type": "array"
                   },
@@ -15487,6 +16010,7 @@
                     "additionalProperties": false,
                     "properties": {
                       "account_id": {
+                        "description": "Client: the account of the project.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -15494,6 +16018,7 @@
                         ]
                       },
                       "activity_count": {
+                        "description": "Number of activities: stamped with it once invoiced (their frozen values summed), candidates while draft.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -15501,6 +16026,7 @@
                         ]
                       },
                       "billed_min": {
+                        "description": "Billed duration of its activities.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -15516,12 +16042,14 @@
                         "type": "string"
                       },
                       "expenses_amount": {
+                        "description": "Amount billed of the expenses of its activities.",
                         "type": [
                           "number",
                           "null"
                         ]
                       },
                       "export_state": {
+                        "description": "State of the last export to the accounting system.",
                         "enum": [
                           "none",
                           "created",
@@ -15534,6 +16062,7 @@
                         ]
                       },
                       "has_activities": {
+                        "description": "Has at least one activity.",
                         "type": [
                           "boolean",
                           "null"
@@ -15558,18 +16087,21 @@
                         ]
                       },
                       "is_draft": {
+                        "description": "Draft.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "is_invoiced": {
+                        "description": "Invoiced.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "not_exported": {
+                        "description": "Never sent to the accounting system.",
                         "type": [
                           "boolean",
                           "null"
@@ -15587,12 +16119,14 @@
                         "type": "integer"
                       },
                       "services_amount": {
+                        "description": "Amount of its activities.",
                         "type": [
                           "number",
                           "null"
                         ]
                       },
                       "state": {
+                        "description": "Draft or invoiced.",
                         "enum": [
                           "draft",
                           "invoiced"
@@ -15603,6 +16137,7 @@
                         ]
                       },
                       "total_amount": {
+                        "description": "Services plus expenses.",
                         "type": [
                           "number",
                           "null"
@@ -15985,35 +16520,65 @@
                   },
                   "group": {
                     "items": {
-                      "enum": [
-                        "id",
-                        "user_id",
-                        "date",
-                        "start_tod",
-                        "duration_min",
-                        "folder_id",
-                        "task_id",
-                        "description",
-                        "validated_by",
-                        "validated_at",
-                        "invoice_id",
-                        "project_id",
-                        "day_type",
-                        "span_tod",
-                        "kind",
-                        "billed_min",
-                        "rate",
-                        "amount",
-                        "counted_min",
-                        "to_validate",
-                        "not_locked",
-                        "not_invoiced",
-                        "not_validated",
-                        "is_validated",
-                        "entry_open",
-                        "task_allowed"
-                      ],
-                      "type": "string"
+                      "oneOf": [
+                        {
+                          "enum": [
+                            "id",
+                            "user_id",
+                            "date",
+                            "start_tod",
+                            "duration_min",
+                            "folder_id",
+                            "task_id",
+                            "description",
+                            "validated_by",
+                            "validated_at",
+                            "invoice_id",
+                            "project_id",
+                            "day_type",
+                            "span_tod",
+                            "kind",
+                            "billed_min",
+                            "rate",
+                            "amount",
+                            "counted_min",
+                            "to_validate",
+                            "not_locked",
+                            "not_invoiced",
+                            "not_validated",
+                            "is_validated",
+                            "entry_open",
+                            "task_allowed"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "by": {
+                              "enum": [
+                                "day",
+                                "week",
+                                "month",
+                                "year"
+                              ],
+                              "type": "string"
+                            },
+                            "col": {
+                              "enum": [
+                                "date",
+                                "validated_at"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "col",
+                            "by"
+                          ],
+                          "type": "object"
+                        }
+                      ]
                     },
                     "type": "array"
                   },
@@ -16076,12 +16641,14 @@
                     "additionalProperties": false,
                     "properties": {
                       "amount": {
+                        "description": "Amount: frozen, else rate times billed hours, weighted by the rate coefficients of the hour classes touched.",
                         "type": [
                           "number",
                           "null"
                         ]
                       },
                       "billed_min": {
+                        "description": "Billed duration: frozen, else the real duration (always), the entered one or the real one (sometimes), 0 (never).",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -16089,6 +16656,7 @@
                         ]
                       },
                       "counted_min": {
+                        "description": "Minutes counted in the hours done: 0 for a task not counting hours, else weighted by the hours coefficients of the hour classes touched.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -16097,6 +16665,7 @@
                         "type": "string"
                       },
                       "day_type": {
+                        "description": "ISO weekday 1 to 7, or 8 on a full public holiday.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -16108,6 +16677,7 @@
                         "type": "integer"
                       },
                       "entry_open": {
+                        "description": "The folder and its project accept activities.",
                         "type": [
                           "boolean",
                           "null"
@@ -16129,12 +16699,14 @@
                         ]
                       },
                       "is_validated": {
+                        "description": "Validated.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "kind": {
+                        "description": "Kind of the task.",
                         "enum": [
                           "service",
                           "absence",
@@ -16146,24 +16718,28 @@
                         ]
                       },
                       "not_invoiced": {
+                        "description": "Not stamped with an invoice.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "not_locked": {
+                        "description": "The date is in no locked period of the user or of all.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "not_validated": {
+                        "description": "Not validated.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "project_id": {
+                        "description": "Project of the folder.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -16171,9 +16747,11 @@
                         ]
                       },
                       "rate": {
+                        "description": "Hourly rate: frozen, else user and task, folder, project, task, 0.",
                         "type": "number"
                       },
                       "span_tod": {
+                        "description": "Minutes of the day worked: from the start, for the duration.",
                         "type": "string"
                       },
                       "start_tod": {
@@ -16181,6 +16759,7 @@
                         "type": "integer"
                       },
                       "task_allowed": {
+                        "description": "The task is allowed in the folder.",
                         "type": [
                           "boolean",
                           "null"
@@ -16191,6 +16770,7 @@
                         "type": "integer"
                       },
                       "to_validate": {
+                        "description": "Needs a manager validation: the task, an hour class touched, or the folder estimate exceeded.",
                         "type": [
                           "boolean",
                           "null"
@@ -16427,8 +17007,11 @@
                   "items": {
                     "additionalProperties": false,
                     "properties": {
-                      "document": {},
+                      "document": {
+                        "description": "The document."
+                      },
                       "invoice_id": {
+                        "description": "Invoice.",
                         "format": "int64",
                         "type": "integer"
                       }
@@ -16557,12 +17140,42 @@
                   },
                   "group": {
                     "items": {
-                      "enum": [
-                        "project_id",
-                        "date_from",
-                        "date_to"
-                      ],
-                      "type": "string"
+                      "oneOf": [
+                        {
+                          "enum": [
+                            "project_id",
+                            "date_from",
+                            "date_to"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "by": {
+                              "enum": [
+                                "day",
+                                "week",
+                                "month",
+                                "year"
+                              ],
+                              "type": "string"
+                            },
+                            "col": {
+                              "enum": [
+                                "date_from",
+                                "date_to"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "col",
+                            "by"
+                          ],
+                          "type": "object"
+                        }
+                      ]
                     },
                     "type": "array"
                   },
@@ -16774,14 +17387,44 @@
                   },
                   "group": {
                     "items": {
-                      "enum": [
-                        "id",
-                        "company_id",
-                        "date_from",
-                        "date_to",
-                        "user_id"
-                      ],
-                      "type": "string"
+                      "oneOf": [
+                        {
+                          "enum": [
+                            "id",
+                            "company_id",
+                            "date_from",
+                            "date_to",
+                            "user_id"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "by": {
+                              "enum": [
+                                "day",
+                                "week",
+                                "month",
+                                "year"
+                              ],
+                              "type": "string"
+                            },
+                            "col": {
+                              "enum": [
+                                "date_from",
+                                "date_to"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "col",
+                            "by"
+                          ],
+                          "type": "object"
+                        }
+                      ]
                     },
                     "type": "array"
                   },
@@ -17820,6 +18463,7 @@
                         "type": "boolean"
                       },
                       "entry_open": {
+                        "description": "Activities can be entered: the project is open and not archived.",
                         "type": [
                           "boolean",
                           "null"
@@ -18046,6 +18690,7 @@
                         "type": "integer"
                       },
                       "entry_open": {
+                        "description": "Activities can be entered: the project is open and not archived.",
                         "type": [
                           "boolean",
                           "null"
@@ -18190,13 +18835,42 @@
                   },
                   "group": {
                     "items": {
-                      "enum": [
-                        "id",
-                        "date",
-                        "label",
-                        "deducted_min"
-                      ],
-                      "type": "string"
+                      "oneOf": [
+                        {
+                          "enum": [
+                            "id",
+                            "date",
+                            "label",
+                            "deducted_min"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "by": {
+                              "enum": [
+                                "day",
+                                "week",
+                                "month",
+                                "year"
+                              ],
+                              "type": "string"
+                            },
+                            "col": {
+                              "enum": [
+                                "date"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "col",
+                            "by"
+                          ],
+                          "type": "object"
+                        }
+                      ]
                     },
                     "type": "array"
                   },
@@ -18609,23 +19283,53 @@
                   },
                   "group": {
                     "items": {
-                      "enum": [
-                        "id",
-                        "name",
-                        "input",
-                        "owner_id",
-                        "principal_id",
-                        "for_id",
-                        "state",
-                        "total",
-                        "done",
-                        "rejected",
-                        "error",
-                        "cancel_requested",
-                        "created_at",
-                        "finished_at"
-                      ],
-                      "type": "string"
+                      "oneOf": [
+                        {
+                          "enum": [
+                            "id",
+                            "name",
+                            "input",
+                            "owner_id",
+                            "principal_id",
+                            "for_id",
+                            "state",
+                            "total",
+                            "done",
+                            "rejected",
+                            "error",
+                            "cancel_requested",
+                            "created_at",
+                            "finished_at"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "by": {
+                              "enum": [
+                                "day",
+                                "week",
+                                "month",
+                                "year"
+                              ],
+                              "type": "string"
+                            },
+                            "col": {
+                              "enum": [
+                                "created_at",
+                                "finished_at"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "col",
+                            "by"
+                          ],
+                          "type": "object"
+                        }
+                      ]
                     },
                     "type": "array"
                   },
@@ -19971,36 +20675,66 @@
                   },
                   "group": {
                     "items": {
-                      "enum": [
-                        "id",
-                        "user_id",
-                        "date",
-                        "start_tod",
-                        "duration_min",
-                        "folder_id",
-                        "task_id",
-                        "description",
-                        "validated_by",
-                        "validated_at",
-                        "invoice_id",
-                        "project_id",
-                        "day_type",
-                        "span_tod",
-                        "kind",
-                        "billed_min",
-                        "rate",
-                        "amount",
-                        "counted_min",
-                        "to_validate",
-                        "not_locked",
-                        "not_invoiced",
-                        "not_validated",
-                        "is_validated",
-                        "entry_open",
-                        "task_allowed",
-                        "billing"
-                      ],
-                      "type": "string"
+                      "oneOf": [
+                        {
+                          "enum": [
+                            "id",
+                            "user_id",
+                            "date",
+                            "start_tod",
+                            "duration_min",
+                            "folder_id",
+                            "task_id",
+                            "description",
+                            "validated_by",
+                            "validated_at",
+                            "invoice_id",
+                            "project_id",
+                            "day_type",
+                            "span_tod",
+                            "kind",
+                            "billed_min",
+                            "rate",
+                            "amount",
+                            "counted_min",
+                            "to_validate",
+                            "not_locked",
+                            "not_invoiced",
+                            "not_validated",
+                            "is_validated",
+                            "entry_open",
+                            "task_allowed",
+                            "billing"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "by": {
+                              "enum": [
+                                "day",
+                                "week",
+                                "month",
+                                "year"
+                              ],
+                              "type": "string"
+                            },
+                            "col": {
+                              "enum": [
+                                "date",
+                                "validated_at"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "col",
+                            "by"
+                          ],
+                          "type": "object"
+                        }
+                      ]
                     },
                     "type": "array"
                   },
@@ -20077,12 +20811,14 @@
                     "additionalProperties": false,
                     "properties": {
                       "amount": {
+                        "description": "Amount: frozen, else rate times billed hours, weighted by the rate coefficients of the hour classes touched.",
                         "type": [
                           "number",
                           "null"
                         ]
                       },
                       "billed_min": {
+                        "description": "Billed duration: frozen, else the real duration (always), the entered one or the real one (sometimes), 0 (never).",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -20102,6 +20838,7 @@
                         ]
                       },
                       "counted_min": {
+                        "description": "Minutes counted in the hours done: 0 for a task not counting hours, else weighted by the hours coefficients of the hour classes touched.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -20110,6 +20847,7 @@
                         "type": "string"
                       },
                       "day_type": {
+                        "description": "ISO weekday 1 to 7, or 8 on a full public holiday.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -20121,6 +20859,7 @@
                         "type": "integer"
                       },
                       "entry_open": {
+                        "description": "The folder and its project accept activities.",
                         "type": [
                           "boolean",
                           "null"
@@ -20142,12 +20881,14 @@
                         ]
                       },
                       "is_validated": {
+                        "description": "Validated.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "kind": {
+                        "description": "Kind of the task.",
                         "enum": [
                           "service",
                           "absence",
@@ -20159,24 +20900,28 @@
                         ]
                       },
                       "not_invoiced": {
+                        "description": "Not stamped with an invoice.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "not_locked": {
+                        "description": "The date is in no locked period of the user or of all.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "not_validated": {
+                        "description": "Not validated.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "project_id": {
+                        "description": "Project of the folder.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -20184,9 +20929,11 @@
                         ]
                       },
                       "rate": {
+                        "description": "Hourly rate: frozen, else user and task, folder, project, task, 0.",
                         "type": "number"
                       },
                       "span_tod": {
+                        "description": "Minutes of the day worked: from the start, for the duration.",
                         "type": "string"
                       },
                       "start_tod": {
@@ -20194,6 +20941,7 @@
                         "type": "integer"
                       },
                       "task_allowed": {
+                        "description": "The task is allowed in the folder.",
                         "type": [
                           "boolean",
                           "null"
@@ -20204,6 +20952,7 @@
                         "type": "integer"
                       },
                       "to_validate": {
+                        "description": "Needs a manager validation: the task, an hour class touched, or the folder estimate exceeded.",
                         "type": [
                           "boolean",
                           "null"
@@ -20383,15 +21132,44 @@
                   },
                   "group": {
                     "items": {
-                      "enum": [
-                        "user_id",
-                        "date",
-                        "due_min",
-                        "done_min",
-                        "holiday",
-                        "locked"
-                      ],
-                      "type": "string"
+                      "oneOf": [
+                        {
+                          "enum": [
+                            "user_id",
+                            "date",
+                            "due_min",
+                            "done_min",
+                            "holiday",
+                            "locked"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "by": {
+                              "enum": [
+                                "day",
+                                "week",
+                                "month",
+                                "year"
+                              ],
+                              "type": "string"
+                            },
+                            "col": {
+                              "enum": [
+                                "date"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "col",
+                            "by"
+                          ],
+                          "type": "object"
+                        }
+                      ]
                     },
                     "type": "array"
                   },
@@ -22651,15 +23429,44 @@
                   },
                   "group": {
                     "items": {
-                      "enum": [
-                        "id",
-                        "user_id",
-                        "valid_from",
-                        "week_min",
-                        "vacation_days",
-                        "activity_pct"
-                      ],
-                      "type": "string"
+                      "oneOf": [
+                        {
+                          "enum": [
+                            "id",
+                            "user_id",
+                            "valid_from",
+                            "week_min",
+                            "vacation_days",
+                            "activity_pct"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "by": {
+                              "enum": [
+                                "day",
+                                "week",
+                                "month",
+                                "year"
+                              ],
+                              "type": "string"
+                            },
+                            "col": {
+                              "enum": [
+                                "valid_from"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "col",
+                            "by"
+                          ],
+                          "type": "object"
+                        }
+                      ]
                     },
                     "type": "array"
                   },

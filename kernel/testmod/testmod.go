@@ -51,6 +51,12 @@ var Module = kernel.Module{Name: "testmod", Schema: schema, Register: func(r *ke
 	r.Job("tick", tick, kernel.Every(250*time.Millisecond), kernel.As("agent-user"))
 	r.Screen(kernel.Screen{ID: "entries", Group: "time", Views: []string{"entry_grid"}, Table: "entry", Commands: []string{"entry.validate"},
 		Children: []kernel.Screen{{ID: "entry_lines", Views: []string{"entry_line"}, Table: "entry_line", Link: map[string]string{"entry_id": "id"}}}})
+	deliveries := kernel.Tile{Title: "tile.deliveries", View: "delivery", Form: "number", Wrap: &kernel.Wrap{Agg: []kernel.Agg{{Col: "id", Fn: "count"}}}}
+	r.Screen(kernel.Screen{ID: "board", Group: "time", Tiles: []kernel.Tile{
+		{Title: "tile.weeks", View: "entry_grid", Form: "bar", Link: "entries", Params: map[string]string{"day_from": "$year_start"},
+			Wrap: &kernel.Wrap{Group: []kernel.GroupBy{{Col: "day", By: "week"}}, Agg: []kernel.Agg{{Col: "worked_min", Fn: "sum"}, {Col: "id", Fn: "count"}}}},
+		deliveries}})
+	r.Screen(kernel.Screen{ID: "admin_board", Group: "time", Tiles: []kernel.Tile{deliveries}})
 }}
 
 // mark notes on the entries of an entry.ping, as the principal who pinged.

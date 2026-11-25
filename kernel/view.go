@@ -169,11 +169,24 @@ func (v *View) wrap(w Wrap, args []any, tables map[string]*Table) (string, []any
 		}
 	})
 	sel := "v.*"
+	var keys []string // the group expressions
 	if grouped {
 		var list []string
 		out = nil
 		for _, g := range w.Group {
-			list, out = append(list, "v."+ident(g)), append(out, g)
+			c, ok := cols[g.Col]
+			if !ok {
+				return "", nil, problem(422, "invalid", "unknown column "+g.Col)
+			}
+			expr := "v." + ident(g.Col)
+			if g.By != "" {
+				if !slices.Contains(periods, g.By) || c.Type != "date" && c.Type != "timestamptz" {
+					return "", nil, problem(422, "invalid", "cannot group "+g.Col+" by "+g.By)
+				}
+				// ISO weeks: date_trunc starts them on Monday
+				expr = fmt.Sprintf("date_trunc('%s', %s::timestamp)::date", g.By, expr)
+			}
+			keys, list, out = append(keys, expr), append(list, expr+" as "+ident(g.Name())), append(out, g.Name())
 		}
 		for _, a := range w.Agg {
 			if a.Fn == "count" {
@@ -202,7 +215,7 @@ func (v *View) wrap(w Wrap, args []any, tables map[string]*Table) (string, []any
 		if grouped {
 			expr = ident(s.Col)
 		}
-		if t := tables[cols[s.Col].Ref]; t != nil && t.Label != "" && (!grouped || slices.Contains(w.Group, s.Col)) {
+		if t := tables[cols[s.Col].Ref]; t != nil && t.Label != "" && (!grouped || slices.Contains(keys, "v."+ident(s.Col))) {
 			a := fmt.Sprintf("l%d", len(labels))
 			joins += fmt.Sprintf(" left join %s %s on %s.id = v.%s", ident(t.Name), a, a, ident(s.Col))
 			expr = a + "." + ident(t.Label)
@@ -228,12 +241,8 @@ func (v *View) wrap(w Wrap, args []any, tables map[string]*Table) (string, []any
 	switch {
 	case grouped:
 		groupSQL := ""
-		if len(w.Group) > 0 {
-			groupSQL = " group by " + strings.Join(append(slices.Collect(func(yield func(string) bool) {
-				for _, g := range w.Group {
-					yield("v." + ident(g))
-				}
-			}), labels...), ", ")
+		if len(keys) > 0 {
+			groupSQL = " group by " + strings.Join(append(keys, labels...), ", ")
 		}
 		return "select " + sel + " from " + q + joins + whereSQL + groupSQL + orderSQL + page, args, nil
 	case byID:
