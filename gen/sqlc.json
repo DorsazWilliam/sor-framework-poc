@@ -6580,7 +6580,7 @@
                 "array_dims": 0
               },
               {
-                "name": "minutes",
+                "name": "duration_min",
                 "not_null": true,
                 "is_array": false,
                 "comment": "Real minutes in the class.",
@@ -8480,7 +8480,7 @@
                 "array_dims": 0
               },
               {
-                "name": "expenses_billed",
+                "name": "expense_billed_amount",
                 "not_null": true,
                 "is_array": false,
                 "comment": "Expense billed (expense line).",
@@ -8506,7 +8506,7 @@
                 "array_dims": 0
               },
               {
-                "name": "expenses_user",
+                "name": "expense_user_amount",
                 "not_null": true,
                 "is_array": false,
                 "comment": "Expense reimbursed to the user (expense line).",
@@ -8880,7 +8880,7 @@
                 "array_dims": 0
               },
               {
-                "name": "expenses_billed",
+                "name": "expense_billed_amount",
                 "not_null": true,
                 "is_array": false,
                 "comment": "",
@@ -8906,7 +8906,7 @@
                 "array_dims": 0
               },
               {
-                "name": "expenses_user",
+                "name": "expense_user_amount",
                 "not_null": true,
                 "is_array": false,
                 "comment": "",
@@ -9062,7 +9062,7 @@
                 "array_dims": 0
               },
               {
-                "name": "margin_services",
+                "name": "services_margin_amount",
                 "not_null": true,
                 "is_array": false,
                 "comment": "Services minus cost.",
@@ -9088,7 +9088,7 @@
                 "array_dims": 0
               },
               {
-                "name": "margin_balance",
+                "name": "balance_margin_amount",
                 "not_null": true,
                 "is_array": false,
                 "comment": "Balance minus cost.",
@@ -78307,7 +78307,7 @@
       "insert_into_table": null
     },
     {
-      "text": "select c.activity_id, c.user_id, c.hour_class_id, c.minutes, c.counted_min, c.amount, h.label\nfrom activity_class c\nleft join hour_class h on h.id = c.hour_class_id\nwhere c.activity_id = $1 and c.user_id = any($2::bigint[])\norder by h.label nulls first",
+      "text": "select c.activity_id, c.user_id, c.hour_class_id, c.duration_min, c.counted_min, c.amount, h.label\nfrom activity_class c\nleft join hour_class h on h.id = c.hour_class_id\nwhere c.activity_id = $1 and c.user_id = any($2::bigint[])\norder by h.label nulls first",
       "name": "ActivityClass",
       "cmd": ":many",
       "columns": [
@@ -78390,7 +78390,7 @@
           "array_dims": 0
         },
         {
-          "name": "minutes",
+          "name": "duration_min",
           "not_null": true,
           "is_array": false,
           "comment": "",
@@ -78411,7 +78411,7 @@
           },
           "is_sqlc_slice": false,
           "embed_table": null,
-          "original_name": "minutes",
+          "original_name": "duration_min",
           "unsigned": false,
           "array_dims": 0
         },
@@ -80825,7 +80825,7 @@
       "insert_into_table": null
     },
     {
-      "text": "select f.project_id, r.folder_id, r.duration_min, r.billed_min, r.services_amount, r.expenses_billed, r.expenses_user, r.realized_amount, r.invoiced_amount, r.balance_amount\nfrom (\n    select r.folder_id,\n           sum(r.duration_min)::integer as duration_min, sum(r.billed_min)::integer as billed_min,\n           sum(r.services_amount) as services_amount, sum(r.expenses_billed) as expenses_billed, sum(r.expenses_user) as expenses_user,\n           sum(r.realized_amount) as realized_amount, sum(r.invoiced_amount) as invoiced_amount, sum(r.balance_amount) as balance_amount\n    from activity_revenue r\n    where r.date between $1 and $2\n    group by r.folder_id\n) r\njoin folder f on f.id = r.folder_id",
+      "text": "select f.project_id, r.folder_id, r.duration_min, r.billed_min, r.services_amount, r.expense_billed_amount, r.expense_user_amount, r.realized_amount, r.invoiced_amount, r.balance_amount\nfrom (\n    select r.folder_id,\n           sum(r.duration_min)::integer as duration_min, sum(r.billed_min)::integer as billed_min,\n           sum(r.services_amount) as services_amount, sum(r.expense_billed_amount) as expense_billed_amount, sum(r.expense_user_amount) as expense_user_amount,\n           sum(r.realized_amount) as realized_amount, sum(r.invoiced_amount) as invoiced_amount, sum(r.balance_amount) as balance_amount\n    from activity_revenue r\n    where r.date between $1 and $2\n    group by r.folder_id\n) r\njoin folder f on f.id = r.folder_id",
       "name": "Profitability",
       "cmd": ":many",
       "columns": [
@@ -80948,7 +80948,7 @@
           "array_dims": 0
         },
         {
-          "name": "expenses_billed",
+          "name": "expense_billed_amount",
           "not_null": true,
           "is_array": false,
           "comment": "",
@@ -80965,12 +80965,12 @@
           },
           "is_sqlc_slice": false,
           "embed_table": null,
-          "original_name": "expenses_billed",
+          "original_name": "expense_billed_amount",
           "unsigned": false,
           "array_dims": 0
         },
         {
-          "name": "expenses_user",
+          "name": "expense_user_amount",
           "not_null": true,
           "is_array": false,
           "comment": "",
@@ -80987,7 +80987,7 @@
           },
           "is_sqlc_slice": false,
           "embed_table": null,
-          "original_name": "expenses_user",
+          "original_name": "expense_user_amount",
           "unsigned": false,
           "array_dims": 0
         },
@@ -81128,7 +81128,7 @@
       "insert_into_table": null
     },
     {
-      "text": "select f.project_id, r.folder_id, r.duration_min, r.billed_min, r.counted_min, r.services_amount, r.expenses_billed, r.expenses_user, r.realized_amount, r.invoiced_amount, r.balance_amount, r.cost_amount, r.margin_services, r.margin_balance\nfrom (\n    select r.folder_id,\n           sum(r.duration_min)::integer as duration_min, sum(r.billed_min)::integer as billed_min, sum(r.counted_min)::integer as counted_min,\n           sum(r.services_amount) as services_amount, sum(r.expenses_billed) as expenses_billed, sum(r.expenses_user) as expenses_user,\n           sum(r.realized_amount) as realized_amount, sum(r.invoiced_amount) as invoiced_amount, sum(r.balance_amount) as balance_amount,\n           sum(r.cost_amount) as cost_amount, sum(r.margin_services) as margin_services, sum(r.margin_balance) as margin_balance\n    from activity_cost r\n    where r.date between $1 and $2\n    group by r.folder_id\n) r\njoin folder f on f.id = r.folder_id",
+      "text": "select f.project_id, r.folder_id, r.duration_min, r.billed_min, r.counted_min, r.services_amount, r.expense_billed_amount, r.expense_user_amount, r.realized_amount, r.invoiced_amount, r.balance_amount, r.cost_amount, r.services_margin_amount, r.balance_margin_amount\nfrom (\n    select r.folder_id,\n           sum(r.duration_min)::integer as duration_min, sum(r.billed_min)::integer as billed_min, sum(r.counted_min)::integer as counted_min,\n           sum(r.services_amount) as services_amount, sum(r.expense_billed_amount) as expense_billed_amount, sum(r.expense_user_amount) as expense_user_amount,\n           sum(r.realized_amount) as realized_amount, sum(r.invoiced_amount) as invoiced_amount, sum(r.balance_amount) as balance_amount,\n           sum(r.cost_amount) as cost_amount, sum(r.services_margin_amount) as services_margin_amount, sum(r.balance_margin_amount) as balance_margin_amount\n    from activity_cost r\n    where r.date between $1 and $2\n    group by r.folder_id\n) r\njoin folder f on f.id = r.folder_id",
       "name": "ProfitabilityCost",
       "cmd": ":many",
       "columns": [
@@ -81273,7 +81273,7 @@
           "array_dims": 0
         },
         {
-          "name": "expenses_billed",
+          "name": "expense_billed_amount",
           "not_null": true,
           "is_array": false,
           "comment": "",
@@ -81290,12 +81290,12 @@
           },
           "is_sqlc_slice": false,
           "embed_table": null,
-          "original_name": "expenses_billed",
+          "original_name": "expense_billed_amount",
           "unsigned": false,
           "array_dims": 0
         },
         {
-          "name": "expenses_user",
+          "name": "expense_user_amount",
           "not_null": true,
           "is_array": false,
           "comment": "",
@@ -81312,7 +81312,7 @@
           },
           "is_sqlc_slice": false,
           "embed_table": null,
-          "original_name": "expenses_user",
+          "original_name": "expense_user_amount",
           "unsigned": false,
           "array_dims": 0
         },
@@ -81405,7 +81405,7 @@
           "array_dims": 0
         },
         {
-          "name": "margin_services",
+          "name": "services_margin_amount",
           "not_null": true,
           "is_array": false,
           "comment": "",
@@ -81422,12 +81422,12 @@
           },
           "is_sqlc_slice": false,
           "embed_table": null,
-          "original_name": "margin_services",
+          "original_name": "services_margin_amount",
           "unsigned": false,
           "array_dims": 0
         },
         {
-          "name": "margin_balance",
+          "name": "balance_margin_amount",
           "not_null": true,
           "is_array": false,
           "comment": "",
@@ -81444,7 +81444,7 @@
           },
           "is_sqlc_slice": false,
           "embed_table": null,
-          "original_name": "margin_balance",
+          "original_name": "balance_margin_amount",
           "unsigned": false,
           "array_dims": 0
         }

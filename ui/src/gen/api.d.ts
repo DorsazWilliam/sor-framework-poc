@@ -1890,6 +1890,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v/expense_receipt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * expense_receipt
+         * @description Expenses of activities that have a receipt, with the hash of the receipt file: the input of the OCR.
+         */
+        post: operations["view_expense_receipt"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v/expense_type": {
         parameters: {
             query?: never;
@@ -2243,7 +2263,7 @@ export interface paths {
         put?: never;
         /**
          * invoice_run_candidates
-         * @description Projects with activities not invoiced over a period and no draft invoice overlapping it: the invoices a run creates.
+         * @description Projects with billable activities over a period and no draft invoice overlapping it: the invoices a run creates.
          */
         post: operations["view_invoice_run_candidates"];
         delete?: never;
@@ -2300,7 +2320,7 @@ export interface paths {
         put?: never;
         /**
          * profitability
-         * @description Per project and folder, over the activities of a period: durations, services, expenses billed and reimbursed, realized (services and expenses billed), invoiced, balance (realized minus invoiced). Invoiced activities use their frozen values.
+         * @description Per folder and its project, over the activities of a period: durations, services, expenses billed and reimbursed, realized (services and expenses billed), invoiced, balance (realized minus invoiced). Invoiced activities use their frozen values.
          */
         post: operations["view_profitability"];
         delete?: never;
@@ -3449,9 +3469,9 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    cursor: string;
+                    cursor?: string | null;
                     ids: number[];
-                    pull_error: string;
+                    pull_error?: string | null;
                 };
             };
         };
@@ -7341,7 +7361,10 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** Format: int64 */
+                        /**
+                         * Format: int64
+                         * @description Number of attempts.
+                         */
                         attempts: number;
                         /** Format: int64 */
                         connection_id: number;
@@ -7349,12 +7372,22 @@ export interface operations {
                         created_at: string;
                         /** Format: int64 */
                         id: number;
-                        /** Format: date-time */
+                        /**
+                         * Format: date-time
+                         * @description Instant of the last attempt.
+                         */
                         last_at: string;
+                        /** @description Detail of the last attempt. */
                         last_detail: string | null;
-                        /** Format: int64 */
+                        /**
+                         * Format: int64
+                         * @description HTTP status of the last attempt.
+                         */
                         last_status: number | null;
-                        /** @enum {string} */
+                        /**
+                         * @description Exported once accepted; failed if the last attempt failed; created before any attempt.
+                         * @enum {string}
+                         */
                         state: "none" | "created" | "exported" | "failed";
                     }[];
                 };
@@ -7413,18 +7446,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
+                        /** @description Amount: frozen, else rate times billed hours, weighted by the rate coefficients of the hour classes touched. */
                         amount: number | null;
-                        /** Format: int64 */
+                        /**
+                         * Format: int64
+                         * @description Billed duration: frozen, else the real duration (always), the entered one or the real one (sometimes), 0 (never).
+                         */
                         billed_min: number | null;
-                        /** Format: int64 */
+                        /**
+                         * Format: int64
+                         * @description Minutes counted in the hours done: 0 for a task not counting hours, else weighted by the hours coefficients of the hour classes touched.
+                         */
                         counted_min: number | null;
                         /** Format: date */
                         date: string;
-                        /** Format: int64 */
+                        /**
+                         * Format: int64
+                         * @description ISO weekday 1 to 7, or 8 on a full public holiday.
+                         */
                         day_type: number | null;
                         description: string;
                         /** Format: int64 */
                         duration_min: number;
+                        /** @description The folder and its project accept activities. */
                         entry_open: boolean | null;
                         /** Format: int64 */
                         folder_id: number;
@@ -7436,20 +7480,33 @@ export interface operations {
                         id: number;
                         /** Format: int64 */
                         invoice_id: number | null;
+                        /** @description Validated. */
                         is_validated: boolean | null;
-                        /** @enum {string|null} */
+                        /**
+                         * @description Kind of the task.
+                         * @enum {string|null}
+                         */
                         kind: "service" | "absence" | "vacation" | null;
+                        /** @description Not on an invoiced invoice. */
                         not_invoiced: boolean | null;
+                        /** @description The date is in no locked period of the user or of all. */
                         not_locked: boolean | null;
+                        /** @description Not validated. */
                         not_validated: boolean | null;
-                        /** Format: int64 */
+                        /**
+                         * Format: int64
+                         * @description Project of the folder.
+                         */
                         project_id: number | null;
+                        /** @description Hourly rate: frozen, else user and task, folder, project, task, 0. */
                         rate: number | null;
                         /** Format: int64 */
                         start_tod: number;
+                        /** @description The task is allowed in the folder. */
                         task_allowed: boolean | null;
                         /** Format: int64 */
                         task_id: number;
+                        /** @description Needs a manager validation: the task, an hour class touched, or the folder estimate exceeded. */
                         to_validate: boolean | null;
                         /** Format: int64 */
                         user_id: number;
@@ -7544,18 +7601,18 @@ export interface operations {
                 "application/json": {
                     agg?: {
                         /** @enum {string} */
-                        col?: "activity_id" | "user_id" | "hour_class_id" | "minutes" | "counted_min" | "amount" | "label";
+                        col?: "activity_id" | "user_id" | "hour_class_id" | "duration_min" | "counted_min" | "amount" | "label";
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
                     filter?: {
                         /** @enum {string} */
-                        col: "activity_id" | "user_id" | "hour_class_id" | "minutes" | "counted_min" | "amount" | "label";
+                        col: "activity_id" | "user_id" | "hour_class_id" | "duration_min" | "counted_min" | "amount" | "label";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
                     }[];
-                    group?: ("activity_id" | "user_id" | "hour_class_id" | "minutes" | "counted_min" | "amount" | "label")[];
+                    group?: ("activity_id" | "user_id" | "hour_class_id" | "duration_min" | "counted_min" | "amount" | "label")[];
                     limit?: number;
                     offset?: number;
                     params?: {
@@ -7578,16 +7635,27 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** Format: int64 */
+                        /**
+                         * Format: int64
+                         * @description Activity.
+                         */
                         activity_id: number;
+                        /** @description Share of the amount, weighted by the rate coefficient. */
                         amount: number;
+                        /** @description Minutes counted, weighted by the hours coefficient. */
                         counted_min: number;
-                        /** Format: int64 */
+                        /**
+                         * Format: int64
+                         * @description Real minutes in the class.
+                         */
+                        duration_min: number;
+                        /**
+                         * Format: int64
+                         * @description Hour class; empty = outside any class.
+                         */
                         hour_class_id: number;
                         /** @description Name of the class. */
                         label: string | null;
-                        /** Format: int64 */
-                        minutes: number;
                         /** Format: int64 */
                         user_id: number;
                     }[];
@@ -7652,18 +7720,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
+                        /** @description Amount: frozen, else rate times billed hours, weighted by the rate coefficients of the hour classes touched. */
                         amount: number | null;
-                        /** Format: int64 */
+                        /**
+                         * Format: int64
+                         * @description Billed duration: frozen, else the real duration (always), the entered one or the real one (sometimes), 0 (never).
+                         */
                         billed_min: number | null;
-                        /** Format: int64 */
+                        /**
+                         * Format: int64
+                         * @description Minutes counted in the hours done: 0 for a task not counting hours, else weighted by the hours coefficients of the hour classes touched.
+                         */
                         counted_min: number;
                         /** Format: date */
                         date: string;
-                        /** Format: int64 */
+                        /**
+                         * Format: int64
+                         * @description ISO weekday 1 to 7, or 8 on a full public holiday.
+                         */
                         day_type: number;
                         description: string;
                         /** Format: int64 */
                         duration_min: number;
+                        /** @description The folder and its project accept activities. */
                         entry_open: boolean | null;
                         /** Format: int64 */
                         folder_id: number;
@@ -7677,24 +7756,37 @@ export interface operations {
                         id: number;
                         /** Format: int64 */
                         invoice_id: number | null;
+                        /** @description Validated. */
                         is_validated: boolean | null;
-                        /** @enum {string|null} */
+                        /**
+                         * @description Kind of the task.
+                         * @enum {string|null}
+                         */
                         kind: "service" | "absence" | "vacation" | null;
+                        /** @description Not on an invoiced invoice. */
                         not_invoiced: boolean | null;
+                        /** @description The date is in no locked period of the user or of all. */
                         not_locked: boolean | null;
+                        /** @description Not validated. */
                         not_validated: boolean | null;
-                        /** Format: int64 */
+                        /**
+                         * Format: int64
+                         * @description Project of the folder.
+                         */
                         project_id: number | null;
                         /** @description Project name. */
                         project_name: string | null;
+                        /** @description Hourly rate: frozen, else user and task, folder, project, task, 0. */
                         rate: number;
                         /** Format: int64 */
                         start_tod: number;
+                        /** @description The task is allowed in the folder. */
                         task_allowed: boolean | null;
                         /** Format: int64 */
                         task_id: number;
                         /** @description Task name. */
                         task_name: string | null;
+                        /** @description Needs a manager validation: the task, an hour class touched, or the folder estimate exceeded. */
                         to_validate: boolean | null;
                         /** Format: int64 */
                         user_id: number;
@@ -7766,18 +7858,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
+                        /** @description Amount: frozen, else rate times billed hours, weighted by the rate coefficients of the hour classes touched. */
                         amount: number | null;
-                        /** Format: int64 */
+                        /**
+                         * Format: int64
+                         * @description Billed duration: frozen, else the real duration (always), the entered one or the real one (sometimes), 0 (never).
+                         */
                         billed_min: number | null;
-                        /** Format: int64 */
+                        /**
+                         * Format: int64
+                         * @description Minutes counted in the hours done: 0 for a task not counting hours, else weighted by the hours coefficients of the hour classes touched.
+                         */
                         counted_min: number;
                         /** Format: date */
                         date: string;
-                        /** Format: int64 */
+                        /**
+                         * Format: int64
+                         * @description ISO weekday 1 to 7, or 8 on a full public holiday.
+                         */
                         day_type: number;
                         description: string;
                         /** Format: int64 */
                         duration_min: number;
+                        /** @description The folder and its project accept activities. */
                         entry_open: boolean | null;
                         /** Format: int64 */
                         folder_id: number;
@@ -7791,24 +7894,37 @@ export interface operations {
                         id: number;
                         /** Format: int64 */
                         invoice_id: number | null;
+                        /** @description Validated. */
                         is_validated: boolean | null;
-                        /** @enum {string|null} */
+                        /**
+                         * @description Kind of the task.
+                         * @enum {string|null}
+                         */
                         kind: "service" | "absence" | "vacation" | null;
+                        /** @description Not on an invoiced invoice. */
                         not_invoiced: boolean | null;
+                        /** @description The date is in no locked period of the user or of all. */
                         not_locked: boolean | null;
+                        /** @description Not validated. */
                         not_validated: boolean | null;
-                        /** Format: int64 */
+                        /**
+                         * Format: int64
+                         * @description Project of the folder.
+                         */
                         project_id: number | null;
                         /** @description Project name. */
                         project_name: string | null;
+                        /** @description Hourly rate: frozen, else user and task, folder, project, task, 0. */
                         rate: number;
                         /** Format: int64 */
                         start_tod: number;
+                        /** @description The task is allowed in the folder. */
                         task_allowed: boolean | null;
                         /** Format: int64 */
                         task_id: number;
                         /** @description Task name. */
                         task_name: string | null;
+                        /** @description Needs a manager validation: the task, an hour class touched, or the folder estimate exceeded. */
                         to_validate: boolean | null;
                         /** Format: int64 */
                         user_id: number;
@@ -8225,21 +8341,34 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** Format: int64 */
+                        /**
+                         * Format: int64
+                         * @description Number of attempts.
+                         */
                         attempts: number;
                         /** Format: date-time */
                         created_at: string;
                         /** Format: int64 */
                         id: number;
-                        /** Format: date-time */
+                        /**
+                         * Format: date-time
+                         * @description Instant of the last attempt.
+                         */
                         last_at: string;
+                        /** @description Detail of the last attempt. */
                         last_detail: string | null;
-                        /** Format: int64 */
+                        /**
+                         * Format: int64
+                         * @description HTTP status of the last attempt.
+                         */
                         last_status: number | null;
                         /** Format: int64 */
                         root_id: number;
                         root_table: string;
-                        /** @enum {string} */
+                        /**
+                         * @description Exported once accepted; failed if the last attempt failed; created before any attempt.
+                         * @enum {string}
+                         */
                         state: "none" | "created" | "exported" | "failed";
                     }[];
                 };
@@ -8716,8 +8845,12 @@ export interface operations {
                         /** Format: int64 */
                         activity_id: number;
                         amount: number | null;
+                        /** @description Amount billed: frozen, else 0 (user only), quantity times billing unit price, or the amount. */
                         billed_amount: number | null;
-                        /** @enum {string|null} */
+                        /**
+                         * @description Mode of the expense, else of its type.
+                         * @enum {string|null}
+                         */
                         effective_mode: "both" | "user_only" | "billing_only" | null;
                         /** Format: int64 */
                         expense_type_id: number;
@@ -8731,8 +8864,12 @@ export interface operations {
                         quantity: number | null;
                         /** Format: int64 */
                         receipt_file_id: number | null;
+                        /** @description Amount reimbursed to the user: frozen, else 0 (billing only), quantity times unit price, or the amount. */
                         user_amount: number | null;
-                        /** Format: int64 */
+                        /**
+                         * Format: int64
+                         * @description User of the activity.
+                         */
                         user_id: number | null;
                     }[];
                 };
@@ -8857,10 +8994,14 @@ export interface operations {
                         /** Format: int64 */
                         activity_id: number;
                         amount: number | null;
+                        /** @description Amount billed: frozen, else 0 (user only), quantity times billing unit price, or the amount. */
                         billed_amount: number | null;
                         /** @description Entered as a quantity priced by the type, instead of an amount. */
                         by_quantity: boolean | null;
-                        /** @enum {string} */
+                        /**
+                         * @description Mode of the expense, else of its type.
+                         * @enum {string}
+                         */
                         effective_mode: "both" | "user_only" | "billing_only";
                         /** Format: int64 */
                         expense_type_id: number;
@@ -8876,9 +9017,80 @@ export interface operations {
                         receipt_file_id: number | null;
                         /** @description Name of the type. */
                         type_name: string | null;
+                        /** @description Amount reimbursed to the user: frozen, else 0 (billing only), quantity times unit price, or the amount. */
                         user_amount: number | null;
-                        /** Format: int64 */
+                        /**
+                         * Format: int64
+                         * @description User of the activity.
+                         */
                         user_id: number | null;
+                    }[];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": Record<string, never>;
+                };
+            };
+        };
+    };
+    view_expense_receipt: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    agg?: {
+                        /** @enum {string} */
+                        col?: "id" | "activity_id" | "receipt_file_id" | "hash";
+                        /** @enum {string} */
+                        fn: "sum" | "count" | "min" | "max" | "avg";
+                    }[];
+                    filter?: {
+                        /** @enum {string} */
+                        col: "id" | "activity_id" | "receipt_file_id" | "hash";
+                        /** @enum {string} */
+                        op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
+                        value?: unknown;
+                    }[];
+                    group?: ("id" | "activity_id" | "receipt_file_id" | "hash")[];
+                    limit?: number;
+                    offset?: number;
+                    params?: {
+                        activity_ids?: number[] | null;
+                    };
+                    sort?: {
+                        col: string;
+                        /** @enum {string} */
+                        dir?: "asc" | "desc";
+                    }[];
+                };
+            };
+        };
+        responses: {
+            /** @description Rows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: int64 */
+                        activity_id: number;
+                        /** @description SHA-256 of the content, hex; the blob key. */
+                        hash: string;
+                        /** Format: int64 */
+                        id: number;
+                        /** Format: int64 */
+                        receipt_file_id: number | null;
                     }[];
                 };
             };
@@ -9208,6 +9420,7 @@ export interface operations {
                 content: {
                     "application/json": {
                         entry_closed: boolean;
+                        /** @description Activities can be entered: the folder and its project are open and the project is not archived. */
                         entry_open: boolean | null;
                         /** Format: int64 */
                         estimated_min: number | null;
@@ -9276,6 +9489,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
+                        /** @description Activities can be entered: the folder and its project are open and the project is not archived. */
                         entry_open: boolean | null;
                         /** Format: int64 */
                         id: number;
@@ -9892,19 +10106,33 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** Format: int64 */
+                        /**
+                         * Format: int64
+                         * @description Client: the account of the project.
+                         */
                         account_id: number | null;
-                        /** Format: int64 */
+                        /**
+                         * Format: int64
+                         * @description Number of activities.
+                         */
                         activity_count: number | null;
-                        /** Format: int64 */
+                        /**
+                         * Format: int64
+                         * @description Billed duration of its activities.
+                         */
                         billed_min: number | null;
                         /** Format: date */
                         date_from: string;
                         /** Format: date */
                         date_to: string;
+                        /** @description Amount billed of the expenses of its activities. */
                         expenses_amount: number | null;
-                        /** @enum {string|null} */
+                        /**
+                         * @description State of the last export to the accounting system.
+                         * @enum {string|null}
+                         */
                         export_state: "none" | "created" | "exported" | "failed" | null;
+                        /** @description Has at least one activity. */
                         has_activities: boolean | null;
                         /** Format: int64 */
                         id: number;
@@ -9912,16 +10140,24 @@ export interface operations {
                         invoiced_at: string | null;
                         /** Format: int64 */
                         invoiced_by: number | null;
+                        /** @description Draft. */
                         is_draft: boolean | null;
+                        /** @description Invoiced. */
                         is_invoiced: boolean | null;
+                        /** @description Never sent to the accounting system. */
                         not_exported: boolean | null;
                         /** Format: int64 */
                         pdf_file_id: number | null;
                         /** Format: int64 */
                         project_id: number;
+                        /** @description Amount of its activities. */
                         services_amount: number | null;
-                        /** @enum {string|null} */
+                        /**
+                         * @description Draft or invoiced.
+                         * @enum {string|null}
+                         */
                         state: "draft" | "invoiced" | null;
+                        /** @description Services plus expenses. */
                         total_amount: number | null;
                     }[];
                 };
@@ -10043,18 +10279,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
+                        /** @description Amount: frozen, else rate times billed hours, weighted by the rate coefficients of the hour classes touched. */
                         amount: number | null;
-                        /** Format: int64 */
+                        /**
+                         * Format: int64
+                         * @description Billed duration: frozen, else the real duration (always), the entered one or the real one (sometimes), 0 (never).
+                         */
                         billed_min: number | null;
-                        /** Format: int64 */
+                        /**
+                         * Format: int64
+                         * @description Minutes counted in the hours done: 0 for a task not counting hours, else weighted by the hours coefficients of the hour classes touched.
+                         */
                         counted_min: number;
                         /** Format: date */
                         date: string;
-                        /** Format: int64 */
+                        /**
+                         * Format: int64
+                         * @description ISO weekday 1 to 7, or 8 on a full public holiday.
+                         */
                         day_type: number;
                         description: string;
                         /** Format: int64 */
                         duration_min: number;
+                        /** @description The folder and its project accept activities. */
                         entry_open: boolean | null;
                         /** Format: int64 */
                         folder_id: number;
@@ -10068,22 +10315,35 @@ export interface operations {
                         id: number;
                         /** Format: int64 */
                         invoice_id: number | null;
+                        /** @description Validated. */
                         is_validated: boolean | null;
-                        /** @enum {string|null} */
+                        /**
+                         * @description Kind of the task.
+                         * @enum {string|null}
+                         */
                         kind: "service" | "absence" | "vacation" | null;
+                        /** @description Not on an invoiced invoice. */
                         not_invoiced: boolean | null;
+                        /** @description The date is in no locked period of the user or of all. */
                         not_locked: boolean | null;
+                        /** @description Not validated. */
                         not_validated: boolean | null;
-                        /** Format: int64 */
+                        /**
+                         * Format: int64
+                         * @description Project of the folder.
+                         */
                         project_id: number | null;
+                        /** @description Hourly rate: frozen, else user and task, folder, project, task, 0. */
                         rate: number;
                         /** Format: int64 */
                         start_tod: number;
+                        /** @description The task is allowed in the folder. */
                         task_allowed: boolean | null;
                         /** Format: int64 */
                         task_id: number;
                         /** @description Task name. */
                         task_name: string | null;
+                        /** @description Needs a manager validation: the task, an hour class touched, or the folder estimate exceeded. */
                         to_validate: boolean | null;
                         /** Format: int64 */
                         user_id: number;
@@ -10153,8 +10413,12 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
+                        /** @description The document. */
                         document: unknown;
-                        /** Format: int64 */
+                        /**
+                         * Format: int64
+                         * @description Invoice.
+                         */
                         invoice_id: number;
                     }[];
                 };
@@ -10222,8 +10486,11 @@ export interface operations {
                         date_from: string;
                         /** Format: date */
                         date_to: string;
-                        /** Format: int64 */
-                        project_id: number | null;
+                        /**
+                         * Format: int64
+                         * @description Project of the folder.
+                         */
+                        project_id: number;
                     }[];
                 };
             };
@@ -10389,18 +10656,18 @@ export interface operations {
                 "application/json": {
                     agg?: {
                         /** @enum {string} */
-                        col?: "project_id" | "folder_id" | "duration_min" | "billed_min" | "services_amount" | "expenses_billed" | "expenses_user" | "realized_amount" | "invoiced_amount" | "balance_amount";
+                        col?: "project_id" | "folder_id" | "duration_min" | "billed_min" | "services_amount" | "expense_billed_amount" | "expense_user_amount" | "realized_amount" | "invoiced_amount" | "balance_amount";
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
                     filter?: {
                         /** @enum {string} */
-                        col: "project_id" | "folder_id" | "duration_min" | "billed_min" | "services_amount" | "expenses_billed" | "expenses_user" | "realized_amount" | "invoiced_amount" | "balance_amount";
+                        col: "project_id" | "folder_id" | "duration_min" | "billed_min" | "services_amount" | "expense_billed_amount" | "expense_user_amount" | "realized_amount" | "invoiced_amount" | "balance_amount";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
                     }[];
-                    group?: ("project_id" | "folder_id" | "duration_min" | "billed_min" | "services_amount" | "expenses_billed" | "expenses_user" | "realized_amount" | "invoiced_amount" | "balance_amount")[];
+                    group?: ("project_id" | "folder_id" | "duration_min" | "billed_min" | "services_amount" | "expense_billed_amount" | "expense_user_amount" | "realized_amount" | "invoiced_amount" | "balance_amount")[];
                     limit?: number;
                     offset?: number;
                     params?: {
@@ -10430,13 +10697,16 @@ export interface operations {
                         billed_min: number;
                         /** Format: int64 */
                         duration_min: number;
-                        expenses_billed: number;
-                        expenses_user: number;
+                        expense_billed_amount: number;
+                        expense_user_amount: number;
                         /** Format: int64 */
                         folder_id: number;
                         invoiced_amount: number;
-                        /** Format: int64 */
-                        project_id: number | null;
+                        /**
+                         * Format: int64
+                         * @description Project of the folder.
+                         */
+                        project_id: number;
                         realized_amount: number;
                         services_amount: number;
                     }[];
@@ -10465,18 +10735,18 @@ export interface operations {
                 "application/json": {
                     agg?: {
                         /** @enum {string} */
-                        col?: "project_id" | "folder_id" | "duration_min" | "billed_min" | "counted_min" | "services_amount" | "expenses_billed" | "expenses_user" | "realized_amount" | "invoiced_amount" | "balance_amount" | "cost_amount" | "margin_services" | "margin_balance";
+                        col?: "project_id" | "folder_id" | "duration_min" | "billed_min" | "counted_min" | "services_amount" | "expense_billed_amount" | "expense_user_amount" | "realized_amount" | "invoiced_amount" | "balance_amount" | "cost_amount" | "services_margin_amount" | "balance_margin_amount";
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
                     filter?: {
                         /** @enum {string} */
-                        col: "project_id" | "folder_id" | "duration_min" | "billed_min" | "counted_min" | "services_amount" | "expenses_billed" | "expenses_user" | "realized_amount" | "invoiced_amount" | "balance_amount" | "cost_amount" | "margin_services" | "margin_balance";
+                        col: "project_id" | "folder_id" | "duration_min" | "billed_min" | "counted_min" | "services_amount" | "expense_billed_amount" | "expense_user_amount" | "realized_amount" | "invoiced_amount" | "balance_amount" | "cost_amount" | "services_margin_amount" | "balance_margin_amount";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
                     }[];
-                    group?: ("project_id" | "folder_id" | "duration_min" | "billed_min" | "counted_min" | "services_amount" | "expenses_billed" | "expenses_user" | "realized_amount" | "invoiced_amount" | "balance_amount" | "cost_amount" | "margin_services" | "margin_balance")[];
+                    group?: ("project_id" | "folder_id" | "duration_min" | "billed_min" | "counted_min" | "services_amount" | "expense_billed_amount" | "expense_user_amount" | "realized_amount" | "invoiced_amount" | "balance_amount" | "cost_amount" | "services_margin_amount" | "balance_margin_amount")[];
                     limit?: number;
                     offset?: number;
                     params?: {
@@ -10502,6 +10772,7 @@ export interface operations {
                 content: {
                     "application/json": {
                         balance_amount: number;
+                        balance_margin_amount: number;
                         /** Format: int64 */
                         billed_min: number;
                         cost_amount: number;
@@ -10509,17 +10780,19 @@ export interface operations {
                         counted_min: number;
                         /** Format: int64 */
                         duration_min: number;
-                        expenses_billed: number;
-                        expenses_user: number;
+                        expense_billed_amount: number;
+                        expense_user_amount: number;
                         /** Format: int64 */
                         folder_id: number;
                         invoiced_amount: number;
-                        margin_balance: number;
-                        margin_services: number;
-                        /** Format: int64 */
-                        project_id: number | null;
+                        /**
+                         * Format: int64
+                         * @description Project of the folder.
+                         */
+                        project_id: number;
                         realized_amount: number;
                         services_amount: number;
+                        services_margin_amount: number;
                     }[];
                 };
             };
@@ -11297,23 +11570,34 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
+                        /** @description Amount: frozen, else rate times billed hours, weighted by the rate coefficients of the hour classes touched. */
                         amount: number | null;
-                        /** Format: int64 */
+                        /**
+                         * Format: int64
+                         * @description Billed duration: frozen, else the real duration (always), the entered one or the real one (sometimes), 0 (never).
+                         */
                         billed_min: number | null;
                         /**
                          * @description Billed duration: always the real duration, sometimes an entered duration, never.
                          * @enum {string|null}
                          */
                         billing: "always" | "sometimes" | "never" | null;
-                        /** Format: int64 */
+                        /**
+                         * Format: int64
+                         * @description Minutes counted in the hours done: 0 for a task not counting hours, else weighted by the hours coefficients of the hour classes touched.
+                         */
                         counted_min: number;
                         /** Format: date */
                         date: string;
-                        /** Format: int64 */
+                        /**
+                         * Format: int64
+                         * @description ISO weekday 1 to 7, or 8 on a full public holiday.
+                         */
                         day_type: number;
                         description: string;
                         /** Format: int64 */
                         duration_min: number;
+                        /** @description The folder and its project accept activities. */
                         entry_open: boolean | null;
                         /** Format: int64 */
                         folder_id: number;
@@ -11327,24 +11611,37 @@ export interface operations {
                         id: number;
                         /** Format: int64 */
                         invoice_id: number | null;
+                        /** @description Validated. */
                         is_validated: boolean | null;
-                        /** @enum {string|null} */
+                        /**
+                         * @description Kind of the task.
+                         * @enum {string|null}
+                         */
                         kind: "service" | "absence" | "vacation" | null;
+                        /** @description Not on an invoiced invoice. */
                         not_invoiced: boolean | null;
+                        /** @description The date is in no locked period of the user or of all. */
                         not_locked: boolean | null;
+                        /** @description Not validated. */
                         not_validated: boolean | null;
-                        /** Format: int64 */
+                        /**
+                         * Format: int64
+                         * @description Project of the folder.
+                         */
                         project_id: number | null;
                         /** @description Project name. */
                         project_name: string | null;
+                        /** @description Hourly rate: frozen, else user and task, folder, project, task, 0. */
                         rate: number;
                         /** Format: int64 */
                         start_tod: number;
+                        /** @description The task is allowed in the folder. */
                         task_allowed: boolean | null;
                         /** Format: int64 */
                         task_id: number;
                         /** @description Task name. */
                         task_name: string | null;
+                        /** @description Needs a manager validation: the task, an hour class touched, or the folder estimate exceeded. */
                         to_validate: boolean | null;
                         /** Format: int64 */
                         user_id: number;

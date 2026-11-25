@@ -166,7 +166,7 @@ comment on column activity_p.entry_open is 'The folder and its project accept ac
 comment on column activity_p.task_allowed is 'The task is allowed in the folder.';
 
 create view activity_class as
-select p.id as activity_id, p.user_id, o.hour_class_id, o.minutes,
+select p.id as activity_id, p.user_id, o.hour_class_id, o.minutes as duration_min,
        case when t.counts_hours then o.minutes * coalesce(c.hours_coef, 1) else 0 end as counted_min,
        round(p.rate * p.billed_min / 60.0 * o.minutes * coalesce(c.rate_coef, 1) / p.duration_min, 2) as amount
 from activity_p p
@@ -190,7 +190,7 @@ left join hour_class c on c.id = o.hour_class_id;
 comment on view activity_class is 'Split of each activity by hour class touched, plus the part outside any class.';
 comment on column activity_class.activity_id is 'Activity.';
 comment on column activity_class.hour_class_id is 'Hour class; empty = outside any class.';
-comment on column activity_class.minutes is 'Real minutes in the class.';
+comment on column activity_class.duration_min is 'Real minutes in the class.';
 comment on column activity_class.counted_min is 'Minutes counted, weighted by the hours coefficient.';
 comment on column activity_class.amount is 'Share of the amount, weighted by the rate coefficient.';
 

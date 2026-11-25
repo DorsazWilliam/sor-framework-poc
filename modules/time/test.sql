@@ -97,14 +97,14 @@ select pg_temp.eq('task not counting hours', (pg_temp.p('oc')).counted_min, 0);
 select pg_temp.eq('task not counting hours amount', (pg_temp.p('oc')).amount, 90.00);
 
 -- The split by class sums back to the activity.
-select pg_temp.eq('split minutes', (select sum(minutes) from activity_class where activity_id = pg_temp.aid('s1')), 120::bigint);
+select pg_temp.eq('split minutes', (select sum(duration_min) from activity_class where activity_id = pg_temp.aid('s1')), 120::bigint);
 select pg_temp.eq('split counted', (select round(sum(counted_min)) from activity_class where activity_id = pg_temp.aid('s1')), 135::numeric);
 select pg_temp.eq('split amount', (select sum(amount) from activity_class where activity_id = pg_temp.aid('s1')), 225.00);
 select pg_temp.eq('split rows', (select count(*) from activity_class where activity_id = pg_temp.aid('s1')), 2::bigint);
-select pg_temp.eq('split inside one class', (select count(*) || '/' || sum(minutes) from activity_class where activity_id = pg_temp.aid('s3') and hour_class_id is not null), '1/60');
+select pg_temp.eq('split inside one class', (select count(*) || '/' || sum(duration_min) from activity_class where activity_id = pg_temp.aid('s3') and hour_class_id is not null), '1/60');
 select pg_temp.eq('split outside', (select count(*) from activity_class where activity_id = pg_temp.aid('s3') and hour_class_id is null), 0::bigint);
 create temp table ac as execute activityclass(pg_temp.aid('s1'), array[pg_temp.uid('bob')]);
-select pg_temp.eq('activity_class view', (select string_agg(coalesce(label, '-') || ':' || minutes, ',' order by label nulls first) from ac), '-:60,night:60');
+select pg_temp.eq('activity_class view', (select string_agg(coalesce(label, '-') || ':' || duration_min, ',' order by label nulls first) from ac), '-:60,night:60');
 
 -- To validate: by the task, by a class requiring it, by the folder estimate exceeded; else not.
 select pg_temp.eq('to_validate task', (pg_temp.p('v1')).to_validate, true);

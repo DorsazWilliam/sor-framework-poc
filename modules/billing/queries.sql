@@ -41,7 +41,7 @@ select f.project_id, r.*
 from (
     select r.folder_id,
            sum(r.duration_min)::integer as duration_min, sum(r.billed_min)::integer as billed_min,
-           sum(r.services_amount) as services_amount, sum(r.expenses_billed) as expenses_billed, sum(r.expenses_user) as expenses_user,
+           sum(r.services_amount) as services_amount, sum(r.expense_billed_amount) as expense_billed_amount, sum(r.expense_user_amount) as expense_user_amount,
            sum(r.realized_amount) as realized_amount, sum(r.invoiced_amount) as invoiced_amount, sum(r.balance_amount) as balance_amount
     from activity_revenue r
     where r.date between @date_from and @date_to
@@ -57,9 +57,9 @@ select f.project_id, r.*
 from (
     select r.folder_id,
            sum(r.duration_min)::integer as duration_min, sum(r.billed_min)::integer as billed_min, sum(r.counted_min)::integer as counted_min,
-           sum(r.services_amount) as services_amount, sum(r.expenses_billed) as expenses_billed, sum(r.expenses_user) as expenses_user,
+           sum(r.services_amount) as services_amount, sum(r.expense_billed_amount) as expense_billed_amount, sum(r.expense_user_amount) as expense_user_amount,
            sum(r.realized_amount) as realized_amount, sum(r.invoiced_amount) as invoiced_amount, sum(r.balance_amount) as balance_amount,
-           sum(r.cost_amount) as cost_amount, sum(r.margin_services) as margin_services, sum(r.margin_balance) as margin_balance
+           sum(r.cost_amount) as cost_amount, sum(r.services_margin_amount) as services_margin_amount, sum(r.balance_margin_amount) as balance_margin_amount
     from activity_cost r
     where r.date between @date_from and @date_to
     group by r.folder_id

@@ -26,7 +26,6 @@ type pgType struct {
 type catCol struct {
 	name               string
 	typ                uint32
-	typmod             int32
 	notNull, generated bool
 	hasDefault         bool
 	desc, def          string
@@ -101,7 +100,7 @@ from pg_type t`)
 		return err
 	}
 	rows, err = b.conn.Query(ctx, `
-select c.oid, c.relname, c.relkind, coalesce(obj_description(c.oid, 'pg_class'), ''), a.attnum, a.attname, a.atttypid, a.atttypmod,
+select c.oid, c.relname, c.relkind, coalesce(obj_description(c.oid, 'pg_class'), ''), a.attnum, a.attname, a.atttypid,
        a.attnotnull, a.attidentity <> '' or a.attgenerated <> '', a.atthasdef, coalesce(col_description(c.oid, a.attnum), ''), coalesce(pg_get_expr(d.adbin, d.adrelid), '')
 from pg_class c join pg_attribute a on a.attrelid = c.oid left join pg_attrdef d on d.adrelid = c.oid and d.adnum = a.attnum
 where c.relnamespace = 'public'::regnamespace and c.relkind in ('r', 'p', 'v') and a.attnum > 0 and not a.attisdropped
@@ -114,7 +113,7 @@ order by c.relname, a.attnum`)
 		var rel, kind, rdesc string
 		var attnum int16
 		var c catCol
-		if err := rows.Scan(&oid, &rel, &kind, &rdesc, &attnum, &c.name, &typ, &c.typmod, &c.notNull, &c.generated, &c.hasDefault, &c.desc, &c.def); err != nil {
+		if err := rows.Scan(&oid, &rel, &kind, &rdesc, &attnum, &c.name, &typ, &c.notNull, &c.generated, &c.hasDefault, &c.desc, &c.def); err != nil {
 			return err
 		}
 		c.typ = typ
@@ -166,21 +165,16 @@ group by 1, 2 order by 1, 2`)
 	return nil
 }
 
-var suffixFormats = map[string]string{"_min": "min", "_tod": "tod", "_pct": "pct", "_coef": "coef"}
+// formats is the format of a column by the last word of its name (SPEC §4); dates and instants go by their type.
+var formats = map[string]string{"min": "min", "tod": "tod", "pct": "pct", "coef": "coef",
+	"amount": "money", "rate": "money", "cost": "money", "price": "money"}
 
-func (k *Kernel) col(name string, oid uint32, typmod int32, nullable bool, desc string) Col {
+func (k *Kernel) col(name string, oid uint32, nullable bool, desc string) Col {
 	t := k.types[oid]
-	c := Col{Name: name, Type: t.name, Nullable: nullable, Description: desc, Ref: k.refs[name]}
+	c := Col{Name: name, Type: t.name, Format: formats[name[strings.LastIndex(name, "_")+1:]], Nullable: nullable, Description: desc,
+		Ref: k.refs[name]}
 	if name == "id" {
 		c.Ref = ""
-	}
-	for suf, f := range suffixFormats {
-		if strings.HasSuffix(name, suf) {
-			c.Format = f
-		}
-	}
-	if t.name == "numeric" && typmod >= 4 && (typmod-4)&0xffff == 2 {
-		c.Format = "money"
 	}
 	if t.kind == 'e' {
 		c.Enum = t.name
@@ -202,7 +196,7 @@ func (b *booter) bootTables() {
 			Anchor: d.Anchor, ChildFK: d.ChildFK, Description: r.desc, Actions: map[string][]string{}, Conditions: []string{},
 			decl: d, source: name}
 		for _, c := range r.cols {
-			t.Columns = append(t.Columns, TableCol{Col: b.col(c.name, c.typ, c.typmod, !c.notNull, c.desc),
+			t.Columns = append(t.Columns, TableCol{Col: b.col(c.name, c.typ, !c.notNull, c.desc),
 				Guarded: slices.Contains(d.Guarded, c.name), HasDefault: c.hasDefault || c.generated, generated: c.generated, def: c.def})
 		}
 		if t.Label == "" && t.column("name") != nil {
@@ -358,7 +352,7 @@ func (b *booter) view(ctx context.Context, v *View, notNull []bool, t *Table) {
 	v.Params, v.Columns, v.Roots = []Col{}, []Col{}, []string{}
 	for i, oid := range sd.ParamOIDs {
 		if !kernelParams[v.params[i]] {
-			v.Params = append(v.Params, b.col(v.params[i], oid, -1, true, ""))
+			v.Params = append(v.Params, b.col(v.params[i], oid, true, ""))
 		}
 	}
 	for i, f := range sd.Fields {
@@ -367,7 +361,7 @@ func (b *booter) view(ctx context.Context, v *View, notNull []bool, t *Table) {
 			tc := t.column(f.Name)
 			nullable = tc == nil || tc.Nullable
 		}
-		v.Columns = append(v.Columns, b.col(f.Name, f.DataTypeOID, f.TypeModifier, nullable, b.attrs[[2]uint32{f.TableOID, uint32(f.TableAttributeNumber)}].desc))
+		v.Columns = append(v.Columns, b.col(f.Name, f.DataTypeOID, nullable, b.attrs[[2]uint32{f.TableOID, uint32(f.TableAttributeNumber)}].desc))
 	}
 	res, err := b.conn.Conn().PgConn().Exec(ctx, "explain (generic_plan, format json) "+v.sql).ReadAll()
 	if err != nil {
@@ -566,7 +560,7 @@ func (b *booter) effect(ctx context.Context, q *Query, c *Command) *effect {
 		if kernelParams[name] || slices.ContainsFunc(c.Input, func(x Col) bool { return x.Name == name }) {
 			continue
 		}
-		col := b.col(name, oid, -1, q.ParamNull[i], "")
+		col := b.col(name, oid, q.ParamNull[i], "")
 		col.required = !q.ParamNull[i]
 		c.Input = append(c.Input, col)
 	}

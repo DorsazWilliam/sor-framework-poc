@@ -72,10 +72,10 @@ select pg_temp.eq('document client', (select document #>> '{account,name}' from 
 
 -- Profitability over February and March.
 create temp table pf as execute profitability('2026-02-01', '2026-03-31');
-select pg_temp.eq('profitability', (select row(duration_min, services_amount, expenses_billed, expenses_user, realized_amount, invoiced_amount, balance_amount)::text from pf),
+select pg_temp.eq('profitability', (select row(duration_min, services_amount, expense_billed_amount, expense_user_amount, realized_amount, invoiced_amount, balance_amount)::text from pf),
     '(300,500.00,59.00,64.00,559.00,359.00,200.00)');
 create temp table pc as execute profitabilitycost('2026-02-01', '2026-03-31');
-select pg_temp.eq('profitability cost', (select row(cost_amount, margin_services, margin_balance)::text from pc), '(300.00,200.00,-100.00)');
+select pg_temp.eq('profitability cost', (select row(cost_amount, services_margin_amount, balance_margin_amount)::text from pc), '(300.00,200.00,-100.00)');
 
 -- Run candidates: none while a draft overlaps; the project once it is gone; none for activities never billed.
 insert into invoice (project_id, date_from, date_to) select id, '2026-03-01', '2026-03-31' from project;

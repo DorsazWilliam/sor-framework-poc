@@ -1367,7 +1367,10 @@
                 "additionalProperties": false,
                 "properties": {
                   "cursor": {
-                    "type": "string"
+                    "type": [
+                      "string",
+                      "null"
+                    ]
                   },
                   "ids": {
                     "items": {
@@ -1378,13 +1381,14 @@
                     "type": "array"
                   },
                   "pull_error": {
-                    "type": "string"
+                    "type": [
+                      "string",
+                      "null"
+                    ]
                   }
                 },
                 "required": [
-                  "ids",
-                  "cursor",
-                  "pull_error"
+                  "ids"
                 ],
                 "type": "object"
               }
@@ -9847,6 +9851,7 @@
                     "additionalProperties": false,
                     "properties": {
                       "attempts": {
+                        "description": "Number of attempts.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -9863,16 +9868,19 @@
                         "type": "integer"
                       },
                       "last_at": {
+                        "description": "Instant of the last attempt.",
                         "format": "date-time",
                         "type": "string"
                       },
                       "last_detail": {
+                        "description": "Detail of the last attempt.",
                         "type": [
                           "string",
                           "null"
                         ]
                       },
                       "last_status": {
+                        "description": "HTTP status of the last attempt.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -9880,6 +9888,7 @@
                         ]
                       },
                       "state": {
+                        "description": "Exported once accepted; failed if the last attempt failed; created before any attempt.",
                         "enum": [
                           "none",
                           "created",
@@ -10137,12 +10146,14 @@
                     "additionalProperties": false,
                     "properties": {
                       "amount": {
+                        "description": "Amount: frozen, else rate times billed hours, weighted by the rate coefficients of the hour classes touched.",
                         "type": [
                           "number",
                           "null"
                         ]
                       },
                       "billed_min": {
+                        "description": "Billed duration: frozen, else the real duration (always), the entered one or the real one (sometimes), 0 (never).",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -10150,6 +10161,7 @@
                         ]
                       },
                       "counted_min": {
+                        "description": "Minutes counted in the hours done: 0 for a task not counting hours, else weighted by the hours coefficients of the hour classes touched.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -10161,6 +10173,7 @@
                         "type": "string"
                       },
                       "day_type": {
+                        "description": "ISO weekday 1 to 7, or 8 on a full public holiday.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -10175,6 +10188,7 @@
                         "type": "integer"
                       },
                       "entry_open": {
+                        "description": "The folder and its project accept activities.",
                         "type": [
                           "boolean",
                           "null"
@@ -10215,12 +10229,14 @@
                         ]
                       },
                       "is_validated": {
+                        "description": "Validated.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "kind": {
+                        "description": "Kind of the task.",
                         "enum": [
                           "service",
                           "absence",
@@ -10232,24 +10248,28 @@
                         ]
                       },
                       "not_invoiced": {
+                        "description": "Not on an invoiced invoice.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "not_locked": {
+                        "description": "The date is in no locked period of the user or of all.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "not_validated": {
+                        "description": "Not validated.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "project_id": {
+                        "description": "Project of the folder.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -10257,6 +10277,7 @@
                         ]
                       },
                       "rate": {
+                        "description": "Hourly rate: frozen, else user and task, folder, project, task, 0.",
                         "type": [
                           "number",
                           "null"
@@ -10267,6 +10288,7 @@
                         "type": "integer"
                       },
                       "task_allowed": {
+                        "description": "The task is allowed in the folder.",
                         "type": [
                           "boolean",
                           "null"
@@ -10277,6 +10299,7 @@
                         "type": "integer"
                       },
                       "to_validate": {
+                        "description": "Needs a manager validation: the task, an hour class touched, or the folder estimate exceeded.",
                         "type": [
                           "boolean",
                           "null"
@@ -10549,7 +10572,7 @@
                             "activity_id",
                             "user_id",
                             "hour_class_id",
-                            "minutes",
+                            "duration_min",
                             "counted_min",
                             "amount",
                             "label"
@@ -10583,7 +10606,7 @@
                             "activity_id",
                             "user_id",
                             "hour_class_id",
-                            "minutes",
+                            "duration_min",
                             "counted_min",
                             "amount",
                             "label"
@@ -10621,7 +10644,7 @@
                         "activity_id",
                         "user_id",
                         "hour_class_id",
-                        "minutes",
+                        "duration_min",
                         "counted_min",
                         "amount",
                         "label"
@@ -10689,16 +10712,25 @@
                     "additionalProperties": false,
                     "properties": {
                       "activity_id": {
+                        "description": "Activity.",
                         "format": "int64",
                         "type": "integer"
                       },
                       "amount": {
+                        "description": "Share of the amount, weighted by the rate coefficient.",
                         "type": "number"
                       },
                       "counted_min": {
+                        "description": "Minutes counted, weighted by the hours coefficient.",
                         "type": "number"
                       },
+                      "duration_min": {
+                        "description": "Real minutes in the class.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
                       "hour_class_id": {
+                        "description": "Hour class; empty = outside any class.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -10709,10 +10741,6 @@
                           "null"
                         ]
                       },
-                      "minutes": {
-                        "format": "int64",
-                        "type": "integer"
-                      },
                       "user_id": {
                         "format": "int64",
                         "type": "integer"
@@ -10722,7 +10750,7 @@
                       "activity_id",
                       "user_id",
                       "hour_class_id",
-                      "minutes",
+                      "duration_min",
                       "counted_min",
                       "amount",
                       "label"
@@ -10993,12 +11021,14 @@
                     "additionalProperties": false,
                     "properties": {
                       "amount": {
+                        "description": "Amount: frozen, else rate times billed hours, weighted by the rate coefficients of the hour classes touched.",
                         "type": [
                           "number",
                           "null"
                         ]
                       },
                       "billed_min": {
+                        "description": "Billed duration: frozen, else the real duration (always), the entered one or the real one (sometimes), 0 (never).",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -11006,6 +11036,7 @@
                         ]
                       },
                       "counted_min": {
+                        "description": "Minutes counted in the hours done: 0 for a task not counting hours, else weighted by the hours coefficients of the hour classes touched.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -11014,6 +11045,7 @@
                         "type": "string"
                       },
                       "day_type": {
+                        "description": "ISO weekday 1 to 7, or 8 on a full public holiday.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -11025,6 +11057,7 @@
                         "type": "integer"
                       },
                       "entry_open": {
+                        "description": "The folder and its project accept activities.",
                         "type": [
                           "boolean",
                           "null"
@@ -11072,12 +11105,14 @@
                         ]
                       },
                       "is_validated": {
+                        "description": "Validated.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "kind": {
+                        "description": "Kind of the task.",
                         "enum": [
                           "service",
                           "absence",
@@ -11089,24 +11124,28 @@
                         ]
                       },
                       "not_invoiced": {
+                        "description": "Not on an invoiced invoice.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "not_locked": {
+                        "description": "The date is in no locked period of the user or of all.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "not_validated": {
+                        "description": "Not validated.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "project_id": {
+                        "description": "Project of the folder.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -11121,6 +11160,7 @@
                         ]
                       },
                       "rate": {
+                        "description": "Hourly rate: frozen, else user and task, folder, project, task, 0.",
                         "type": "number"
                       },
                       "start_tod": {
@@ -11128,6 +11168,7 @@
                         "type": "integer"
                       },
                       "task_allowed": {
+                        "description": "The task is allowed in the folder.",
                         "type": [
                           "boolean",
                           "null"
@@ -11145,6 +11186,7 @@
                         ]
                       },
                       "to_validate": {
+                        "description": "Needs a manager validation: the task, an hour class touched, or the folder estimate exceeded.",
                         "type": [
                           "boolean",
                           "null"
@@ -11476,12 +11518,14 @@
                     "additionalProperties": false,
                     "properties": {
                       "amount": {
+                        "description": "Amount: frozen, else rate times billed hours, weighted by the rate coefficients of the hour classes touched.",
                         "type": [
                           "number",
                           "null"
                         ]
                       },
                       "billed_min": {
+                        "description": "Billed duration: frozen, else the real duration (always), the entered one or the real one (sometimes), 0 (never).",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -11489,6 +11533,7 @@
                         ]
                       },
                       "counted_min": {
+                        "description": "Minutes counted in the hours done: 0 for a task not counting hours, else weighted by the hours coefficients of the hour classes touched.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -11497,6 +11542,7 @@
                         "type": "string"
                       },
                       "day_type": {
+                        "description": "ISO weekday 1 to 7, or 8 on a full public holiday.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -11508,6 +11554,7 @@
                         "type": "integer"
                       },
                       "entry_open": {
+                        "description": "The folder and its project accept activities.",
                         "type": [
                           "boolean",
                           "null"
@@ -11555,12 +11602,14 @@
                         ]
                       },
                       "is_validated": {
+                        "description": "Validated.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "kind": {
+                        "description": "Kind of the task.",
                         "enum": [
                           "service",
                           "absence",
@@ -11572,24 +11621,28 @@
                         ]
                       },
                       "not_invoiced": {
+                        "description": "Not on an invoiced invoice.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "not_locked": {
+                        "description": "The date is in no locked period of the user or of all.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "not_validated": {
+                        "description": "Not validated.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "project_id": {
+                        "description": "Project of the folder.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -11604,6 +11657,7 @@
                         ]
                       },
                       "rate": {
+                        "description": "Hourly rate: frozen, else user and task, folder, project, task, 0.",
                         "type": "number"
                       },
                       "start_tod": {
@@ -11611,6 +11665,7 @@
                         "type": "integer"
                       },
                       "task_allowed": {
+                        "description": "The task is allowed in the folder.",
                         "type": [
                           "boolean",
                           "null"
@@ -11628,6 +11683,7 @@
                         ]
                       },
                       "to_validate": {
+                        "description": "Needs a manager validation: the task, an hour class touched, or the folder estimate exceeded.",
                         "type": [
                           "boolean",
                           "null"
@@ -12912,6 +12968,7 @@
                     "additionalProperties": false,
                     "properties": {
                       "attempts": {
+                        "description": "Number of attempts.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -12924,16 +12981,19 @@
                         "type": "integer"
                       },
                       "last_at": {
+                        "description": "Instant of the last attempt.",
                         "format": "date-time",
                         "type": "string"
                       },
                       "last_detail": {
+                        "description": "Detail of the last attempt.",
                         "type": [
                           "string",
                           "null"
                         ]
                       },
                       "last_status": {
+                        "description": "HTTP status of the last attempt.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -12948,6 +13008,7 @@
                         "type": "string"
                       },
                       "state": {
+                        "description": "Exported once accepted; failed if the last attempt failed; created before any attempt.",
                         "enum": [
                           "none",
                           "created",
@@ -14320,12 +14381,14 @@
                         ]
                       },
                       "billed_amount": {
+                        "description": "Amount billed: frozen, else 0 (user only), quantity times billing unit price, or the amount.",
                         "type": [
                           "number",
                           "null"
                         ]
                       },
                       "effective_mode": {
+                        "description": "Mode of the expense, else of its type.",
                         "enum": [
                           "both",
                           "user_only",
@@ -14387,12 +14450,14 @@
                         ]
                       },
                       "user_amount": {
+                        "description": "Amount reimbursed to the user: frozen, else 0 (billing only), quantity times unit price, or the amount.",
                         "type": [
                           "number",
                           "null"
                         ]
                       },
                       "user_id": {
+                        "description": "User of the activity.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -14810,6 +14875,7 @@
                         ]
                       },
                       "billed_amount": {
+                        "description": "Amount billed: frozen, else 0 (user only), quantity times billing unit price, or the amount.",
                         "type": [
                           "number",
                           "null"
@@ -14823,6 +14889,7 @@
                         ]
                       },
                       "effective_mode": {
+                        "description": "Mode of the expense, else of its type.",
                         "enum": [
                           "both",
                           "user_only",
@@ -14888,12 +14955,14 @@
                         ]
                       },
                       "user_amount": {
+                        "description": "Amount reimbursed to the user: frozen, else 0 (billing only), quantity times unit price, or the amount.",
                         "type": [
                           "number",
                           "null"
                         ]
                       },
                       "user_id": {
+                        "description": "User of the activity.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -14939,6 +15008,209 @@
           }
         },
         "summary": "expense_by_activity",
+        "tags": [
+          "views"
+        ]
+      }
+    },
+    "/api/v/expense_receipt": {
+      "post": {
+        "description": "Expenses of activities that have a receipt, with the hash of the receipt file: the input of the OCR.",
+        "operationId": "view_expense_receipt",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "agg": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "col": {
+                          "enum": [
+                            "id",
+                            "activity_id",
+                            "receipt_file_id",
+                            "hash"
+                          ],
+                          "type": "string"
+                        },
+                        "fn": {
+                          "enum": [
+                            "sum",
+                            "count",
+                            "min",
+                            "max",
+                            "avg"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "fn"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "filter": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "col": {
+                          "enum": [
+                            "id",
+                            "activity_id",
+                            "receipt_file_id",
+                            "hash"
+                          ],
+                          "type": "string"
+                        },
+                        "op": {
+                          "enum": [
+                            "eq",
+                            "ne",
+                            "lt",
+                            "le",
+                            "gt",
+                            "ge",
+                            "in",
+                            "contains",
+                            "null",
+                            "notnull"
+                          ],
+                          "type": "string"
+                        },
+                        "value": {}
+                      },
+                      "required": [
+                        "col",
+                        "op"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "group": {
+                    "items": {
+                      "enum": [
+                        "id",
+                        "activity_id",
+                        "receipt_file_id",
+                        "hash"
+                      ],
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "limit": {
+                    "maximum": 5000,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "offset": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "params": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "activity_ids": {
+                        "items": {
+                          "format": "int64",
+                          "type": "integer"
+                        },
+                        "type": [
+                          "array",
+                          "null"
+                        ]
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "sort": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "col": {
+                          "type": "string"
+                        },
+                        "dir": {
+                          "enum": [
+                            "asc",
+                            "desc"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "col"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "activity_id": {
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      "hash": {
+                        "description": "SHA-256 of the content, hex; the blob key.",
+                        "type": "string"
+                      },
+                      "id": {
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      "receipt_file_id": {
+                        "format": "int64",
+                        "type": [
+                          "integer",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "activity_id",
+                      "receipt_file_id",
+                      "hash"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Rows"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "expense_receipt",
         "tags": [
           "views"
         ]
@@ -15877,6 +16149,7 @@
                         "type": "boolean"
                       },
                       "entry_open": {
+                        "description": "Activities can be entered: the folder and its project are open and the project is not archived.",
                         "type": [
                           "boolean",
                           "null"
@@ -16090,6 +16363,7 @@
                     "additionalProperties": false,
                     "properties": {
                       "entry_open": {
+                        "description": "Activities can be entered: the folder and its project are open and the project is not archived.",
                         "type": [
                           "boolean",
                           "null"
@@ -17871,6 +18145,7 @@
                     "additionalProperties": false,
                     "properties": {
                       "account_id": {
+                        "description": "Client: the account of the project.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -17878,6 +18153,7 @@
                         ]
                       },
                       "activity_count": {
+                        "description": "Number of activities.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -17885,6 +18161,7 @@
                         ]
                       },
                       "billed_min": {
+                        "description": "Billed duration of its activities.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -17900,12 +18177,14 @@
                         "type": "string"
                       },
                       "expenses_amount": {
+                        "description": "Amount billed of the expenses of its activities.",
                         "type": [
                           "number",
                           "null"
                         ]
                       },
                       "export_state": {
+                        "description": "State of the last export to the accounting system.",
                         "enum": [
                           "none",
                           "created",
@@ -17918,6 +18197,7 @@
                         ]
                       },
                       "has_activities": {
+                        "description": "Has at least one activity.",
                         "type": [
                           "boolean",
                           "null"
@@ -17942,18 +18222,21 @@
                         ]
                       },
                       "is_draft": {
+                        "description": "Draft.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "is_invoiced": {
+                        "description": "Invoiced.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "not_exported": {
+                        "description": "Never sent to the accounting system.",
                         "type": [
                           "boolean",
                           "null"
@@ -17971,12 +18254,14 @@
                         "type": "integer"
                       },
                       "services_amount": {
+                        "description": "Amount of its activities.",
                         "type": [
                           "number",
                           "null"
                         ]
                       },
                       "state": {
+                        "description": "Draft or invoiced.",
                         "enum": [
                           "draft",
                           "invoiced"
@@ -17987,6 +18272,7 @@
                         ]
                       },
                       "total_amount": {
+                        "description": "Services plus expenses.",
                         "type": [
                           "number",
                           "null"
@@ -18443,12 +18729,14 @@
                     "additionalProperties": false,
                     "properties": {
                       "amount": {
+                        "description": "Amount: frozen, else rate times billed hours, weighted by the rate coefficients of the hour classes touched.",
                         "type": [
                           "number",
                           "null"
                         ]
                       },
                       "billed_min": {
+                        "description": "Billed duration: frozen, else the real duration (always), the entered one or the real one (sometimes), 0 (never).",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -18456,6 +18744,7 @@
                         ]
                       },
                       "counted_min": {
+                        "description": "Minutes counted in the hours done: 0 for a task not counting hours, else weighted by the hours coefficients of the hour classes touched.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -18464,6 +18753,7 @@
                         "type": "string"
                       },
                       "day_type": {
+                        "description": "ISO weekday 1 to 7, or 8 on a full public holiday.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -18475,6 +18765,7 @@
                         "type": "integer"
                       },
                       "entry_open": {
+                        "description": "The folder and its project accept activities.",
                         "type": [
                           "boolean",
                           "null"
@@ -18522,12 +18813,14 @@
                         ]
                       },
                       "is_validated": {
+                        "description": "Validated.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "kind": {
+                        "description": "Kind of the task.",
                         "enum": [
                           "service",
                           "absence",
@@ -18539,24 +18832,28 @@
                         ]
                       },
                       "not_invoiced": {
+                        "description": "Not on an invoiced invoice.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "not_locked": {
+                        "description": "The date is in no locked period of the user or of all.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "not_validated": {
+                        "description": "Not validated.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "project_id": {
+                        "description": "Project of the folder.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -18564,6 +18861,7 @@
                         ]
                       },
                       "rate": {
+                        "description": "Hourly rate: frozen, else user and task, folder, project, task, 0.",
                         "type": "number"
                       },
                       "start_tod": {
@@ -18571,6 +18869,7 @@
                         "type": "integer"
                       },
                       "task_allowed": {
+                        "description": "The task is allowed in the folder.",
                         "type": [
                           "boolean",
                           "null"
@@ -18588,6 +18887,7 @@
                         ]
                       },
                       "to_validate": {
+                        "description": "Needs a manager validation: the task, an hour class touched, or the folder estimate exceeded.",
                         "type": [
                           "boolean",
                           "null"
@@ -18820,8 +19120,11 @@
                   "items": {
                     "additionalProperties": false,
                     "properties": {
-                      "document": {},
+                      "document": {
+                        "description": "The document."
+                      },
                       "invoice_id": {
+                        "description": "Invoice.",
                         "format": "int64",
                         "type": "integer"
                       }
@@ -18857,7 +19160,7 @@
     },
     "/api/v/invoice_run_candidates": {
       "post": {
-        "description": "Projects with activities not invoiced over a period and no draft invoice overlapping it: the invoices a run creates.",
+        "description": "Projects with billable activities over a period and no draft invoice overlapping it: the invoices a run creates.",
         "operationId": "view_invoice_run_candidates",
         "requestBody": {
           "content": {
@@ -19017,11 +19320,9 @@
                         "type": "string"
                       },
                       "project_id": {
+                        "description": "Project of the folder.",
                         "format": "int64",
-                        "type": [
-                          "integer",
-                          "null"
-                        ]
+                        "type": "integer"
                       }
                     },
                     "required": [
@@ -19432,7 +19733,7 @@
     },
     "/api/v/profitability": {
       "post": {
-        "description": "Per project and folder, over the activities of a period: durations, services, expenses billed and reimbursed, realized (services and expenses billed), invoiced, balance (realized minus invoiced). Invoiced activities use their frozen values.",
+        "description": "Per folder and its project, over the activities of a period: durations, services, expenses billed and reimbursed, realized (services and expenses billed), invoiced, balance (realized minus invoiced). Invoiced activities use their frozen values.",
         "operationId": "view_profitability",
         "requestBody": {
           "content": {
@@ -19451,8 +19752,8 @@
                             "duration_min",
                             "billed_min",
                             "services_amount",
-                            "expenses_billed",
-                            "expenses_user",
+                            "expense_billed_amount",
+                            "expense_user_amount",
                             "realized_amount",
                             "invoiced_amount",
                             "balance_amount"
@@ -19488,8 +19789,8 @@
                             "duration_min",
                             "billed_min",
                             "services_amount",
-                            "expenses_billed",
-                            "expenses_user",
+                            "expense_billed_amount",
+                            "expense_user_amount",
                             "realized_amount",
                             "invoiced_amount",
                             "balance_amount"
@@ -19529,8 +19830,8 @@
                         "duration_min",
                         "billed_min",
                         "services_amount",
-                        "expenses_billed",
-                        "expenses_user",
+                        "expense_billed_amount",
+                        "expense_user_amount",
                         "realized_amount",
                         "invoiced_amount",
                         "balance_amount"
@@ -19615,10 +19916,10 @@
                         "format": "int64",
                         "type": "integer"
                       },
-                      "expenses_billed": {
+                      "expense_billed_amount": {
                         "type": "number"
                       },
-                      "expenses_user": {
+                      "expense_user_amount": {
                         "type": "number"
                       },
                       "folder_id": {
@@ -19629,11 +19930,9 @@
                         "type": "number"
                       },
                       "project_id": {
+                        "description": "Project of the folder.",
                         "format": "int64",
-                        "type": [
-                          "integer",
-                          "null"
-                        ]
+                        "type": "integer"
                       },
                       "realized_amount": {
                         "type": "number"
@@ -19648,8 +19947,8 @@
                       "duration_min",
                       "billed_min",
                       "services_amount",
-                      "expenses_billed",
-                      "expenses_user",
+                      "expense_billed_amount",
+                      "expense_user_amount",
                       "realized_amount",
                       "invoiced_amount",
                       "balance_amount"
@@ -19701,14 +20000,14 @@
                             "billed_min",
                             "counted_min",
                             "services_amount",
-                            "expenses_billed",
-                            "expenses_user",
+                            "expense_billed_amount",
+                            "expense_user_amount",
                             "realized_amount",
                             "invoiced_amount",
                             "balance_amount",
                             "cost_amount",
-                            "margin_services",
-                            "margin_balance"
+                            "services_margin_amount",
+                            "balance_margin_amount"
                           ],
                           "type": "string"
                         },
@@ -19742,14 +20041,14 @@
                             "billed_min",
                             "counted_min",
                             "services_amount",
-                            "expenses_billed",
-                            "expenses_user",
+                            "expense_billed_amount",
+                            "expense_user_amount",
                             "realized_amount",
                             "invoiced_amount",
                             "balance_amount",
                             "cost_amount",
-                            "margin_services",
-                            "margin_balance"
+                            "services_margin_amount",
+                            "balance_margin_amount"
                           ],
                           "type": "string"
                         },
@@ -19787,14 +20086,14 @@
                         "billed_min",
                         "counted_min",
                         "services_amount",
-                        "expenses_billed",
-                        "expenses_user",
+                        "expense_billed_amount",
+                        "expense_user_amount",
                         "realized_amount",
                         "invoiced_amount",
                         "balance_amount",
                         "cost_amount",
-                        "margin_services",
-                        "margin_balance"
+                        "services_margin_amount",
+                        "balance_margin_amount"
                       ],
                       "type": "string"
                     },
@@ -19868,6 +20167,9 @@
                       "balance_amount": {
                         "type": "number"
                       },
+                      "balance_margin_amount": {
+                        "type": "number"
+                      },
                       "billed_min": {
                         "format": "int64",
                         "type": "integer"
@@ -19883,10 +20185,10 @@
                         "format": "int64",
                         "type": "integer"
                       },
-                      "expenses_billed": {
+                      "expense_billed_amount": {
                         "type": "number"
                       },
-                      "expenses_user": {
+                      "expense_user_amount": {
                         "type": "number"
                       },
                       "folder_id": {
@@ -19896,23 +20198,18 @@
                       "invoiced_amount": {
                         "type": "number"
                       },
-                      "margin_balance": {
-                        "type": "number"
-                      },
-                      "margin_services": {
-                        "type": "number"
-                      },
                       "project_id": {
+                        "description": "Project of the folder.",
                         "format": "int64",
-                        "type": [
-                          "integer",
-                          "null"
-                        ]
+                        "type": "integer"
                       },
                       "realized_amount": {
                         "type": "number"
                       },
                       "services_amount": {
+                        "type": "number"
+                      },
+                      "services_margin_amount": {
                         "type": "number"
                       }
                     },
@@ -19923,14 +20220,14 @@
                       "billed_min",
                       "counted_min",
                       "services_amount",
-                      "expenses_billed",
-                      "expenses_user",
+                      "expense_billed_amount",
+                      "expense_user_amount",
                       "realized_amount",
                       "invoiced_amount",
                       "balance_amount",
                       "cost_amount",
-                      "margin_services",
-                      "margin_balance"
+                      "services_margin_amount",
+                      "balance_margin_amount"
                     ],
                     "type": "object"
                   },
@@ -22224,12 +22521,14 @@
                     "additionalProperties": false,
                     "properties": {
                       "amount": {
+                        "description": "Amount: frozen, else rate times billed hours, weighted by the rate coefficients of the hour classes touched.",
                         "type": [
                           "number",
                           "null"
                         ]
                       },
                       "billed_min": {
+                        "description": "Billed duration: frozen, else the real duration (always), the entered one or the real one (sometimes), 0 (never).",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -22249,6 +22548,7 @@
                         ]
                       },
                       "counted_min": {
+                        "description": "Minutes counted in the hours done: 0 for a task not counting hours, else weighted by the hours coefficients of the hour classes touched.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -22257,6 +22557,7 @@
                         "type": "string"
                       },
                       "day_type": {
+                        "description": "ISO weekday 1 to 7, or 8 on a full public holiday.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -22268,6 +22569,7 @@
                         "type": "integer"
                       },
                       "entry_open": {
+                        "description": "The folder and its project accept activities.",
                         "type": [
                           "boolean",
                           "null"
@@ -22315,12 +22617,14 @@
                         ]
                       },
                       "is_validated": {
+                        "description": "Validated.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "kind": {
+                        "description": "Kind of the task.",
                         "enum": [
                           "service",
                           "absence",
@@ -22332,24 +22636,28 @@
                         ]
                       },
                       "not_invoiced": {
+                        "description": "Not on an invoiced invoice.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "not_locked": {
+                        "description": "The date is in no locked period of the user or of all.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "not_validated": {
+                        "description": "Not validated.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "project_id": {
+                        "description": "Project of the folder.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -22364,6 +22672,7 @@
                         ]
                       },
                       "rate": {
+                        "description": "Hourly rate: frozen, else user and task, folder, project, task, 0.",
                         "type": "number"
                       },
                       "start_tod": {
@@ -22371,6 +22680,7 @@
                         "type": "integer"
                       },
                       "task_allowed": {
+                        "description": "The task is allowed in the folder.",
                         "type": [
                           "boolean",
                           "null"
@@ -22388,6 +22698,7 @@
                         ]
                       },
                       "to_validate": {
+                        "description": "Needs a manager validation: the task, an hour class touched, or the folder estimate exceeded.",
                         "type": [
                           "boolean",
                           "null"
