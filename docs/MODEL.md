@@ -20,6 +20,7 @@ Cible : n'importe quelle web app ; optimisé pour les systems of record : donné
 - `schema.sql` par module = source of truth de la structure ; migrations par diff déclaratif (pgschema), vérifiées par squawk
 - Les tables sont la vérité ; une row change par une command
 - Stocké : les inputs, ce qu'un humain, un système ou le temps a décidé ou observé. Calculé : tout le reste, dans la projection
+- Une décision qui fige des valeurs calculées (facturer) les écrit en rows qui lui appartiennent (lignes de facture), jamais en colonnes sur la row calculée
 - Table `append_only` : update et delete refusés par la DB ; pour les registres (paiements, mouvements de stock, deliveries)
 - La DB porte les invariants structurels : FK, unique, CHECK sur une row, NOT NULL, exclusion
 - Custom field : colonne typée dans la table `<table>_x`, en 1:1 avec sa table
@@ -39,7 +40,7 @@ Cible : n'importe quelle web app ; optimisé pour les systems of record : donné
 ## 3. Access
 
 - Principal : identité authentifiée par un IdP OIDC externe (passkeys ; client credentials pour agents et services) ; humain, agent ou service
-- Capability : role → commands et views permises
+- Capability : role → commands et views permises ; rien n'est ouvert par défaut, « tout principal » se déclare
 - Reach : les rows reliées au principal par des données (lui-même, management, membership) ; c'est une projection ; un principal a plusieurs reach nommés
 - Chaque view et command déclare son anchor (une colonne et un reach) ou aucun
 - `@reach` est résolu une fois par request ; une query anchorée sans `@reach` échoue au build
@@ -52,6 +53,7 @@ Cible : n'importe quelle web app ; optimisé pour les systems of record : donné
 - View : SQL statique dans `queries.sql`, compilé par sqlc ; params + `@reach`
 - Le kernel enveloppe une view avec filtre, tri, group, agrégat et page, sur ses colonnes de sortie ; `@reach` reste dans la view
 - List, grid, pivot, dashboard, saved view = une view enveloppée ; une saved view est une row (view + params)
+- Liste de travail = une view filtrée par une action (« ce sur quoi je peux faire X ») ; ses conditions ne sont écrites que dans la projection
 - Command : action avant (`When`) + effet SQL + action après (`Ensure`) ; les deux actions sont lues dans la projection, dans la transaction
 - `Ensure` porte sur les roots touchés de sa table (`quantité restante ≥ 0` est une condition du stock)
 - L'effet est du SQL statique ; chaque statement écrit ses events (§6)
@@ -88,7 +90,7 @@ Même ordre pour humain, agent, reaction et job :
 ## 7. Asynchrone
 
 - Job : command différée (`After`, `Every`), dans River, inséré dans la transaction
-- Reaction : command → job, avec son propre principal ; inséré au commit de la command, unique par invocation ; at-least-once
+- Reaction : command, ou row insérée dans une table → job ; sous le principal déclaré du job, à défaut celui de la command ; inséré au commit, unique par invocation ; at-least-once
 - Run : command sur un set de roots, exécutée en job dans une transaction, un savepoint par root ; progress live ; cancel = rollback ; undo = une autre command
 
 ## 8. Fichiers
@@ -186,3 +188,8 @@ cmd/sor/      binaire : serve, migrate, check, call, view, meta
   - Event : écrit par le statement d'effet (`returning old, new`), une row par row changée
   - Live et surfaces : diff serveur → clés d'invalidation et relance client ; code généré → registry donnée, types pris dans Postgres
   - Reaction : event → command devient command → job inséré au commit ; reach nommés ; donnée sensible en table séparée
+- 2026-11-25 : revue du code contre le model ([DECISIONS.md](./DECISIONS.md) D34 à D39)
+  - Valeurs figées en colonnes sur la row calculée → rows de la décision (lignes de facture)
+    - 1er ordre : une table ne mêle plus inputs et instantané ; « facturée » = une ligne existe
+    - 2e ordre : l'unicité de la ligne porte l'invariant « une activity, une invoice »
+  - Capability ouverte par défaut → explicite ; liste de travail = view filtrée par une action ; reaction sur insertion

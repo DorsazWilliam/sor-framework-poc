@@ -86,13 +86,15 @@ create function sor_append_only() returns trigger ...  -- raise, errcode 23514
 |---|---|---|
 | `file` | hash (sha256 hex, unique), size, type, name, created_at | blob = clé `hash` dans le bucket |
 | `event` | at, call uuid, command, principal_id, for_id, tbl, row_id, root_table, root_id, changes jsonb | partitionnée par mois sur `at` ; partitions dans le schema `event_parts` ; index (root_table, root_id, at) |
-| `run` | name, input jsonb, principal_id, for_id, state (queued, running, done, cancelled, failed), total, done, rejected jsonb, error, cancel_requested, created_at, finished_at | root ; anchor principal_id, reach `self` |
+| `run` | name, input jsonb, owner_id, principal_id, for_id, state (queued, running, done, cancelled, failed), total, done, rejected jsonb, error, cancel_requested, created_at, finished_at | root ; anchor owner_id, reach `self` |
 | `saved_view` | owner_id, screen, name, state jsonb ; unique (owner_id, screen, name) | root ; anchor owner_id, reach `self` |
 | `connection` | kind, name, endpoint, secret_name, subject, cursor, pulled_at, pull_error | root ; `subject` = le principal sous lequel elle agit |
-| `delivery` | connection_id, kind, root_table, root_id, payload jsonb, principal_id, created_at | root, append_only |
+| `delivery` | connection_id, path, root_table, root_id, payload jsonb, principal_id, created_at | root, append_only ; envoyée à `endpoint` + `path` |
 | `delivery_result` | delivery_id, at, ok, status, detail | child de delivery, append_only |
 
-`principal_id`, `for_id`, `owner_id` : ids de la table des principals du module base (`user`), sans FK (tampons de log). Une row qui désigne une identité sous laquelle agir porte son `subject`.
+`principal_id`, `for_id` : tampons de log, ids de la table des principals du module base (`user`), sans FK. `owner_id` : l'identité effective (`@self`) à qui la row appartient. Une row qui désigne une identité sous laquelle agir porte son `subject`.
+
+`event`, `run` et `file` sont les registres du kernel : il les écrit lui-même (events par les effets, progress d'un run, enregistrement d'un blob). Toute autre row change par une command.
 
 Un module complète une table ou une command du kernel en la déclarant à nouveau : les options s'ajoutent (`r.Table("delivery", Write("accounting_sync"))`, `r.Command("delivery.retry", Needs("invoice"))`).
 
@@ -102,15 +104,14 @@ Un module complète une table ou une command du kernel en la déclarant à nouve
 type Module struct { Name string; Register func(r *Registry) }
 
 r.Table(name, opts...)
-    Root()                       // défaut
-    ChildOf(root, fkColumn)      // ses commands lockent le root parent
+    ChildOf(root, fkColumn)      // ses commands lockent le root parent ; sans cette option la table est root
     Under(root)                  // ses commands tiennent ce root en for share (toutes ses rows : une seule pour un singleton)
     Anchor(column, reach)        // rows visibles et modifiables si column ∈ reach du principal
-    Read(fn) / Write(fn)         // capability ; "" = tout principal authentifié
+    Read(fn) / Write(fn)         // capability, obligatoires ; kernel.Any = tout principal authentifié, dit explicitement
     Guarded(columns...)          // colonnes hors CRUD générique (posées par des commands dédiées)
     Label(column)                // défaut "name"
     AppendOnly() / NoCRUD()
-    Group(group)                 // écran générique de données de base dans ce groupe de navigation
+    Group(group) / Icon(name)    // écran générique de données de base dans ce groupe de navigation
 
 r.Action(table, name, conditions...)          // action = AND de conditions de t_p
 r.Command(name, opts...)
@@ -123,13 +124,14 @@ r.Command(name, opts...)
     Reach(name)                  // reach autre que celui de la table (ex. "team")
 r.Job(kind, fn, opts...)         // As(subject), Every(d), Unique()
 r.Reaction(command, jobKind)     // au commit de la command, le job est inséré dans la transaction
+r.OnInsert(table, jobKind)       // idem, un job par row insérée dans la table (le kernel : delivery → delivery.send)
 r.Run(name, candidatesView, perRootCommand, Needs(fn))
 r.Screen(spec)
 ```
 
 Dérivé, jamais déclaré :
 
-- Les views : toute query `:many`/`:one` du manifest ; annotations dans son commentaire : `@anchor <colonne> <reach>` ou `@anchor none` (obligatoire), `@needs <fn>` (optionnel)
+- Les views : toute query `:many`/`:one` du manifest ; annotations dans son commentaire, toutes deux obligatoires : `@anchor <colonne> <reach>` ou `@anchor none` ; `@needs <fn>` ou `@needs any`
 - L'input d'une view ou d'une command : les params de ses queries moins les params du kernel (`@reach`, `@self`, `@ids`), typés par Postgres
 - Les colonnes de sortie et leurs types : `PREPARE`
 - Les roots dont dépend une view (live) : `EXPLAIN (GENERIC_PLAN)` de la query complète → tables lues → roots
@@ -153,6 +155,8 @@ Wrap = `select <cols | group, agg> from (<query>) v where <filter> group by … 
 ```
 
 `op` : eq, ne, lt, le, gt, ge, in, contains, null, notnull. `fn` : sum, count, min, max, avg. `limit` ≤ 5000, défaut 200.
+
+- Filtre par action : `{"action": "validatable"}` = les rows où l'action est vraie ; le kernel le développe en ses conditions. Une liste de travail (« à valider ») est une view + ce filtre : les conditions ne sont écrites que dans la projection et la déclaration de l'action
 
 - La colonne `id` d'une view est l'identité de sa row, unique dans la view (sélection, commands, drawer)
 - Page d'une view qui a `id`, sans group ni agg : le kernel pagine sur les ids puis lit les rows — `with k as materialized (select id from (<query>) v where … order by … limit … offset …) select v.* from (<query>) v where v.id = any(array(select id from k)) order by …`. Les rows sautées ne paient que les colonnes du tri et du filtre ; la page se lit par clé primaire
@@ -190,7 +194,7 @@ returning tbl, row_id, root_table, root_id
 ```
 
 - Les rows retournées = ce que la command a changé : réponse, clés de live, roots à relire, deliveries à envoyer
-- Un effet qui change d'autres roots que les siens les locke d'abord : un statement `select … order by id for update` dans la liste d'effets, exécuté tel quel ; les statements suivants ont un snapshot postérieur au lock (un seul statement qui locke et calcule lirait des valeurs antérieures à l'attente)
+- Un effet qui change d'autres roots que les siens les locke d'abord : un statement `select id … order by id for update` dans la liste d'effets, exécuté tel quel ; les ids qu'il rend sont le param `@locked` des statements suivants, qui ont un snapshot postérieur au lock (un seul statement qui locke et calcule lirait des valeurs antérieures à l'attente) et n'agissent que sur les rows lockées
 - Erreur de contrainte Postgres (23xxx) → `constraint` avec le nom de la contrainte
 - Budget : ≤ 4 allers-retours DB par command, ≤ 2 par view ; une command qui enfile des jobs en fait un de plus (un seul `InsertManyTx` River, avant le batch de commit) ; aucun cache de principal
 
@@ -215,7 +219,9 @@ returning tbl, row_id, root_table, root_id
 - `self` est le reach du kernel : l'identité effective (`@self`), l'humain quand un agent agit pour lui ; les autres reach viennent du module base
 - Reach, dans le module base : `team` = ses subordonnés directs (`scope_direct`), tout son arbre (`scope_tree`) ou tous les humains sauf lui (`scope_all`) ; `user` = `self` ∪ `team`
 - Fonctions (enum `fn`) : activity, expense, invoice, invoice_state, period_lock, validation, cost, master_data, scope_direct, scope_tree, scope_all, accounting_sync, ocr ; un groupe `admin` les a toutes ; un principal a l'union de ses groupes
-- Build : `sor check --static` (dans `go generate` et dans le Dockerfile) refuse une query sans `@anchor`, et une query anchorée sans param `reach` ; il refuse aussi un `@needs` hors enum, une query `:exec` sans command, un label fr manquant
+- Rien n'est ouvert par défaut : une table sans `Read` et `Write`, une view sans `@needs` échouent au build ; `any` se dit
+- Le registry servi à un principal (`/api/meta`, tools MCP) ne contient que ce que sa capability permet : une seule fonction le filtre
+- Build : `sor check --static` (dans `go generate` et dans le Dockerfile) refuse une query sans `@anchor` ou sans `@needs`, et une query anchorée sans param `reach` ; il refuse aussi un `@needs` hors enum, une query `:exec` sans command, un label fr manquant
 - Donnée sensible = table ou view séparée avec sa capability : `cost_rate`, `activity_cost`, `profitability_cost`
 - L'émetteur OIDC est une seule URL (`http://localhost:8090/default`) pour le navigateur et l'app ; dans compose, le client HTTP OIDC de l'app compose l'adresse `localhost:8090` vers `idp:8080`
 
@@ -278,7 +284,7 @@ Le serveur et l'UI s'accordent sur ces formes, exactement.
 
 ```ts
 // GET /api/me
-type Me = { id: number; name: string; kind: string; lang: "fr"|"de"|"en";
+type Me = { id: number; self: number /* identité effective */; name: string; kind: string; lang: "fr"|"de"|"en";
             functions: string[]; reach: Record<string, number[]>; for?: { id: number; name: string } }
 
 // GET /api/meta
@@ -296,11 +302,11 @@ type Table = { name: string; root: string /* elle-même si root */; child_fk?: s
 type View = { name: string; params: Col[]; columns: Col[]; roots: string[]; needs: string;
               anchor?: { column: string; reach: string }; description?: string }
 type Command = { name: string; table: string; kind: "create" | "update" | "delete" | "custom" | "run";
-                 rootless: boolean; input: Col[] /* hors ids */; when?: string; ensure?: string;
+                 ids: boolean /* prend des ids de rows */; rootless: boolean; input: Col[] /* hors ids */; when?: string; ensure?: string;
                  reach?: string; needs: string; description?: string }
-type Wrap = { filter?: { col: string; op: string; value?: unknown }[]; sort?: { col: string; dir: "asc" | "desc" }[];
+type Wrap = { filter?: ({ col: string; op: string; value?: unknown } | { action: string })[]; sort?: { col: string; dir: "asc" | "desc" }[];
               group?: string[]; agg?: { col: string; fn: string }[]; limit?: number; offset?: number }
-type Screen = { id: string; group: string; views: string[]; defaults: Record<string, string>; table?: string;
+type Screen = { id: string; group: string; icon?: string /* nom Fluent */; views: string[]; defaults: Record<string, string>; table?: string;
                 commands: string[]; wrap?: Wrap; children: Screen[]; link?: Record<string, string>; component?: string }
 type Meta = { tables: Table[]; views: View[]; commands: Command[]; screens: Screen[];
               enums: Record<string, string[]>; functions: string[]; groups: string[] }
@@ -308,8 +314,7 @@ type Meta = { tables: Table[]; views: View[]; commands: Command[]; screens: Scre
 // POST /api/v/{view}       body: { params?: Record<string, unknown> } & Wrap
 //   200: tableau JSON des rows, tel que produit par Postgres ; avec group/agg : colonnes de group + "<fn>_<col>" ("count" pour count)
 // POST /api/c/{command}    body: create {…colonnes} | update {ids, …colonnes} | delete {ids} | custom {ids, …input} | rootless {…input} | run {…params}
-//   en-tête optionnel `Sor-Call: <uuid>` : l'id d'invocation choisi par le client ; il le reconnaît dans le live (e) et ignore son propre écho
-//   200: { call: string; changed: { table: string; ids: number[] }[];
+//   200: { call: string /* = e du live */; changed: { table: string; ids: number[] }[];
 //          ids: number[] /* roots de la command, créés compris */; run?: number }
 // erreurs: application/problem+json { status, title, code, needs?, action?, rejected?: { id: number; conditions: string[]; row: object }[], constraint?, errors? }
 // GET /api/live            SSE, data: { t: string; ids?: number[]; c: string; e: string }
@@ -320,7 +325,11 @@ type Meta = { tables: Table[]; views: View[]; commands: Command[]; screens: Scre
 // view history             params { root_table, root_id } → { at, command, principal_id, for_id, tbl, row_id, changes }[]
 ```
 
+`Me` et `Meta` sont des opérations OpenAPI comme les autres : les types TypeScript du contrat sont générés, jamais recopiés.
+
 Règles de lecture du contrat :
+
+- Écho : tant qu'une de ses commands est en vol, le client retient les clés reçues du live ; à la réponse il écarte celles dont `e` est son `call`
 
 - Une colonne de view qui porte le nom d'une condition d'une table root lue par la view, et `id`, ne s'affichent pas : elles servent aux boutons et à l'identité
 - Les actions d'une table child sont celles de son root ; le client lit leurs conditions sur la row parente (celle du drawer)
@@ -377,9 +386,9 @@ Module time :
 
 | Table | Colonnes | Déclaration |
 |---|---|---|
-| `activity` | user_id, date, start_tod, duration_min (> 0, start + durée ≤ 1440), billed_min, folder_id, task_id, description, validated_by, validated_at, invoice_id, frozen_rate, frozen_billed_min, frozen_amount | root ; Under company ; anchor user_id/user ; Write activity ; Guarded validated_*, invoice_id, frozen_* |
+| `activity` | user_id, date, start_tod, duration_min (> 0, start + durée ≤ 1440), billed_min, folder_id, task_id, description, validated_by, validated_at | root ; Under company ; anchor user_id/user ; Write activity ; Guarded validated_* |
 | `expense_type` | name, by_quantity, unit_price, billing_unit_price, mode (both, user_only, billing_only), archived | root ; Write master_data |
-| `expense` | activity_id, expense_type_id, quantity, amount, mode (null = celui du type), receipt_file_id, ocr_amount, frozen_user_amount, frozen_billed_amount | child de activity ; Write expense ; Guarded receipt_file_id, ocr_amount, frozen_* |
+| `expense` | activity_id, expense_type_id, quantity, amount, mode (null = celui du type), receipt_file_id, ocr_amount | child de activity ; Write expense ; Guarded receipt_file_id, ocr_amount |
 | `period_lock` | company_id (défaut 1), date_from, date_to, user_id (null = tous) | child de company ; Write period_lock |
 
 Module billing :
@@ -387,15 +396,18 @@ Module billing :
 | Table | Colonnes | Déclaration |
 |---|---|---|
 | `invoice` | project_id, date_from, date_to, invoiced_at, invoiced_by, pdf_file_id | root ; Write invoice ; Guarded invoiced_*, pdf_file_id |
+| `invoice_line` | invoice_id, activity_id unique, rate, billed_min, amount | child de invoice ; NoCRUD |
+| `invoice_expense` | invoice_id, expense_id unique, user_amount, billed_amount | child de invoice ; NoCRUD |
 
 Sémantique :
 
 - `day_type` d'une date : 8 si férié journée entière, sinon son jour ISO (1..7)
 - Une classe d'heures = des créneaux (day_type, minutes du jour) ; l'exclusion garantit qu'une minute appartient à une classe au plus
 - Tarif du folder = sa propre colonne ; estimé dépassé = somme des durées réelles du folder > `estimated_min`
-- Valeurs figées : posées par `invoice.mark_invoiced`, effacées par `invoice.back_to_draft` ; check `frozen_amount is null or invoice_id is not null`
+- Facturer = écrire les lignes de l'invoice : une `invoice_line` par activity avec le tarif, la durée facturée et le montant lus dans `activity_p` à cet instant ; une `invoice_expense` par frais. Revenir en cours = les supprimer. L'activity et l'expense ne portent que des inputs ; « facturée » et les valeurs figées se lisent par la ligne
+- Une activity est sur une invoice au plus : contrainte unique
 - Le compte d'une invoice = celui de son project
-- Une invoice prend les activities facturables : non facturées, dans la période, dont la task n'est pas « jamais » ; une activity jamais facturable n'est rattachée à aucune invoice
+- Une invoice prend les activities facturables : sans ligne, dans la période, dont la task n'est pas « jamais » ; une activity jamais facturable n'est rattachée à aucune invoice
 
 ## 16. Domaine : projections
 
@@ -404,27 +416,32 @@ Sémantique :
 | Colonne | Définition |
 |---|---|
 | project_id | du folder |
+| invoice_id | de sa ligne de facture (`left join invoice_line` sur `activity_id`) |
 | day_type, kind | de la date ; de la task |
-| billed_min | figé, sinon : always → durée ; sometimes → `billed_min` saisi, à défaut durée ; never → 0 |
-| rate | figé, sinon : user × task, sinon folder, sinon project, sinon task, sinon 0 |
-| amount | figé, sinon `rate × billed_min / 60 × (minutes pondérées par rate_coef) / durée`, arrondi à 2 |
+| billed_min | celui de la ligne, sinon : always → durée ; sometimes → `billed_min` saisi, à défaut durée ; never → 0 |
+| rate | celui de la ligne, sinon : user × task, sinon folder, sinon project, sinon task, sinon 0 |
+| amount | celui de la ligne, sinon `rate × billed_min / 60 × (minutes pondérées par rate_coef) / durée`, arrondi à 2 |
 | counted_min | 0 si la task ne compte pas d'heures ; sinon durée + Σ chevauchement × (hours_coef − 1), arrondi à la minute (entier) |
 | to_validate | la task le demande, ou la durée touche un créneau d'une classe qui le demande, ou l'estimé du folder est dépassé |
 | conditions | `not_locked`, `not_invoiced`, `not_validated`, `is_validated`, `entry_open` (folder et project ouverts, project non archivé), `task_allowed` |
 
-Formulation, validée sur 600k activities avant d'écrire le code (lecture d'une row 0.3 ms, d'un jour 0.5 ms, agrégat sur tout l'historique en plan parallèle) :
+Formulation d'une projection agrégée en masse (`activity_p` : 600k rows par query d'analyse), validée avant d'écrire le code (lecture d'une row 0.3 ms, d'un jour 0.5 ms, agrégat sur tout l'historique en plan parallèle) :
 
 - Tout ce qu'une query n'utilise pas doit disparaître de son plan : `left join` sur clé unique, `left join … on true` vers une view d'une row ; jamais de `join` interne ni de `cross join` vers une table
-- Tout doit rester parallel-safe : pas de sous-requête corrélée (`exists`, scalaire, lateral agrégé) dans une colonne ; à la place un join sur clé, une containment de multirange, ou une fonction SQL `stable parallel safe`
-- `day_profile` (view) : par day_type, multirange des créneaux (`classed`) et de ceux à valider (`validating`) ; le chevauchement (`hour_class_extra(day_type, span, coef)`, fonction SQL) n'est calculé que si `span && classed`
-- `not_locked` : la date n'est contenue ni dans le multirange des verrous pour tous (`lock_global`, une row), ni dans celui du user (`lock_user`)
+- Tout doit rester parallel-safe : pas de sous-requête corrélée (`exists`, scalaire, lateral agrégé) dans une colonne ; à la place un join sur clé, une containment de multirange, ou une fonction `stable parallel safe`
+- `day_profile` (view) : par day_type, multirange des créneaux (`classed`) et de ceux à valider (`validating`) ; le chevauchement (`hour_class_extra(day_type, span, coef)`) n'est calculé que si `span && classed`
+- `not_locked` : la date n'est pas contenue dans le multirange des verrous du user, verrous pour tous compris (`lock_user`)
 - `task_allowed` : `left join folder_task` sur sa clé unique
-- Estimé dépassé : `left join folder_spent` (view sur `folder` avec le total en sous-requête) : calculé une fois par folder
+- Estimé dépassé : `left join folder_spent` (une row par folder, son total)
 - `cost_rate_span` : auto-jointure + `min`, pas de window function
-- Index de `activity` : `(user_id, date) include (start_tod, duration_min, task_id)`, `(date, id)`, `(folder_id) include (duration_min)`, `(invoice_id) where invoice_id is not null` ; `parallel_workers = 4` sur la table
-- `activity_class` (view) : une row par activity et par classe touchée, plus la part hors classe : minutes, montant ; `activity_cost` : coût par activity = `counted_min × hourly_cost / 60` du `cost_rate` en vigueur à la date
-- `expense_p` : mode effectif ; `user_amount` (figé, sinon 0 si billing_only, quantité × unit_price, ou amount) ; `billed_amount` (figé, sinon 0 si user_only, quantité × billing_unit_price, ou amount)
-- `invoice_p` : account_id, `state` (draft, invoiced), activity_count, services_amount, expenses_amount, total_amount — en draft sur les activities non facturées du project dans la période, facturée sur ses activities rattachées ; `export_state` (none, created, exported, failed) ; conditions `is_draft`, `is_invoiced`, `has_activities`, `not_exported`
+- Index de `activity` : `(user_id, date) include (start_tod, duration_min, task_id)`, `(date, id)`, `(folder_id) include (duration_min)`
+
+Une projection lue par pages (`invoice_p`, l'état d'une delivery) calcule par root : sous-requêtes et agrégats corrélés y sont à leur place.
+
+- `activity_class` (view) : une row par activity et par classe touchée, plus la part hors classe ; elle lit `activity_p` (tarif, durée facturée, span, day_type) et n'y ajoute que le chevauchement par créneau : aucune formule n'est réécrite
+- `activity_cost` : coût par activity = `counted_min × hourly_cost / 60` du `cost_rate` en vigueur à la date
+- `expense_p` : mode effectif ; `user_amount` (celui de sa ligne de facture, sinon 0 si billing_only, quantité × unit_price, ou amount) ; `billed_amount` (celui de sa ligne, sinon 0 si user_only, quantité × billing_unit_price, ou amount)
+- `invoice_p` : account_id, `state` (draft, invoiced), activity_count, services_amount, expenses_amount, total_amount — en draft sur les activities facturables du project dans la période, facturée sur ses lignes ; `export_state` (none, created, exported, failed) ; conditions `is_draft`, `is_invoiced`, `has_activities`, `not_exported`
 
 Actions :
 
@@ -448,8 +465,8 @@ Actions :
 | `activity.unvalidate` | When unvalidatable ; Needs validation ; Reach team | remet à null |
 | `expense.attach_receipt` | On expense ; When + Ensure editable ; Needs expense | receipt_file_id ; reaction → `ocr.read` |
 | `expense.apply_ocr` | On expense ; When editable ; Needs ocr | ocr_amount ; amount s'il est vide |
-| `invoice.mark_invoiced` | When invoiceable ; Ensure billed ; Needs invoice_state | 1. lock des activities candidates par id ; 2. `invoice_id` posé ; 3. `frozen_*` des activities rattachées, lues dans `activity_p` ; 4. `frozen_*` de leurs expenses ; 5. invoiced_at/by |
-| `invoice.back_to_draft` | When revertible ; Needs invoice_state | libère expenses et activities, efface invoiced_at/by |
+| `invoice.mark_invoiced` | When invoiceable ; Ensure billed ; Needs invoice_state | 1. lock des activities candidates par id ; 2. une `invoice_line` par activity lockée (`@locked`), valeurs lues dans `activity_p` ; 3. une `invoice_expense` par frais de ces activities ; 4. invoiced_at/by |
+| `invoice.back_to_draft` | When revertible ; Needs invoice_state | supprime `invoice_expense` et `invoice_line`, efface invoiced_at/by |
 | `invoice.print` | Needs invoice | aucun ; reaction → `invoice.render` |
 | `invoice.attach_pdf` | Needs invoice | pdf_file_id |
 | `invoice.export` | When exportable ; Needs invoice | insère la `delivery` (payload = document de l'invoice) |
@@ -473,7 +490,7 @@ Montant OCR : plus grand montant des lignes « total / montant / summe / betrag 
 | `timesheet_day` | user_id, date_from, date_to | user_id / user | | par jour : due_min, done_min, férié, verrouillé |
 | `folder_task_allowed` | folder_id | none | | tasks permises |
 | `activity_grid` | date_from, date_to | user_id / user | | activities + labels |
-| `activity_to_validate` | date_from, date_to | user_id / team | validation | `to_validate and not_validated` |
+| `activity_team` | date_from, date_to | user_id / team | validation | activities des autres, dans le scope ; l'écran validation la filtre par l'action `validatable` |
 | `activity_class` | activity_id | user_id / user | | répartition par classe |
 | `expense_by_activity` | activity_id | user_id / user | | lignes + montants |
 | `balance` | date_from, date_to | user_id / user | | par user : carried, due, done, balance ; vac_carried, vac_available, vac_taken, vac_balance (minutes) |
@@ -518,7 +535,7 @@ type Screen struct {
 |---|---|---|
 | 1 | entry | Component `entry` ; views timesheet, timesheet_day ; enfants : frais, classes, historique |
 | 2 | frais d'une activity | enfant `expense_by_activity`, Table expense, `expense.attach_receipt` |
-| 3 | validation | `activity_to_validate`, `activity.validate` ; défaut : 90 derniers jours |
+| 3 | validation | `activity_team` filtrée par l'action `validatable`, `activity.validate` ; défaut : 90 derniers jours |
 | 4 | activities | `activity_grid`, Table activity, validate/unvalidate, enfants frais + classes, saved views |
 | 5 | balances | `balance` ; défaut : année en cours |
 | 6 | profitability | `profitability_cost`, `profitability` ; group project_id ; défaut : année en cours |
@@ -640,7 +657,7 @@ Un budget dépassé = défaut de conception : retour à la spec.
 |---|---|
 | Activity écrite pendant qu'une période se verrouille | activity `under company` (`for share`), period_lock child de company (`for update`) : l'une attend l'autre, puis lit la projection à jour → `not_locked` fausse → Rejection |
 | Activity écrite pendant qu'une invoice la fige | l'effet de `mark_invoiced` locke les activities par id ; il attend l'écriture en cours et fige la row à jour ; l'écriture suivante lit `not_invoiced` fausse |
-| Tarif modifié après coup | `rate` et `amount` calculés pour le non facturé, `frozen_*` pour le facturé |
+| Tarif modifié après coup | `rate` et `amount` calculés pour le non facturé, lus dans la ligne de facture pour le facturé |
 | Répartition par classe et « à valider » calculés | `activity_p`, `activity_class`, `day_profile` ; rien de stocké |
 | Soldes en view, reports et fériés | `balance` |
 | Refus avec les conditions fausses, UI et MCP | Rejection = conditions + row ; même corps en HTTP et en `structuredContent` |

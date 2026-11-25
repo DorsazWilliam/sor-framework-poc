@@ -86,7 +86,7 @@ Journal des choix ouverts tranchés pour ce POC. Chaque entrée : la décision, 
 
 ### D12. Valeurs figées = colonnes de l'activity et de l'expense
 
-- `frozen_*` posées à la facturation, effacées au retour en cours ; la projection lit `coalesce(figé, calculé)`
+- Remplacé par D34 : les valeurs figées sont des lignes de facture, pas des colonnes de l'activity
 - 1er ordre : un changement de tarif suit sur le non facturé, rien ne bouge sur le facturé
 
 ### D13. `period_lock` ne gate que la saisie
@@ -199,10 +199,52 @@ Suite, mesurée après application :
 - Décision : `self` n'est pas une donnée du module d'accès ; c'est l'identité effective, posée par le kernel
 - 1er ordre : un agent qui agit pour un humain voit ses rows anchorées `self` (saved views, runs)
 
-### D33. L'id d'invocation vient du client
+### D33. Écho du live : le client retient, le serveur nomme
 
-- En-tête `Sor-Call` : le client reconnaît son écho dans le live sans fenêtre de temps
-- 2e ordre : base de l'idempotence d'une command rejouée (CASES S7), non construite
+- Première idée, retirée : un id d'invocation choisi par le client (en-tête). Il servait aussi de clé de corrélation interne ; un id réutilisé mêlait deux invocations
+- Décision : l'id est toujours celui du serveur ; tant qu'une de ses commands est en vol, le client retient les clés du live, puis écarte celles de son `call`
+- 1er ordre : un mécanisme de moins, aucun en-tête ; un job a son propre id, donc le progress d'un run arrive à celui qui l'a lancé
+
+## Revue du code contre le model
+
+Une relecture indépendante du code (2026-11-25) a confirmé le cœur : un seul chemin de command pour humain, agent, job et run ; un seul wrap ; aucun nom du domaine dans le kernel. Elle a montré des coutures là où un concept avait été ajouté sans être décidé. Décisions :
+
+### D34. Facturer = écrire des lignes
+
+- Constat : `frozen_*` sur activity et expense mêlaient inputs et instantané d'une décision ; colonnes gardées, check, `coalesce` partout
+- Décision : `invoice_line` et `invoice_expense`, tables child de l'invoice ; l'activity et l'expense ne portent que des inputs
+- 1er ordre : « facturée » = une ligne existe ; une activity sur une seule invoice = contrainte unique ; revenir en cours = supprimer les lignes ; les totaux d'une invoice facturée se lisent dans ses lignes
+- 2e ordre : l'historique d'une invoice montre ses lignes ; l'activity n'est pas modifiée par la facturation
+- Écart avec SLICE (« stocké sur l'activity : facture ») : la facture d'une activity se lit par sa ligne
+
+### D35. Le statement de lock rend `@locked`
+
+- Les ids rendus par le `select … for update` d'un effet sont le param `@locked` des statements suivants : ils n'agissent que sur ce qui est locké. Une row apparue entre-temps reste hors de l'effet (elle sera candidate la prochaine fois)
+- Remplace le rattachement en deux temps de D26
+
+### D36. Rien n'est ouvert par défaut
+
+- Constat : une table sans `Read` était lisible par tout principal authentifié
+- Décision : `Read`, `Write` et `@needs` sont obligatoires ; `any` se dit, comme `@anchor none`
+- 1er ordre : le registry servi à un principal (`/api/meta`, MCP) passe par un seul filtre de capability
+
+### D37. Liste de travail = view + filtre par action
+
+- Constat : la view « à valider » réécrivait en SQL les conditions de l'action `validatable`
+- Décision : le wrap filtre par action ; les conditions vivent dans la projection et la déclaration, nulle part ailleurs
+- 1er ordre : toute liste « ce sur quoi je peux faire X » s'obtient sans query
+
+### D38. Une seule définition, un seul mécanisme
+
+- `activity_class` lit `activity_p` au lieu d'en réécrire les formules
+- La reaction sur insertion (`OnInsert`) remplace le cas `delivery` écrit dans le pipeline ; le chemin d'une delivery (`path`) est une donnée, pas une convention
+- Un seul résolveur de reach ; `owner_id` = identité effective pour `run` comme pour `saved_view`
+- `Me` et `Meta` sont dans OpenAPI : le contrat TypeScript est généré, plus recopié ; `ids` est un champ de la command ; l'icône d'un écran est déclarée avec lui, l'UI ne connaît aucun nom du domaine hors de l'écran de saisie
+- Supprimé : options, hooks et branches que seuls les tests utilisaient
+
+### D39. Registres du kernel
+
+- `event`, `run`, `file` sont écrits par le kernel hors pipeline ; toute autre row change par une command. La règle sur les sous-requêtes corrélées (D24) vaut pour une projection agrégée en masse, pas pour un root lu par pages
 
 ### D23. Budgets
 
