@@ -207,13 +207,13 @@ returning tbl, row_id, root_table, root_id`, s.sql, n+1, n+2, n+3, n+4, literal(
 			append(s.args, x.id, c.Name, strconv.FormatInt(x.p.ID, 10), optInt(x.p.forID()))...)
 	}
 	touched := func(t *Table) string {
-		return "(select root_id from event where call = $1::uuid and root_table = " + literal(t.Name) + ")"
+		return "any(array(select root_id from event where call = $1::uuid and root_table = " + literal(t.Name) + "))"
 	}
 	var reread []*Table
 	for _, t := range []*Table{root, c.ensureT} {
 		if t != nil && !slices.Contains(reread, t) {
 			reread = append(reread, t)
-			b.Queue("select id, to_jsonb(r) from "+ident(t.source)+" r where id in "+touched(t), x.id)
+			b.Queue("select id, to_jsonb(r) from "+ident(t.source)+" r where id = "+touched(t), x.id)
 		}
 	}
 	var anchored []*Table
@@ -223,7 +223,7 @@ returning tbl, row_id, root_table, root_id`, s.sql, n+1, n+2, n+3, n+4, literal(
 			anchored = append(anchored, t)
 			a := ident(t.Anchor.Column)
 			b.Queue(fmt.Sprintf(`select coalesce(array_agg(distinct a), '{}') from (
-select r.%s::bigint a from %s r where r.id in %s
+select r.%s::bigint a from %s r where r.id = %s
 union all select (e.changes->%s->>0)::bigint from event e where e.call = $1::uuid and e.tbl = %s) x where a is not null`,
 				a, ident(t.Name), touched(t), literal(t.Anchor.Column), literal(t.Name)), x.id)
 		}
