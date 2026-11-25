@@ -37,22 +37,16 @@ var Module = kernel.Module{Name: "billing", Schema: schema, Register: func(r *ke
 	r.Run("invoice.run", "invoice_run_candidates", "invoice.create", kernel.Needs("invoice"))
 	r.Command("delivery.retry", kernel.Needs("invoice"))
 
-	sum := func(cols ...string) []kernel.Agg {
-		aggs := make([]kernel.Agg, len(cols))
-		for i, c := range cols {
-			aggs[i] = kernel.Agg{Col: c, Fn: "sum"}
-		}
-		return aggs
-	}
 	r.Screen(kernel.Screen{ID: "profitability", Group: "analysis", Views: []string{"profitability_cost", "profitability"},
 		Defaults: map[string]string{"date_from": "$year_start", "date_to": "$today"},
-		Wrap: &kernel.Wrap{Group: []string{"project_id"}, Agg: sum("duration_min", "billed_min", "services_amount", "expense_billed_amount",
+		Wrap: &kernel.Wrap{Group: []string{"project_id"}, Agg: kernel.Sum("duration_min", "billed_min", "services_amount", "expense_billed_amount",
 			"expense_user_amount", "realized_amount", "invoiced_amount", "balance_amount")}})
 	r.Screen(kernel.Screen{ID: "invoicing", Group: "billing", Views: []string{"invoice"}, Table: "invoice",
 		Commands: []string{"invoice.run", "invoice.mark_invoiced", "invoice.back_to_draft", "invoice.print", "invoice.export"},
 		Wrap:     &kernel.Wrap{Sort: []kernel.Sort{{Col: "id", Dir: "desc"}}},
 		Children: []kernel.Screen{
-			{ID: "invoice_activity", Views: []string{"invoice_activity"}, Link: map[string]string{"invoice_id": "id"}},
+			{ID: "invoice_activity", Views: []string{"invoice_activity"}, Link: map[string]string{"invoice_id": "id"},
+				Wrap: &kernel.Wrap{Agg: kernel.Sum("duration_min", "billed_min", "amount")}},
 			{ID: "invoice_export", Views: []string{"accounting_export"}, Commands: []string{"delivery.retry"}, Link: map[string]string{"invoice_id": "id"}},
 			{ID: "invoice_pdf", Component: "pdf", Views: []string{"invoice"}, Link: map[string]string{"id": "id"}},
 		}})

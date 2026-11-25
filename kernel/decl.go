@@ -116,6 +116,15 @@ type Agg struct {
 	Fn  string `json:"fn"`
 }
 
+// Sum is the sum of each column, the totals of a screen's wrap.
+func Sum(cols ...string) []Agg {
+	aggs := make([]Agg, len(cols))
+	for i, c := range cols {
+		aggs[i] = Agg{Col: c, Fn: "sum"}
+	}
+	return aggs
+}
+
 // Registry collects the declarations of all modules.
 type Registry struct {
 	Tables    map[string]*TableDecl
