@@ -26,7 +26,7 @@ where d.invoice_id = any(@ids::bigint[]);
 
 -- name: ConnectionAdvance :exec
 -- Records a pull of connections: its cursor (kept when empty), the instant and the error if any.
-update connection set cursor = coalesce(@cursor::text, cursor), pulled_at = sor_now(), pull_error = @pull_error::text
+update connection set cursor = coalesce(sqlc.narg(cursor)::text, cursor), pulled_at = sor_now(), pull_error = sqlc.narg(pull_error)::text
 where id = any(@ids::bigint[]);
 
 -- name: AccountUpsertFromAccounting :exec

@@ -59,7 +59,7 @@ join (values ('manager', array['validation', 'scope_tree']),
              ('collaborateur', array['activity', 'expense']),
              ('agents', array['scope_all', 'activity', 'expense']),
              ('service comptabilité', array['accounting_sync']),
-             ('service ocr', array['ocr'])) v(name, fns) on v.name = g.name
+             ('service ocr', array['ocr', 'scope_all'])) v(name, fns) on v.name = g.name
 cross join unnest(v.fns) f;
 insert into user_group_member (user_group_id, user_id)
 select g.id, u.id

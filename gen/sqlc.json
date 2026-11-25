@@ -79043,6 +79043,176 @@
       "insert_into_table": null
     },
     {
+      "text": "select e.id, e.activity_id, e.receipt_file_id, f.hash\nfrom expense_p e\njoin file f on f.id = e.receipt_file_id\nwhere e.activity_id = any($1::bigint[]) and e.user_id = any($2::bigint[])",
+      "name": "ExpenseReceipt",
+      "cmd": ":many",
+      "columns": [
+        {
+          "name": "id",
+          "not_null": true,
+          "is_array": false,
+          "comment": "",
+          "length": -1,
+          "is_named_param": false,
+          "is_func_call": false,
+          "scope": "",
+          "table": {
+            "catalog": "",
+            "schema": "",
+            "name": "expense_p"
+          },
+          "table_alias": "",
+          "type": {
+            "catalog": "",
+            "schema": "",
+            "name": "pg_catalog.int8"
+          },
+          "is_sqlc_slice": false,
+          "embed_table": null,
+          "original_name": "id",
+          "unsigned": false,
+          "array_dims": 0
+        },
+        {
+          "name": "activity_id",
+          "not_null": true,
+          "is_array": false,
+          "comment": "",
+          "length": -1,
+          "is_named_param": false,
+          "is_func_call": false,
+          "scope": "",
+          "table": {
+            "catalog": "",
+            "schema": "",
+            "name": "expense_p"
+          },
+          "table_alias": "",
+          "type": {
+            "catalog": "",
+            "schema": "",
+            "name": "pg_catalog.int8"
+          },
+          "is_sqlc_slice": false,
+          "embed_table": null,
+          "original_name": "activity_id",
+          "unsigned": false,
+          "array_dims": 0
+        },
+        {
+          "name": "receipt_file_id",
+          "not_null": false,
+          "is_array": false,
+          "comment": "",
+          "length": -1,
+          "is_named_param": false,
+          "is_func_call": false,
+          "scope": "",
+          "table": {
+            "catalog": "",
+            "schema": "",
+            "name": "expense_p"
+          },
+          "table_alias": "",
+          "type": {
+            "catalog": "",
+            "schema": "",
+            "name": "pg_catalog.int8"
+          },
+          "is_sqlc_slice": false,
+          "embed_table": null,
+          "original_name": "receipt_file_id",
+          "unsigned": false,
+          "array_dims": 0
+        },
+        {
+          "name": "hash",
+          "not_null": true,
+          "is_array": false,
+          "comment": "",
+          "length": -1,
+          "is_named_param": false,
+          "is_func_call": false,
+          "scope": "",
+          "table": {
+            "catalog": "",
+            "schema": "",
+            "name": "file"
+          },
+          "table_alias": "",
+          "type": {
+            "catalog": "",
+            "schema": "",
+            "name": "text"
+          },
+          "is_sqlc_slice": false,
+          "embed_table": null,
+          "original_name": "hash",
+          "unsigned": false,
+          "array_dims": 0
+        }
+      ],
+      "params": [
+        {
+          "number": 1,
+          "column": {
+            "name": "activity_ids",
+            "not_null": true,
+            "is_array": true,
+            "comment": "",
+            "length": -1,
+            "is_named_param": true,
+            "is_func_call": false,
+            "scope": "",
+            "table": null,
+            "table_alias": "",
+            "type": {
+              "catalog": "",
+              "schema": "pg_catalog",
+              "name": "int8"
+            },
+            "is_sqlc_slice": false,
+            "embed_table": null,
+            "original_name": "",
+            "unsigned": false,
+            "array_dims": 1
+          }
+        },
+        {
+          "number": 2,
+          "column": {
+            "name": "reach",
+            "not_null": true,
+            "is_array": true,
+            "comment": "",
+            "length": -1,
+            "is_named_param": true,
+            "is_func_call": false,
+            "scope": "",
+            "table": null,
+            "table_alias": "",
+            "type": {
+              "catalog": "",
+              "schema": "pg_catalog",
+              "name": "int8"
+            },
+            "is_sqlc_slice": false,
+            "embed_table": null,
+            "original_name": "",
+            "unsigned": false,
+            "array_dims": 1
+          }
+        }
+      ],
+      "comments": [
+        " Expenses of activities that have a receipt, with the hash of the receipt file: the input of the OCR.",
+        " @anchor user_id user",
+        " @needs ocr"
+      ],
+      "filename": "queries.sql",
+      "insert_into_table": null
+    },
+    {
       "text": "select u.id as user_id, k.carried_min, k.due_min, k.done_min, k.carried_min + k.done_min - k.due_min as balance_min,\n       k.vac_carried_min, k.vac_available_min, k.vac_taken_min, k.vac_carried_min + k.vac_available_min - k.vac_taken_min as vac_balance_min\nfrom \"user\" u\nleft join work_start s on s.user_id = u.id\nleft join (\n    select x.user_id,\n           sum(x.counted_min) filter (where x.date \u003c cast($1 as date) and x.date \u003e= ws.first_day) as done_before,\n           sum(x.counted_min) filter (where x.date \u003e= cast($1 as date)) as done,\n           sum(x.duration_min) filter (where x.kind = 'vacation' and x.date \u003c cast($1 as date) and x.date \u003e= ws.first_day) as vac_before,\n           sum(x.duration_min) filter (where x.kind = 'vacation' and x.date \u003e= cast($1 as date)) as vac_taken\n    from activity_p x\n    left join work_start ws on ws.user_id = x.user_id\n    where x.date \u003c= least(cast($2 as date), sor_today()) and x.user_id = any($3::bigint[])\n    group by x.user_id\n) d on d.user_id = u.id\ncross join lateral work_due(u.id, s.first_day, cast($1 as date) - 1) w0\ncross join lateral work_due(u.id, cast($1 as date), least(cast($2 as date), sor_today())) w1\ncross join lateral (\n    select round(coalesce(d.done_before, 0) - w0.due_min)::integer as carried_min,\n           round(w1.due_min)::integer as due_min,\n           coalesce(d.done, 0)::integer as done_min,\n           round(w0.vacation_min - coalesce(d.vac_before, 0))::integer as vac_carried_min,\n           round(w1.vacation_min)::integer as vac_available_min,\n           coalesce(d.vac_taken, 0)::integer as vac_taken_min\n) k\nwhere u.kind = 'human' and u.id = any($3::bigint[])\norder by u.name",
       "name": "Balance",
       "cmd": ":many",
@@ -82387,7 +82557,7 @@
           "number": 1,
           "column": {
             "name": "cursor",
-            "not_null": true,
+            "not_null": false,
             "is_array": false,
             "comment": "",
             "length": -1,
@@ -82412,7 +82582,7 @@
           "number": 2,
           "column": {
             "name": "pull_error",
-            "not_null": true,
+            "not_null": false,
             "is_array": false,
             "comment": "",
             "length": -1,

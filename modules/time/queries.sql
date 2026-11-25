@@ -69,6 +69,15 @@ left join expense_type t on t.id = e.expense_type_id
 where e.activity_id = @activity_id and e.user_id = any(@reach::bigint[])
 order by e.id;
 
+-- name: ExpenseReceipt :many
+-- Expenses of activities that have a receipt, with the hash of the receipt file: the input of the OCR.
+-- @anchor user_id user
+-- @needs ocr
+select e.id, e.activity_id, e.receipt_file_id, f.hash
+from expense_p e
+join file f on f.id = e.receipt_file_id
+where e.activity_id = any(@activity_ids::bigint[]) and e.user_id = any(@reach::bigint[]);
+
 -- name: Balance :many
 -- Hours and vacation balances per user in reach over [date_from, date_to], nothing after today, in minutes.
 -- Carried = done minus due from the first work period of the user to date_from excluded.

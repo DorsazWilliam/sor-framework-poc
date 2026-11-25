@@ -31,6 +31,8 @@ var Module = kernel.Module{Name: "billing", Schema: schema, Register: func(r *ke
 	r.Command("invoice.back_to_draft", kernel.On("invoice"), kernel.When("revertible"), kernel.Needs("invoice_state"),
 		kernel.Effect("InvoiceLockActivities", "InvoiceReleaseExpenses", "InvoiceReleaseActivities", "InvoiceBackToDraft"))
 	r.Command("invoice.print", kernel.On("invoice"), kernel.Needs("invoice"))
+	r.Job("invoice.render", invoiceRender)
+	r.Reaction("invoice.print", "invoice.render")
 	r.Command("invoice.attach_pdf", kernel.On("invoice"), kernel.Effect("InvoiceAttachPdf"), kernel.Needs("invoice"))
 	r.Run("invoice.run", "invoice_run_candidates", "invoice.create", kernel.Needs("invoice"))
 	r.Command("delivery.retry", kernel.Needs("invoice"))

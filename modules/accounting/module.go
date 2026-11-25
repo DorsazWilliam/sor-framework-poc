@@ -3,6 +3,7 @@ package accounting
 
 import (
 	_ "embed"
+	"time"
 
 	"github.com/DorsazWilliam/sor-framework-poc/kernel"
 )
@@ -17,6 +18,8 @@ var Module = kernel.Module{Name: "accounting", Schema: schema, Register: func(r 
 
 	r.Command("invoice.export", kernel.On("invoice"), kernel.When("exportable"), kernel.Effect("InvoiceExport"), kernel.Needs("invoice"))
 	r.Command("connection.pull", kernel.On("connection"), kernel.Needs("master_data"))
+	r.Job("accounting.pull", accountingPull, kernel.As("svc-accounting"), kernel.Every(5*time.Minute), kernel.Unique())
+	r.Reaction("connection.pull", "accounting.pull")
 	r.Command("connection.advance", kernel.On("connection"), kernel.Effect("ConnectionAdvance"), kernel.Needs("accounting_sync"))
 	r.Command("account.upsert_from_accounting", kernel.On("account"), kernel.Rootless(), kernel.Effect("AccountUpsertFromAccounting"),
 		kernel.Needs("accounting_sync"))
