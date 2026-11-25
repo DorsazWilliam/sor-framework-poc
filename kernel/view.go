@@ -84,6 +84,8 @@ func (k *Kernel) view(ctx context.Context, q querier, p *Principal, name string,
 		return nil, pr
 	}
 	sql = "select coalesce(json_agg(t), '[]') from (" + sql + ") t"
+	// an unnamed statement: planned with its values at every execution
+	args = append([]any{pgx.QueryExecModeExec}, args...)
 	if !v.history {
 		var out []byte
 		return out, q.QueryRow(ctx, sql, args...).Scan(&out)
@@ -96,7 +98,7 @@ func (k *Kernel) view(ctx context.Context, q querier, p *Principal, name string,
 		return nil, pr
 	}
 	args = append(args, pgValue(req.Params["root_id"], "int8"))
-	guard := fmt.Sprintf("select exists(select 1 from %s r where r.id = $%d::bigint and %s)", ident(t.Name), len(args), t.reachFilter(len(args)+1))
+	guard := fmt.Sprintf("select exists(select 1 from %s r where r.id = $%d::bigint and %s)", ident(t.Name), len(args)-1, t.reachFilter(len(args)))
 	if t.Anchor != nil {
 		args = append(args, ints(p.Reach[t.Anchor.Reach]))
 	}
@@ -244,8 +246,8 @@ func (v *View) wrap(w Wrap, args []any, label func(table string) string) (string
 		}
 		return "select " + sel + " from " + q + joins + whereSQL + groupSQL + orderSQL + page, args, nil
 	case byID:
-		return "with k as materialized (select v.id from " + q + joins + whereSQL + orderSQL + page + ") select v.* from k join " + q +
-			" using (id)" + joins + orderSQL, args, nil
+		return "with k as materialized (select v.id from " + q + joins + whereSQL + orderSQL + page + ") select v.* from " + q + joins +
+			` where v."id" = any(array(select id from k))` + orderSQL, args, nil
 	default:
 		return "select v.* from " + q + joins + whereSQL + orderSQL + page, args, nil
 	}

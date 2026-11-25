@@ -61,17 +61,37 @@ type Row struct {
 
 var schemaRegistry = huma.NewMapRegistry("#/components/schemas/", huma.DefaultSchemaNamer)
 
-// NewPool opens a pool set up for the kernel: unnamed statements with text params (Postgres infers
-// every type, plans are custom), no ping on acquire, round trips counted per request.
+// NewPool opens a pool set up for the kernel: statements prepared and cached per connection (a view
+// opts out, see View), no ping on acquire, round trips counted per request.
 func NewPool(ctx context.Context, url string) (*pgxpool.Pool, error) {
 	cfg, err := pgxpool.ParseConfig(url)
 	if err != nil {
 		return nil, err
 	}
-	cfg.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeExec
+	cfg.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeCacheStatement
 	cfg.ConnConfig.Tracer = tracer{}
 	cfg.ShouldPing = func(context.Context, pgxpool.ShouldPingParams) bool { return false }
 	return pgxpool.NewWithConfig(ctx, cfg)
+}
+
+// dbSettings are the settings the model relies on (SPEC §7): the time zone of dates, joins in written
+// order, parallel scans from small sizes, no JIT.
+var dbSettings = []string{"timezone = 'Europe/Zurich'", "jit = off", "join_collapse_limit = 1", "from_collapse_limit = 1",
+	"min_parallel_table_scan_size = '1MB'", "min_parallel_index_scan_size = '64kB'"}
+
+// Configure sets dbSettings on the database of url; sessions opened afterwards have them.
+func Configure(ctx context.Context, url string) error {
+	conn, err := pgx.Connect(ctx, url)
+	if err != nil {
+		return err
+	}
+	defer conn.Close(ctx)
+	for _, s := range dbSettings {
+		if _, err := conn.Exec(ctx, "do $$ begin execute format("+literal("alter database %I set "+s)+", current_database()); end $$"); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Timing counts the database round trips and time of a request.
@@ -141,7 +161,8 @@ type principalRow struct {
 }
 
 // Principal resolves subjects ([sub] or [sub, act_for]) in one round trip; an agent acting for a human
-// gets the intersection of both functions and reaches, and @self is the human.
+// gets the intersection of both functions and reaches, and @self is the human. Reach self is the
+// kernel's: the effective identity.
 func (k *Kernel) Principal(ctx context.Context, subjects []string) (*Principal, error) {
 	var raw []byte
 	err := k.Pool.QueryRow(ctx, "select coalesce(json_agg(p), '[]') from ("+k.principal.Text+") p", pgArray(subjects)).Scan(&raw)
@@ -183,6 +204,7 @@ func (k *Kernel) Principal(ctx context.Context, subjects []string) (*Principal, 
 	if p.Reach == nil {
 		p.Reach = map[string][]int64{}
 	}
+	p.Reach["self"] = []int64{p.Self}
 	return p, nil
 }
 

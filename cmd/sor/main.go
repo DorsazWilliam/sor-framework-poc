@@ -30,7 +30,8 @@ import (
 const usage = `usage: sor <command>
   up                 migrate, seed $SOR_SEED (default demo) if the domain is empty, serve
   serve              serve HTTP on $LISTEN_ADDR (default :8080)
-  migrate            migrate the river schema, apply the module schemas with pgschema, create event partitions
+  migrate            set the database settings, migrate the river schema, apply the module schemas with pgschema,
+                     create event partitions
   seed demo|perf     load the synthetic dataset
   check [--static]   check the registry (--static: manifest and declarations only, no database)
   openapi            write gen/openapi.json
@@ -118,12 +119,12 @@ func checkStatic() error {
 		return err
 	}
 	var labels map[string]string
-	if sor.Labels != nil {
-		if b, err := fs.ReadFile(sor.Labels, "fr.json"); err == nil {
-			if err := json.Unmarshal(b, &labels); err != nil {
-				return fmt.Errorf("labels/fr.json: %w", err)
-			}
-		}
+	b, err := fs.ReadFile(sor.Labels, "fr.json")
+	if err == nil {
+		err = json.Unmarshal(b, &labels)
+	}
+	if err != nil {
+		return fmt.Errorf("labels/fr.json: %w", err)
 	}
 	if p := s.CheckStatic(labels); len(p) > 0 {
 		return errors.New(strings.Join(p, "\n"))
@@ -184,8 +185,8 @@ func serve(ctx context.Context) error {
 	return nil
 }
 
-// migrate creates btree_gist, migrates the river schema, creates the plan database, applies the concatenated schemas with pgschema,
-// then creates the event partitions.
+// migrate sets the database settings, creates btree_gist, migrates the river schema, creates the plan database, applies the
+// concatenated schemas with pgschema, then creates the event partitions.
 func migrate(ctx context.Context) error {
 	s, err := load()
 	if err != nil {
@@ -194,6 +195,9 @@ func migrate(ctx context.Context) error {
 	url := os.Getenv("DATABASE_URL")
 	cfg, err := pgx.ParseConfig(url)
 	if err != nil {
+		return err
+	}
+	if err := kernel.Configure(ctx, url); err != nil {
 		return err
 	}
 	pool, err := kernel.NewPool(ctx, url)

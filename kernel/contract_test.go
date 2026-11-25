@@ -21,6 +21,16 @@ func TestContract(t *testing.T) {
 		t.Fatalf("history: %v", rows)
 	}
 
+	// A module re-declaring a kernel command adds options.
+	if c := k.CommandByName("delivery.retry"); c.Needs != "admin" || c.Table != "delivery" {
+		t.Fatalf("re-declared command: %+v", c)
+	}
+
+	// Reach self is the effective identity: an agent acting for alice owns alice's saved views.
+	bot := principal(t, k, "bot", "alice")
+	call(t, k, bot, "saved_view.create", `{"owner_id":2,"screen":"entries","name":"mine"}`)
+	callErr(t, k, bot, "saved_view.create", `{"owner_id":4,"screen":"entries","name":"bot's"}`, "not_found")
+
 	col := func(cols []kernel.Col, name string) kernel.Col {
 		i := slices.IndexFunc(cols, func(c kernel.Col) bool { return c.Name == name })
 		if i < 0 {

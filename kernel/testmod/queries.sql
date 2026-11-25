@@ -2,7 +2,6 @@
 -- @anchor none
 select p.subject, p.id, p.kind, p.name, p.lang, p.functions,
        jsonb_build_object(
-         'self', jsonb_build_array(p.id),
          'team', coalesce((select jsonb_agg(t.id) from person t where t.manager_id = p.id), '[]'::jsonb),
          'user', jsonb_build_array(p.id) || coalesce((select jsonb_agg(t.id) from person t where t.manager_id = p.id), '[]'::jsonb)
        ) as reach

@@ -3,6 +3,7 @@ package kernel
 import (
 	"context"
 	"encoding/json"
+	"slices"
 	"time"
 )
 
@@ -179,13 +180,15 @@ func (r *Registry) Action(table, name string, conditions ...string) {
 
 type CommandOpt func(*CommandDecl)
 
-// Command declares a command.
+// Command declares a command; declaring it again adds options.
 func (r *Registry) Command(name string, opts ...CommandOpt) {
-	c := &CommandDecl{Name: name}
-	for _, o := range opts {
-		o(c)
+	i := slices.IndexFunc(r.Commands, func(c *CommandDecl) bool { return c.Name == name })
+	if i < 0 {
+		r.Commands, i = append(r.Commands, &CommandDecl{Name: name}), len(r.Commands)
 	}
-	r.Commands = append(r.Commands, c)
+	for _, o := range opts {
+		o(r.Commands[i])
+	}
 }
 
 func On(table string) CommandOpt      { return func(c *CommandDecl) { c.On = table } }

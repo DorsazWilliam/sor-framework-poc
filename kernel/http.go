@@ -38,6 +38,8 @@ type Config struct {
 
 const sessionCookie = "sor_session"
 
+var uuidRe = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
+
 // API builds the HTTP handler and the OpenAPI document: one operation per view and per command.
 func (k *Kernel) API(cfg Config) (http.Handler, huma.API) {
 	mux := http.NewServeMux()
@@ -73,7 +75,14 @@ func (k *Kernel) API(cfg Config) (http.Handler, huma.API) {
 			Responses:   map[string]*huma.Response{"200": {Description: "Changed rows", Content: map[string]*huma.MediaType{"application/json": {Schema: resultSchema}}}},
 		}, func(w http.ResponseWriter, r *http.Request) {
 			k.serve(w, r, "command "+c.Name, func(p *Principal, body []byte) (any, error) {
-				return k.Call(r.Context(), p, c.Name, body)
+				ctx := r.Context()
+				if id := r.Header.Get("Sor-Call"); id != "" {
+					if !uuidRe.MatchString(id) {
+						return nil, problem(422, "invalid", "Sor-Call is not a uuid")
+					}
+					ctx = WithCall(ctx, strings.ToLower(id))
+				}
+				return k.Call(ctx, p, c.Name, body)
 			})
 		})
 	}

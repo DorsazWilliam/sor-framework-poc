@@ -19,7 +19,11 @@ import (
 // Call runs a command (SPEC §7): lock and read (1 round trip), effects and re-read (1), commit (1, plus
 // one when it inserts jobs).
 func (k *Kernel) Call(ctx context.Context, p *Principal, name string, body []byte) (*Result, error) {
-	x, err := k.newCall(p, name, body)
+	id, _ := ctx.Value(callKey{}).(string)
+	if id == "" {
+		id = uuid()
+	}
+	x, err := k.newCall(p, name, body, id)
 	if err != nil {
 		return nil, err
 	}
@@ -43,8 +47,13 @@ func (k *Kernel) Call(ctx context.Context, p *Principal, name string, body []byt
 	return res, nil
 }
 
+type callKey struct{}
+
+// WithCall returns a context whose command invocations use id as their call id (SPEC §13 Sor-Call).
+func WithCall(ctx context.Context, id string) context.Context { return context.WithValue(ctx, callKey{}, id) }
+
 // newCall checks the capability and validates the input of a command.
-func (k *Kernel) newCall(p *Principal, name string, body []byte) (*call, error) {
+func (k *Kernel) newCall(p *Principal, name string, body []byte, id string) (*call, error) {
 	c := k.commands[name]
 	if c == nil {
 		return nil, problem(404, "not_found", "no command "+name)
@@ -56,7 +65,7 @@ func (k *Kernel) newCall(p *Principal, name string, body []byte) (*call, error) 
 	if pr := decode(c, body, &in); pr != nil {
 		return nil, pr
 	}
-	return &call{k: k, c: c, p: p, in: in, id: uuid()}, nil
+	return &call{k: k, c: c, p: p, in: in, id: id}, nil
 }
 
 type call struct {

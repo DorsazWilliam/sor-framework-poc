@@ -1,8 +1,8 @@
-create function sor_now() returns timestamptz language sql stable as
+create function sor_now() returns timestamptz language sql stable parallel safe as
 $$ select coalesce(nullif(current_setting('sor.now', true), '')::timestamptz, transaction_timestamp()) $$;
 comment on function sor_now() is 'The instant of the request: transaction timestamp, pinnable by the setting sor.now.';
 
-create function sor_today() returns date language sql stable as $$ select sor_now()::date $$;
+create function sor_today() returns date language sql stable parallel safe as $$ select sor_now()::date $$;
 comment on function sor_today() is 'The date of sor_now() in the database time zone.';
 
 create function sor_diff(o jsonb, n jsonb) returns jsonb language sql immutable as

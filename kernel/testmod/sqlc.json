@@ -67865,7 +67865,7 @@
       }
     },
     {
-      "text": "select p.subject, p.id, p.kind, p.name, p.lang, p.functions,\n       jsonb_build_object(\n         'self', jsonb_build_array(p.id),\n         'team', coalesce((select jsonb_agg(t.id) from person t where t.manager_id = p.id), '[]'::jsonb),\n         'user', jsonb_build_array(p.id) || coalesce((select jsonb_agg(t.id) from person t where t.manager_id = p.id), '[]'::jsonb)\n       ) as reach\nfrom person p\nwhere p.subject = any($1::text[])",
+      "text": "select p.subject, p.id, p.kind, p.name, p.lang, p.functions,\n       jsonb_build_object(\n         'team', coalesce((select jsonb_agg(t.id) from person t where t.manager_id = p.id), '[]'::jsonb),\n         'user', jsonb_build_array(p.id) || coalesce((select jsonb_agg(t.id) from person t where t.manager_id = p.id), '[]'::jsonb)\n       ) as reach\nfrom person p\nwhere p.subject = any($1::text[])",
       "name": "Principal",
       "cmd": ":many",
       "columns": [

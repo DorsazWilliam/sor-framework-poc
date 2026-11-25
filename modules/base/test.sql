@@ -27,7 +27,7 @@ create temp table pr as execute principal('{root,boss,lead,other,dev}');
 
 -- The admin has every function, scope_all included: its team is every other human.
 select pg_temp.eq('admin functions', (select functions from pr where subject = 'root'), enum_range(null::fn));
-select pg_temp.eq('admin self', (select reach -> 'self' from pr where subject = 'root'), jsonb_build_array(pg_temp.uid('root')));
+select pg_temp.eq('no self reach', (select reach ? 'self' from pr where subject = 'root'), false);
 select pg_temp.eq('admin team', (select reach -> 'team' from pr where subject = 'root'),
     (select jsonb_agg(id order by id) from "user" where kind = 'human' and subject <> 'root'));
 select pg_temp.eq('admin kind/lang', (select kind || '/' || lang from pr where subject = 'root'), 'human/fr');

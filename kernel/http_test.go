@@ -44,7 +44,8 @@ func TestHTTP(t *testing.T) {
 		t.Fatalf("unknown subject: %d %v", res.StatusCode, m)
 	}
 	res, m, _ := do("GET", "/api/me", "bot+alice", "")
-	if res.StatusCode != 200 || m["id"].(float64) != 4 || m["for"].(map[string]any)["name"] != "Alice" || len(m["functions"].([]any)) != 1 {
+	if res.StatusCode != 200 || m["id"].(float64) != 4 || m["for"].(map[string]any)["name"] != "Alice" || len(m["functions"].([]any)) != 1 ||
+		m["reach"].(map[string]any)["self"].([]any)[0].(float64) != 2 {
 		t.Fatalf("me as agent for alice: %v", m)
 	}
 	res, _, body := do("POST", "/api/v/entry_grid", "alice", `{"sort":[{"col":"day","dir":"asc"}]}`)
@@ -62,6 +63,28 @@ func TestHTTP(t *testing.T) {
 	res, m, _ = do("POST", "/api/c/entry.update", "alice", `{"ids":[1],"note":"http"}`)
 	if res.StatusCode != 200 || m["ids"].([]any)[0].(float64) != 1 || m["changed"].([]any)[0].(map[string]any)["table"] != "entry" {
 		t.Fatalf("update: %d %v", res.StatusCode, m)
+	}
+
+	// The client chooses the call id.
+	callWith := func(id string) (*http.Response, map[string]any) {
+		req, _ := http.NewRequest("POST", srv.URL+"/api/c/entry.update", strings.NewReader(`{"ids":[1],"note":"call id"}`))
+		req.Header.Set("Authorization", "Bearer alice")
+		req.Header.Set("Sor-Call", id)
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		var m map[string]any
+		json.NewDecoder(res.Body).Decode(&m)
+		return res, m
+	}
+	const id = "0b6f1c2e-6a41-4c55-9d1e-0f5b7c3a9e21"
+	if res, m := callWith(id); res.StatusCode != 200 || m["call"] != id || count(t, k, "select count(*) from event where call = $1::uuid", id) != 1 {
+		t.Fatalf("Sor-Call: %d %v", res.StatusCode, m)
+	}
+	if res, m := callWith("nope"); res.StatusCode != 422 || m["code"] != "invalid" {
+		t.Fatalf("bad Sor-Call: %d %v", res.StatusCode, m)
 	}
 	if _, _, body := do("GET", "/api/labels/fr", "", ""); body != `{"t.entry":"Saisie"}` {
 		t.Fatalf("labels: %s", body)

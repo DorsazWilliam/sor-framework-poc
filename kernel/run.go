@@ -110,7 +110,7 @@ func (r *runner) execute(ctx context.Context, conn *pgxpool.Conn, p *Principal, 
 		if cancelled {
 			break
 		}
-		x, err := r.k.newCall(p, c.run.PerRoot, cand)
+		x, err := r.k.newCall(p, c.run.PerRoot, cand, uuid())
 		if err == nil {
 			x.conn = conn
 			if _, err = x.exec(ctx, "savepoint root"); err == nil {

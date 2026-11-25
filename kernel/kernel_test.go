@@ -51,9 +51,9 @@ func setup(t *testing.T) *kernel.Kernel {
 		t.Fatal(err)
 	}
 	u.Path = "/" + name
-	q := u.Query()
-	q.Set("plan_cache_mode", "force_custom_plan")
-	u.RawQuery = q.Encode()
+	if err := kernel.Configure(ctx, u.String()); err != nil {
+		t.Fatal(err)
+	}
 	pool, err := kernel.NewPool(ctx, u.String())
 	if err != nil {
 		t.Fatal(err)

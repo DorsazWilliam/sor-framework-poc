@@ -10,7 +10,8 @@ import (
 var coreSchema string
 
 // Core is the kernel's own module; it comes first. Its commands on delivery need the Write capability
-// of delivery, which a domain module sets by declaring the table again.
+// of delivery, which a domain module sets by declaring the table again; it adds options to a command by
+// declaring it again.
 var Core = Module{Name: "kernel", Schema: coreSchema, Register: func(r *Registry) {
 	r.Table("file", NoCRUD(), Label("name"))
 	r.Table("run", Anchor("principal_id", "self"), NoCRUD())
