@@ -255,6 +255,25 @@ Une relecture indépendante du code (2026-11-25) a confirmé le cœur : un seul 
 - Constat : pgschema 2.0 a échoué trois fois à migrer en place un changement de view ou de fonction dont d'autres views dépendent (ordre de ses instructions) ; une base neuve s'applique sans erreur
 - Piste, non construite : views et fonctions ne contiennent pas de données ; `sor migrate` les recrée toutes et ne laisse à l'outil que le diff des tables
 
+## Dashboard et cache client (demandés après la revue)
+
+### D42. Dashboard = écran à tuiles, tuile = view enveloppée dessinée
+
+- Décision : `Screen.Tiles` ; une tuile = view + params + wrap + forme. Le wrap gagne le group d'une date par période
+- 1er ordre : aucun endpoint ni query par tuile ; capability, reach et live sont ceux des views ; une tuile non permise n'existe pas pour le principal
+- 2e ordre : un dashboard personnel est l'état d'un écran à tuiles sauvé en `saved_view` : aucune table, aucune command de plus, et un agent en crée un par MCP
+- Écarté : tables `dashboard` / `dashboard_tile` (une seconde façon de sauver l'état d'un écran) ; un type d'écran à part avec son propre format
+- Graphiques en SVG fait main avec `d3-scale` et `d3-shape` : 17 à 22 KB contre 65 à 270 KB pour les bibliothèques mesurées, thème clair / sombre par nos variables CSS, et aucune ne couvrait toutes les formes
+- Non construit : l'éditeur de tuiles dans l'UI
+
+### D43. Cache client des views, invalidé par le live
+
+- Constat : chaque navigation recréait l'écran et attendait le serveur ; rien ne survivait à un rafraîchissement
+- Décision : un module unique par lequel passe toute lecture de view ; résultat en cache affiché d'abord, relu ensuite ; persistance en `sessionStorage`
+- Ce qui le rend simple : le registry donne les roots de chaque view et le live donne les roots changés ; une entrée dont aucun root n'a bougé pendant que le stream était connecté est fraîche sans requête
+- Limites choisies : `sessionStorage` plutôt qu'un stockage durable (des données sensibles ne restent pas sur le poste après fermeture de l'onglet) ; vidé à la déconnexion, au changement d'identité et de version du registry
+- Aucun cache côté serveur : la vérité reste unique
+
 ### D39. Registres du kernel
 
 - `event`, `run`, `file` sont écrits par le kernel hors pipeline ; toute autre row change par une command. La règle sur les sous-requêtes corrélées (D24) vaut pour une projection agrégée en masse, pas pour un root lu par pages

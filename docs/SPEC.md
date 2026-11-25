@@ -305,10 +305,14 @@ type Command = { name: string; table: string; kind: "create" | "update" | "delet
                  ids: boolean /* prend des ids de rows */; rootless: boolean; input: Col[] /* hors ids */; when?: string; ensure?: string;
                  reach?: string; needs: string; description?: string }
 type Wrap = { filter?: ({ col: string; op: string; value?: unknown } | { action: string })[]; sort?: { col: string; dir: "asc" | "desc" }[];
-              group?: string[]; agg?: { col: string; fn: string }[]; limit?: number; offset?: number }
+              group?: (string | { col: string; by: "day" | "week" | "month" | "year" })[];   // { col, by } : colonne date groupée par période, rendue sous le nom "<col>_<by>"
+              agg?: { col: string; fn: string }[]; limit?: number; offset?: number }
+type Tile = { title: string /* clé de label, à défaut le texte */; view: string; params?: Record<string, string>; wrap?: Wrap;
+              form: "number" | "bar" | "line" | "donut" | "progress" | "heatmap" | "table";
+              stacked?: boolean; horizontal?: boolean; span?: 1 | 2 | 3 | 4 /* largeur, sur 4 colonnes */; link?: string /* écran ouvert au clic */ }
 type Screen = { id: string; group: string; icon?: string /* nom Fluent */; views: string[]; defaults: Record<string, string>; table?: string;
-                commands: string[]; wrap?: Wrap; children: Screen[]; link?: Record<string, string>; component?: string }
-type Meta = { tables: Table[]; views: View[]; commands: Command[]; screens: Screen[];
+                commands: string[]; wrap?: Wrap; children: Screen[]; link?: Record<string, string>; component?: string; tiles: Tile[] }
+type Meta = { version: string /* empreinte du registry */; tables: Table[]; views: View[]; commands: Command[]; screens: Screen[];
               enums: Record<string, string[]>; functions: string[]; groups: string[] }
 
 // POST /api/v/{view}       body: { params?: Record<string, unknown> } & Wrap
@@ -519,6 +523,7 @@ type Screen struct {
     Children  []Screen          // onglets du drawer ; Link : param enfant ← colonne parente
     Link      map[string]string
     Component string            // écran fait main
+    Tiles     []Tile            // écran à tuiles (dashboard) : view + params + wrap + forme
 }
 ```
 
@@ -586,6 +591,51 @@ Un composant `ViewScreen` rend toute `Screen` :
 - Commands : bouton actif = action vraie sur toutes les rows sélectionnées ∧ capability ; inactif → tooltip avec les labels des conditions fausses ; input restant → dialog généré ; run → dialog de progress avec annulation
 - Formulaire généré depuis les colonnes de la Table : FK → Combobox sur lookup ; enum → Select ; bool → Checkbox ; date, `_min`, `_tod`, range `_tod`, tableau `_min`, numérique, texte ; colonne vers `file` → upload et aperçu
 - Rejection → Toast et marquage des rows, avec les labels des conditions
+
+### Dashboard
+
+Une tuile est une view enveloppée, dessinée. Un dashboard est un écran qui a des tuiles. Aucun endpoint, aucune query de plus.
+
+- Déclaration : `Screen.Tiles` ; une tuile = view + params + wrap + forme. Le premier `group` du wrap est l'axe, le second la série ; sans second group, chaque agrégat est une série
+- Formes : `number` (un agrégat, sans group), `bar` (verticale, `horizontal`, groupée, `stacked`), `line` (axe de temps), `donut` (cinq parts au plus, le reste regroupé), `progress` (deux agrégats par row : réalisé, cible), `heatmap` (un agrégat par jour, une année), `table` (les rows du wrap)
+- Les params de l'écran (`Defaults`, barre de params) vont à chaque tuile dont la view a un param du même nom ; `Tile.params` les précise
+- Une tuile dont la view n'est pas permise au principal n'existe pas pour lui : le registry servi est déjà filtré. Capability, reach et live s'appliquent sans rien ajouter
+- Clic sur une tuile : l'écran `link` s'ouvre avec les params et le filtre de la tuile ; clic sur une marque : le même, filtré sur sa valeur d'axe
+- Une requête par tuile : le wrap rend déjà les agrégats. Les tuiles par défaut sont bornées par la période de l'écran
+- Dashboard personnel : l'état d'un écran à tuiles (params + tuiles) se sauve en `saved_view`, comme l'état d'un grid. Créer un dashboard = `saved_view.create` : faisable par un utilisateur ou par un agent via MCP, sans autre primitive. L'éditeur de tuiles dans l'UI n'est pas construit
+- `sor check` refuse une tuile dont la view, une colonne de group ou d'agrégat n'existe pas, ou dont le titre n'a pas de label fr
+
+Graphiques (`ui/src/chart/`) : SVG fait main, `d3-scale` et `d3-shape` pour les échelles et les tracés. Couleurs par tokens (`--chart-1` à `--chart-6`, clair et sombre), formats des axes et infobulles par le `format` de la colonne, légende, infobulle, focus clavier sur les marques, titre accessible.
+
+Dashboard par défaut (groupe Analyse), tuiles selon la capability :
+
+| Tuile | Forme | View |
+|---|---|---|
+| À valider | number | `activity_team`, filtre par l'action `validatable`, count |
+| Invoices en cours, montant | number | `invoice`, filtre `is_draft` |
+| Exports en échec | number | `connection_delivery` |
+| Heures faites / dues par semaine | bar groupée | `timesheet_day`, `$self`, date par semaine |
+| Heures par genre de tâche | donut | `activity_grid`, group `kind` |
+| Heures par jour | heatmap | `timesheet_day`, `$self`, année en cours |
+| Prestations par mois, réalisé / facturé | bar groupée | `revenue`, date par mois |
+| Non facturé par project, top 10 | bar horizontale | `profitability`, group `project_id` |
+| Estimé / consommé par folder, top 10 | progress | `folder_budget` |
+| Marge par project, top 10 | bar horizontale | `profitability_cost` |
+
+Views ajoutées pour ces tuiles : `revenue(date_from, date_to)` (lignes de prestation et de frais avec leur date ; anchor none, needs invoice) et `folder_budget` (folders avec estimé : estimé, consommé ; anchor none, needs any).
+
+### Cache client
+
+Un seul module (`ui/src/app/cache.svelte.ts`) ; toute lecture de view y passe (grid, lookups, saisie, tuiles).
+
+- Clé : identité effective + view + params + wrap. Valeur : les rows et l'instant de lecture
+- À l'affichage : le résultat en cache d'abord, puis la relecture en arrière-plan
+- Frais sans relecture : une entrée lue pendant que le stream du live est connecté sans interruption, et dont aucun root n'a reçu de clé depuis. Les roots d'une view viennent du registry
+- Une clé du live sur un root : les entrées affichées se relisent, les autres sont jetées. Reconnexion du stream : tout est périmé
+- Après sa propre command : les entrées des roots de `changed` se relisent tout de suite
+- Persistance : `sessionStorage` (survit au rafraîchissement, meurt avec l'onglet), avec `me`, `meta` et les labels : au rechargement le shell et l'écran s'affichent depuis le cache, puis tout se revalide
+- Vidé à la déconnexion, sur un 401, quand l'identité change, quand `meta.version` change. Taille bornée, éviction des entrées les plus anciennes ; un quota dépassé désactive la persistance, pas le cache
+- Repères de mesure : `data-ready` = données affichées (du cache ou du serveur) ; `data-fresh` = confirmées par le serveur
 
 ### Écran de saisie (fait main)
 
