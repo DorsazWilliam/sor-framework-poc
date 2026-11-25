@@ -115,6 +115,14 @@ type worker struct {
 	k *Kernel
 }
 
+// Timeout: a run is long by nature and stops on run.cancel, so run.execute has none; the other jobs keep River's.
+func (w *worker) Timeout(j *river.Job[sorArgs]) time.Duration {
+	if j.Args.Job.Kind == "run.execute" {
+		return -1
+	}
+	return 0
+}
+
 func (w *worker) Work(ctx context.Context, j *river.Job[sorArgs]) error {
 	job := j.Args.Job
 	d := w.k.jobs[job.Kind]
