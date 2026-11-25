@@ -4,7 +4,7 @@
   import Button from "../ds/Button.svelte";
   import Field from "../ds/Field.svelte";
   import FieldEditor from "./FieldEditor.svelte";
-  import { execute, takesIds } from "./commands";
+  import { execute } from "./commands";
   import { colLabel } from "../app/session.svelte";
   import { t } from "../labels/i18n.svelte";
   import { ApiError } from "../api/client";
@@ -23,7 +23,7 @@
   async function submit(e: Event) {
     e.preventDefault();
     busy = true;
-    const res = await execute(cmd, { ...(takesIds(cmd) ? { ids } : {}), ...values }, onRejected);
+    const res = await execute(cmd, { ...(cmd.ids ? { ids } : {}), ...values }, onRejected);
     busy = false;
     if (!(res instanceof ApiError)) open = false;
   }
@@ -35,7 +35,7 @@
 
 <Dialog bind:open title={t(`cmd.${cmd.name}`)}>
   <form id="cmd-form" onsubmit={submit}>
-    {#if takesIds(cmd)}<p class="muted">{t("ui.applies_to", { n: ids.length })}</p>{/if}
+    {#if cmd.ids}<p class="muted">{t("ui.applies_to", { n: ids.length })}</p>{/if}
     {#each cmd.input as c (c.name)}
       <Field label={colLabel(c.name, cmd.table)} id="cmd-{c.name}">
         <FieldEditor col={c} id="cmd-{c.name}" bind:value={values[c.name]} />

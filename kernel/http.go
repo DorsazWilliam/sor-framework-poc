@@ -13,6 +13,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"reflect"
 	"regexp"
 	"strings"
 	"sync"
@@ -45,7 +46,8 @@ func (k *Kernel) API(cfg Config) (http.Handler, huma.API) {
 	hc.DocsPath, hc.SchemasPath, hc.CreateHooks = "", "", nil
 	hc.Components.Schemas = schemaRegistry
 	api := humago.New(mux, hc)
-	problemResp := &huma.Response{Description: "Error", Content: map[string]*huma.MediaType{"application/problem+json": {Schema: &huma.Schema{Type: huma.TypeObject}}}}
+	schema := func(v any) *huma.Schema { return schemaRegistry.Schema(reflect.TypeOf(v), true, "") }
+	problemResp := &huma.Response{Description: "Error", Content: map[string]*huma.MediaType{"application/problem+json": {Schema: schema(Problem{})}}}
 	register := func(op *huma.Operation, serve func(w http.ResponseWriter, r *http.Request)) {
 		op.Responses["default"] = problemResp
 		api.OpenAPI().AddOperation(op)
@@ -70,19 +72,20 @@ func (k *Kernel) API(cfg Config) (http.Handler, huma.API) {
 		register(&huma.Operation{OperationID: "command_" + c.Name, Method: http.MethodPost, Path: "/api/c/" + c.Name, Summary: c.Name,
 			Description: c.Description, Tags: []string{"commands"},
 			RequestBody: &huma.RequestBody{Required: true, Content: map[string]*huma.MediaType{"application/json": {Schema: c.in}}},
-			Responses:   map[string]*huma.Response{"200": {Description: "Changed rows", Content: map[string]*huma.MediaType{"application/json": {Schema: resultSchema}}}},
+			Responses:   map[string]*huma.Response{"200": {Description: "Changed rows", Content: map[string]*huma.MediaType{"application/json": {Schema: schema(Result{})}}}},
 		}, func(w http.ResponseWriter, r *http.Request) {
 			k.serve(w, r, "command "+c.Name, func(p *Principal, body []byte) (any, error) { return k.Call(r.Context(), p, c.Name, body) })
 		})
 	}
 	a := &authn{cfg: cfg}
 	k.verify = a.verify
-	mux.HandleFunc("GET /api/meta", func(w http.ResponseWriter, r *http.Request) {
-		k.serve(w, r, "meta", func(p *Principal, _ []byte) (any, error) { return k.Permitted(p), nil })
-	})
-	mux.HandleFunc("GET /api/me", func(w http.ResponseWriter, r *http.Request) {
-		k.serve(w, r, "me", func(p *Principal, _ []byte) (any, error) { return p.Me(), nil })
-	})
+	for path, get := range map[string]func(p *Principal) any{"me": func(p *Principal) any { return p.Me() }, "meta": func(p *Principal) any { return k.Permitted(p) }} {
+		register(&huma.Operation{OperationID: path, Method: http.MethodGet, Path: "/api/" + path, Summary: path, Tags: []string{"registry"},
+			Responses: map[string]*huma.Response{"200": {Description: path, Content: map[string]*huma.MediaType{"application/json": {Schema: schema(get(&Principal{}))}}}},
+		}, func(w http.ResponseWriter, r *http.Request) {
+			k.serve(w, r, path, func(p *Principal, _ []byte) (any, error) { return get(p), nil })
+		})
+	}
 	mux.HandleFunc("GET /api/labels/{lang}", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		lang := r.PathValue("lang")

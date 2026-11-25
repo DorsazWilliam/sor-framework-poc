@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"slices"
 	"time"
+
+	"github.com/danielgtaylor/huma/v2"
 )
 
 // Module is a unit of SQL plus declarations.
@@ -28,6 +30,7 @@ type TableDecl struct {
 	AppendOnly bool
 	NoCRUD     bool
 	Group      string // nav group of its generic screen; "" = none
+	Icon       string // icon of its generic screen
 }
 
 // AnchorDecl ties rows to a named reach of the principal.
@@ -80,6 +83,7 @@ type JobFunc func(ctx context.Context, k *Kernel, job Job) error
 type Screen struct {
 	ID        string            `json:"id"`
 	Group     string            `json:"group"`
+	Icon      string            `json:"icon,omitempty" doc:"Name of a Fluent icon"`
 	Views     []string          `json:"views"`
 	Defaults  map[string]string `json:"defaults"`
 	Table     string            `json:"table,omitempty"`
@@ -108,14 +112,25 @@ type Filter struct {
 	Action string `json:"action,omitempty"`
 }
 
+// Schema is that of a filter on a column or by an action (SPEC §7).
+func (Filter) Schema(huma.Registry) *huma.Schema { return filterSchema(&huma.Schema{Type: huma.TypeString}) }
+
+func filterSchema(col *huma.Schema) *huma.Schema {
+	return &huma.Schema{OneOf: []*huma.Schema{
+		object(map[string]*huma.Schema{"col": col, "op": enumOf("eq", "ne", "lt", "le", "gt", "ge", "in", "contains", "null", "notnull"), "value": {}},
+			[]string{"col", "op"}),
+		object(map[string]*huma.Schema{"action": {Type: huma.TypeString}}, []string{"action"}),
+	}}
+}
+
 type Sort struct {
 	Col string `json:"col"`
-	Dir string `json:"dir"`
+	Dir string `json:"dir" enum:"asc,desc"`
 }
 
 type Agg struct {
 	Col string `json:"col"`
-	Fn  string `json:"fn"`
+	Fn  string `json:"fn" enum:"sum,count,min,max,avg"`
 }
 
 // Sum is the sum of each column, the totals of a screen's wrap.
@@ -184,6 +199,9 @@ func NoCRUD() TableOpt             { return func(t *TableDecl) { t.NoCRUD = true
 
 // Group gives the table a generic screen in a nav group (SPEC §6 `Screen(group)`; renamed because Screen is the type of §19).
 func Group(group string) TableOpt { return func(t *TableDecl) { t.Group = group } }
+
+// Icon is the icon (a Fluent icon name) of the generic screen of the table.
+func Icon(name string) TableOpt { return func(t *TableDecl) { t.Icon = name } }
 
 // Action declares an action of a table as the AND of conditions of its projection.
 func (r *Registry) Action(table, name string, conditions ...string) {

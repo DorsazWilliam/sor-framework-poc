@@ -28,7 +28,7 @@ var Module = kernel.Module{Name: "accounting", Schema: schema, Register: func(r 
 	r.Command("project.upsert_from_accounting", kernel.On("project"), kernel.Rootless(), kernel.Effect("ProjectUpsertFromAccounting"),
 		kernel.Needs("accounting_sync"))
 
-	r.Screen(kernel.Screen{ID: "accounting", Group: "system", Views: []string{"connection"}, Table: "connection",
+	r.Screen(kernel.Screen{ID: "accounting", Group: "system", Icon: "arrow-sync", Views: []string{"connection"}, Table: "connection",
 		Commands: []string{"connection.pull"},
 		Children: []kernel.Screen{{ID: "connection_delivery", Views: []string{"connection_delivery"}, Commands: []string{"delivery.retry"},
 			Link: map[string]string{"connection_id": "id"}}}})

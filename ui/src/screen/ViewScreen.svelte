@@ -15,7 +15,7 @@
   import SavedViews from "./SavedViews.svelte";
   import UserMenu from "../shell/UserMenu.svelte";
   import FilterOff from "~icons/fluent/dismiss-circle-16-filled";
-  import { evaluate, execute, kindIcon, takesIds } from "./commands";
+  import { evaluate, execute, kindIcon } from "./commands";
   import { colLabel, command, screenLabel, screenView, session, table } from "../app/session.svelte";
   import { isNumeric } from "../app/display";
   import { lookup } from "../app/lookups.svelte";
@@ -35,15 +35,23 @@
   const linkJson = $derived(JSON.stringify(link ?? {}));
   const linked = $derived(linkWrap(v, JSON.parse(linkJson)));
 
+  // The screen's wrap keeps the columns of the view chosen (SPEC §19): a screen lists several views.
+  const has = (col: string) => v.columns.some((c) => c.name === col);
+  const wrap = $derived({
+    filter: (screen.wrap?.filter ?? []).filter((f) => !("col" in f) || has(f.col)),
+    sort: (screen.wrap?.sort ?? []).filter((s) => has(s.col)),
+    group: (screen.wrap?.group ?? []).filter(has),
+    agg: (screen.wrap?.agg ?? []).filter((a) => a.fn === "count" || has(a.col)),
+  });
   // Full state from a partial one (URL or saved view; ignored for a child screen) over the screen's defaults and wrap.
   const merge = (given: ScreenState) => {
     const s = link ? {} : given;
     return {
-    params: { ...defaults(screen.defaults, session.me), ...s.params, ...linked.params },
-    filter: s.wrap?.filter ?? screen.wrap?.filter ?? [],
-    sort: s.wrap?.sort ?? screen.wrap?.sort ?? [],
-    group: s.wrap?.group ?? screen.wrap?.group ?? [],
-    widths: s.widths ?? {},
+      params: { ...defaults(screen.defaults, session.me), ...s.params, ...linked.params },
+      filter: s.wrap?.filter ?? wrap.filter,
+      sort: s.wrap?.sort ?? wrap.sort,
+      group: s.wrap?.group ?? wrap.group,
+      widths: s.widths ?? {},
     };
   };
   const init = merge(route.state);
@@ -65,7 +73,7 @@
       view: v.name,
       ...$state.snapshot({ params, sort, group }),
       filter: [...linked.filter, ...$state.snapshot(filter)],
-      agg: screen.wrap?.agg ?? [],
+      agg: wrap.agg,
       count: v.columns[0].name,
     }),
   );
@@ -76,9 +84,10 @@
       .map(command)
       .filter((c): c is Command => !!c),
   );
-  // `id` and the conditions of the view's root tables stay in the rows (commands read them) but are not displayed.
-  const conditions = $derived(new Set(v.roots.flatMap((r) => table(r)?.conditions ?? [])));
-  const columns = $derived(v.columns.filter((c) => c.name !== "id" && !conditions.has(c.name)));
+  // `id` and the conditions of the view's root tables stay in the rows (commands read them) but are not displayed; nor
+  // are the columns of a child screen's link, the parent's (SPEC §19).
+  const hidden = $derived(new Set(["id", ...v.roots.flatMap((r) => table(r)?.conditions ?? []), ...Object.keys(screen.link ?? {})]));
+  const columns = $derived(v.columns.filter((c) => !hidden.has(c.name)));
   const shownParams =$derived(v.params.filter((p) => !(link && p.name in link)));
   const groupItems = $derived([
     { value: "", label: t("ui.no_grouping") },
@@ -220,7 +229,7 @@
 {#if dialog?.kind === "run"}
   <RunDialog cmd={dialog} initial={params} onclose={() => (dialog = null)} />
 {:else if dialog}
-  <CommandDialog cmd={dialog} ids={takesIds(dialog) ? ids : []} onclose={() => (dialog = null)} onRejected={flag} />
+  <CommandDialog cmd={dialog} ids={dialog.ids ? ids : []} onclose={() => (dialog = null)} onRejected={flag} />
 {/if}
 
 <style>

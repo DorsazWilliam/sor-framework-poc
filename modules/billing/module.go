@@ -40,11 +40,12 @@ var Module = kernel.Module{Name: "billing", Schema: schema, Register: func(r *ke
 	r.Run("invoice.run", "invoice_run_candidates", "invoice.create", kernel.Needs("invoice"))
 	r.Command("delivery.retry", kernel.Needs("invoice"))
 
-	r.Screen(kernel.Screen{ID: "profitability", Group: "analysis", Views: []string{"profitability_cost", "profitability"},
+	r.Screen(kernel.Screen{ID: "profitability", Group: "analysis", Icon: "data-trending", Views: []string{"profitability_cost", "profitability"},
 		Defaults: map[string]string{"date_from": "$year_start", "date_to": "$today"},
 		Wrap: &kernel.Wrap{Group: []string{"project_id"}, Agg: kernel.Sum("duration_min", "billed_min", "services_amount", "expense_billed_amount",
-			"expense_user_amount", "realized_amount", "invoiced_amount", "balance_amount")}})
-	r.Screen(kernel.Screen{ID: "invoicing", Group: "billing", Views: []string{"invoice"}, Table: "invoice",
+			"expense_user_amount", "realized_amount", "invoiced_amount", "balance_amount", "counted_min", "cost_amount", "services_margin_amount",
+			"balance_margin_amount")}})
+	r.Screen(kernel.Screen{ID: "invoicing", Group: "billing", Icon: "document-text", Views: []string{"invoice"}, Table: "invoice",
 		Commands: []string{"invoice.run", "invoice.mark_invoiced", "invoice.back_to_draft", "invoice.print", "invoice.export"},
 		Wrap:     &kernel.Wrap{Sort: []kernel.Sort{{Col: "id", Dir: "desc"}}},
 		Children: []kernel.Screen{

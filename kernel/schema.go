@@ -79,11 +79,7 @@ func (b *booter) viewSchemas(v *View) {
 	one, zero, max := 1.0, 0.0, float64(maxLimit)
 	v.in = object(map[string]*huma.Schema{
 		"params": object(params, nil),
-		"filter": {Type: huma.TypeArray, Items: &huma.Schema{OneOf: []*huma.Schema{
-			object(map[string]*huma.Schema{"col": col, "op": enumOf("eq", "ne", "lt", "le", "gt", "ge", "in", "contains", "null", "notnull"), "value": {}},
-				[]string{"col", "op"}),
-			object(map[string]*huma.Schema{"action": {Type: huma.TypeString}}, []string{"action"}),
-		}}},
+		"filter": {Type: huma.TypeArray, Items: filterSchema(col)},
 		"sort":   {Type: huma.TypeArray, Items: object(map[string]*huma.Schema{"col": {Type: huma.TypeString}, "dir": enumOf("asc", "desc")}, []string{"col"})},
 		"group":  {Type: huma.TypeArray, Items: col},
 		"agg":    {Type: huma.TypeArray, Items: object(map[string]*huma.Schema{"col": col, "fn": enumOf("sum", "count", "min", "max", "avg")}, []string{"fn"})},
@@ -97,7 +93,7 @@ func (b *booter) viewSchemas(v *View) {
 func (b *booter) commandSchema(c *Command) {
 	props := map[string]*huma.Schema{}
 	var req []string
-	if !c.Rootless && c.Kind != "create" && c.Kind != "run" {
+	if c.IDs {
 		one := 1
 		props["ids"] = &huma.Schema{Type: huma.TypeArray, MinItems: &one, Items: &huma.Schema{Type: huma.TypeInteger, Format: "int64"}}
 		req = append(req, "ids")
@@ -111,16 +107,6 @@ func (b *booter) commandSchema(c *Command) {
 	c.in = object(props, req)
 	precompute(c.in)
 }
-
-var resultSchema = object(map[string]*huma.Schema{
-	"call": {Type: huma.TypeString, Format: "uuid"},
-	"changed": {Type: huma.TypeArray, Items: object(map[string]*huma.Schema{
-		"table": {Type: huma.TypeString},
-		"ids":   {Type: huma.TypeArray, Items: &huma.Schema{Type: huma.TypeInteger, Format: "int64"}},
-	}, []string{"table", "ids"})},
-	"ids": {Type: huma.TypeArray, Items: &huma.Schema{Type: huma.TypeInteger, Format: "int64"}},
-	"run": {Type: huma.TypeInteger, Format: "int64"},
-}, []string{"call", "changed", "ids"})
 
 func precompute(s *huma.Schema) {
 	if s == nil {

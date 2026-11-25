@@ -557,6 +557,7 @@ func (b *booter) bootCommands(ctx context.Context) {
 }
 
 func (b *booter) addCommand(c *Command) {
+	c.IDs = !c.Rootless && c.Kind != "create" && c.Kind != "run"
 	if b.commands[c.Name] != nil {
 		b.fail("command %s declared twice", c.Name)
 		return
@@ -636,7 +637,7 @@ func (b *booter) meta() {
 // tableScreen is the generated screen of a table declared with Group (SPEC §19): its list view, its CRUD and a
 // tab per child table, read by its foreign key.
 func tableScreen(t *Table) Screen {
-	s := Screen{ID: t.Name, Group: t.decl.Group, Views: []string{t.Name}, Table: t.Name}
+	s := Screen{ID: t.Name, Group: t.decl.Group, Icon: t.decl.Icon, Views: []string{t.Name}, Table: t.Name}
 	for _, c := range t.children {
 		s.Children = append(s.Children, Screen{ID: c.Name, Views: []string{c.Name}, Table: c.Name, Link: map[string]string{c.ChildFK: "id"}})
 	}

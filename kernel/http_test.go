@@ -117,4 +117,9 @@ func TestHTTP(t *testing.T) {
 	if _, ok := oa.Paths["/api/c/entry.validate"]["post"].RequestBody.Content["application/json"].Schema["properties"].(map[string]any)["ids"]; !ok {
 		t.Fatal("openapi custom command without ids")
 	}
+	for _, path := range []string{"/api/me", "/api/meta"} {
+		if ref := oa.Paths[path]["get"].Responses["200"].Content["application/json"].Schema["$ref"]; ref == nil {
+			t.Fatalf("openapi %s: %s", path, doc)
+		}
+	}
 }

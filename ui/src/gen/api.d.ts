@@ -719,7 +719,7 @@ export interface paths {
         put?: never;
         /**
          * invoice.back_to_draft
-         * @description Locks the activities of invoices, by id, before they are attached or released. Clears the frozen amounts of the expenses of the activities of invoices. Detaches the activities of invoices and clears their frozen values. Returns invoices to draft.
+         * @description Deletes the expense lines of invoices. Deletes the activity lines of invoices. Returns invoices to draft.
          */
         post: operations["command_invoice.back_to_draft"];
         delete?: never;
@@ -773,7 +773,7 @@ export interface paths {
         put?: never;
         /**
          * invoice.export
-         * @description Writes the delivery of each invoice document to the accounting connection.
+         * @description Writes the delivery of the CSV of each invoice to /invoices of the accounting connection.
          */
         post: operations["command_invoice.export"];
         delete?: never;
@@ -793,7 +793,7 @@ export interface paths {
         put?: never;
         /**
          * invoice.mark_invoiced
-         * @description Locks the activities of invoices, by id, before they are attached or released. Attaches its candidate activities to each draft invoice. Freezes rate, billed duration and amount of the activities attached to invoices, read in their projection. Freezes the amounts of the expenses of the activities attached to invoices, read in their projection. Marks invoices invoiced by the principal, now.
+         * @description Locks the candidate activities of draft invoices, by id: the following statements write the lines of these only. Writes a line per locked activity on its invoice, with rate, billed duration and amount read in its projection. Writes a line per expense of the locked activities on the invoice of its activity, with the amounts read in its projection. Marks invoices invoiced by the principal, now.
          */
         post: operations["command_invoice.mark_invoiced"];
         delete?: never;
@@ -1454,6 +1454,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** me */
+        get: operations["me"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/meta": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** meta */
+        get: operations["meta"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v/account": {
         parameters: {
             query?: never;
@@ -1588,7 +1622,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v/activity_to_validate": {
+    "/api/v/activity_team": {
         parameters: {
             query?: never;
             header?: never;
@@ -1598,10 +1632,10 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * activity_to_validate
-         * @description Activities of the team over a period that need a validation and are not validated. Unordered: the wrap sorts.
+         * activity_team
+         * @description Activities of the team over a period; the validation list filters them by the action validatable. Unordered: the wrap sorts.
          */
-        post: operations["view_activity_to_validate"];
+        post: operations["view_activity_team"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1770,7 +1804,7 @@ export interface paths {
         put?: never;
         /**
          * delivery
-         * @description An outgoing message to an external system; sent by a job.
+         * @description An outgoing message to an external system: any content, posted to the endpoint of the connection plus its path by a job.
          */
         post: operations["view_delivery"];
         delete?: never;
@@ -2252,6 +2286,80 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v/invoice_expense": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * invoice_expense
+         * @description An expense billed on an invoice, with the amounts of its projection when the invoice was marked invoiced.
+         */
+        post: operations["view_invoice_expense"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v/invoice_expense.lookup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** invoice_expense.lookup */
+        post: operations["view_invoice_expense.lookup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v/invoice_line": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * invoice_line
+         * @description An activity billed on an invoice, with the values of its projection when the invoice was marked invoiced.
+         */
+        post: operations["view_invoice_line"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v/invoice_line.lookup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** invoice_line.lookup */
+        post: operations["view_invoice_line.lookup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v/invoice_run_candidates": {
         parameters: {
             query?: never;
@@ -2320,7 +2428,7 @@ export interface paths {
         put?: never;
         /**
          * profitability
-         * @description Per folder and its project, over the activities of a period: durations, services, expenses billed and reimbursed, realized (services and expenses billed), invoiced, balance (realized minus invoiced). Invoiced activities use their frozen values.
+         * @description Per folder and its project, over the activities of a period: durations, services, expenses billed and reimbursed, realized (services and expenses billed), invoiced, balance (realized minus invoiced). Invoiced activities use the values of their invoice line.
          */
         post: operations["view_profitability"];
         delete?: never;
@@ -2380,7 +2488,7 @@ export interface paths {
         put?: never;
         /**
          * project.lookup
-         * @description Projects for choices, labelled "client / project".
+         * @description Projects for choices, labelled "client / project", with whether activities can be entered.
          */
         post: operations["view_project.lookup"];
         delete?: never;
@@ -2805,7 +2913,193 @@ export interface paths {
 }
 export type webhooks = Record<string, never>;
 export interface components {
-    schemas: never;
+    schemas: {
+        Agg: {
+            col: string;
+            /** @enum {string} */
+            fn: "sum" | "count" | "min" | "max" | "avg";
+        };
+        AnchorDecl: {
+            column: string;
+            reach: string;
+        };
+        Changed: {
+            ids: number[];
+            table: string;
+        };
+        Col: {
+            description?: string;
+            enum?: string;
+            /** @enum {string} */
+            format: "" | "min" | "tod" | "pct" | "coef" | "money";
+            name: string;
+            nullable: boolean;
+            ref?: string;
+            type: string;
+        };
+        Command: {
+            description?: string;
+            ensure?: string;
+            /** @description Takes the ids of rows */
+            ids: boolean;
+            input: components["schemas"]["Col"][];
+            /** @enum {string} */
+            kind: "create" | "update" | "delete" | "custom" | "run";
+            name: string;
+            needs: string;
+            reach?: string;
+            rootless: boolean;
+            table: string;
+            when?: string;
+        };
+        Me: {
+            for?: components["schemas"]["MeFor"];
+            functions: string[];
+            /** Format: int64 */
+            id: number;
+            kind: string;
+            /** @enum {string} */
+            lang: "fr" | "de" | "en";
+            name: string;
+            reach: {
+                [key: string]: number[];
+            };
+            /**
+             * Format: int64
+             * @description The effective identity: the human an agent acts for
+             */
+            self: number;
+        };
+        MeFor: {
+            /** Format: int64 */
+            id: number;
+            name: string;
+        };
+        Meta: {
+            commands: components["schemas"]["Command"][];
+            enums: {
+                [key: string]: string[];
+            };
+            functions: string[];
+            groups: string[];
+            screens: components["schemas"]["Screen"][];
+            tables: components["schemas"]["Table"][];
+            views: components["schemas"]["View"][];
+        };
+        Problem: {
+            action?: string;
+            /** @enum {string} */
+            code: "unauthenticated" | "forbidden" | "not_found" | "rejected" | "constraint" | "invalid" | "internal";
+            constraint?: string;
+            detail?: string;
+            errors?: components["schemas"]["ProblemError"][];
+            needs?: string;
+            rejected?: components["schemas"]["Rejected"][];
+            /** Format: int64 */
+            status: number;
+            title: string;
+        };
+        ProblemError: {
+            location?: string;
+            message: string;
+            value?: unknown;
+        };
+        Rejected: {
+            conditions: string[];
+            /** Format: int64 */
+            id: number;
+            row: unknown;
+        };
+        Result: {
+            /**
+             * Format: uuid
+             * @description The e of the live keys of the command
+             */
+            call: string;
+            changed: components["schemas"]["Changed"][];
+            ids: number[];
+            /** Format: int64 */
+            run?: number;
+        };
+        Screen: {
+            children: components["schemas"]["Screen"][];
+            commands: string[];
+            component?: string;
+            defaults: {
+                [key: string]: string;
+            };
+            group: string;
+            /** @description Name of a Fluent icon */
+            icon?: string;
+            id: string;
+            link?: {
+                [key: string]: string;
+            };
+            table?: string;
+            views: string[];
+            wrap?: components["schemas"]["Wrap"];
+        };
+        Sort: {
+            col: string;
+            /** @enum {string} */
+            dir: "asc" | "desc";
+        };
+        Table: {
+            actions: {
+                [key: string]: string[];
+            };
+            anchor?: components["schemas"]["AnchorDecl"];
+            child_fk?: string;
+            columns: components["schemas"]["TableCol"][];
+            conditions: string[];
+            crud: boolean;
+            description?: string;
+            label: string;
+            name: string;
+            read: string;
+            root: string;
+            under?: string;
+            write: string;
+        };
+        TableCol: {
+            description?: string;
+            enum?: string;
+            /** @enum {string} */
+            format: "" | "min" | "tod" | "pct" | "coef" | "money";
+            guarded: boolean;
+            has_default: boolean;
+            name: string;
+            nullable: boolean;
+            ref?: string;
+            type: string;
+        };
+        View: {
+            anchor?: components["schemas"]["AnchorDecl"];
+            columns: components["schemas"]["Col"][];
+            description?: string;
+            name: string;
+            needs: string;
+            params: components["schemas"]["Col"][];
+            roots: string[];
+        };
+        Wrap: {
+            agg?: components["schemas"]["Agg"][];
+            filter?: ({
+                col: string;
+                /** @enum {string} */
+                op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
+                value?: unknown;
+            } | {
+                action: string;
+            })[];
+            group?: string[];
+            /** Format: int64 */
+            limit?: number;
+            /** Format: int64 */
+            offset?: number;
+            sort?: components["schemas"]["Sort"][];
+        };
+    };
     responses: never;
     parameters: never;
     requestBodies: never;
@@ -2842,17 +3136,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -2861,7 +3145,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -2887,17 +3171,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -2906,7 +3180,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -2940,17 +3214,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -2959,7 +3223,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -2987,17 +3251,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -3006,7 +3260,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -3068,17 +3322,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -3087,7 +3331,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -3113,17 +3357,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -3132,7 +3366,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -3158,17 +3392,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -3177,7 +3401,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -3240,17 +3464,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -3259,7 +3473,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -3285,17 +3499,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -3304,7 +3508,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -3337,17 +3541,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -3356,7 +3550,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -3382,17 +3576,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -3401,7 +3585,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -3435,17 +3619,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -3454,7 +3628,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -3482,17 +3656,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -3501,7 +3665,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -3527,17 +3691,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -3546,7 +3700,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -3583,17 +3737,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -3602,7 +3746,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -3628,17 +3772,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -3647,7 +3781,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -3685,17 +3819,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -3704,7 +3828,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -3734,17 +3858,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -3753,7 +3867,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -3779,17 +3893,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -3798,7 +3902,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -3825,17 +3929,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -3844,7 +3938,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -3872,17 +3966,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -3891,7 +3975,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -3935,17 +4019,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -3954,7 +4028,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -3980,17 +4054,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -3999,7 +4063,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -4044,17 +4108,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -4063,7 +4117,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -4103,17 +4157,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -4122,7 +4166,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -4148,17 +4192,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -4167,7 +4201,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -4208,17 +4242,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -4227,7 +4251,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -4273,17 +4297,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -4292,7 +4306,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -4318,17 +4332,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -4337,7 +4341,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -4384,17 +4388,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -4403,7 +4397,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -4438,17 +4432,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -4457,7 +4441,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -4483,17 +4467,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -4502,7 +4476,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -4538,17 +4512,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -4557,7 +4521,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -4590,17 +4554,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -4609,7 +4563,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -4635,17 +4589,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -4654,7 +4598,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -4688,17 +4632,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -4707,7 +4641,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -4744,17 +4678,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -4763,7 +4687,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -4789,17 +4713,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -4808,7 +4722,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -4846,17 +4760,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -4865,7 +4769,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -4893,17 +4797,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -4912,7 +4806,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -4938,17 +4832,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -4957,7 +4841,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -4997,17 +4881,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -5016,7 +4890,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -5042,17 +4916,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -5061,7 +4925,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -5087,17 +4951,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -5106,7 +4960,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -5132,17 +4986,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -5151,7 +4995,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -5177,17 +5021,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -5196,7 +5030,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -5225,17 +5059,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -5244,7 +5068,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -5285,17 +5109,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -5304,7 +5118,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -5349,17 +5163,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -5368,7 +5172,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -5394,17 +5198,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -5413,7 +5207,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -5459,17 +5253,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -5478,7 +5262,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -5523,17 +5307,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -5542,7 +5316,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -5568,17 +5342,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -5587,7 +5351,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -5633,17 +5397,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -5652,7 +5406,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -5680,17 +5434,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -5699,7 +5443,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -5736,17 +5480,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -5755,7 +5489,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -5781,17 +5515,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -5800,7 +5524,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -5838,17 +5562,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -5857,7 +5571,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -5883,17 +5597,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -5902,7 +5606,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -5938,17 +5642,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -5957,7 +5651,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -5983,17 +5677,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -6002,7 +5686,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -6039,17 +5723,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -6058,7 +5732,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -6103,17 +5777,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -6122,7 +5786,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -6148,17 +5812,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -6167,7 +5821,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -6213,17 +5867,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -6232,7 +5876,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -6278,17 +5922,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -6297,7 +5931,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -6323,17 +5957,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -6342,7 +5966,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -6389,17 +6013,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -6408,7 +6022,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -6437,17 +6051,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -6456,7 +6060,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -6482,17 +6086,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -6501,7 +6095,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -6531,17 +6125,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -6550,7 +6134,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -6585,17 +6169,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -6604,7 +6178,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -6630,17 +6204,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -6649,7 +6213,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -6685,17 +6249,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -6704,7 +6258,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -6739,17 +6293,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -6758,7 +6302,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -6784,17 +6328,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -6803,7 +6337,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -6839,17 +6373,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -6858,7 +6382,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -6895,17 +6419,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -6914,7 +6428,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -6940,17 +6454,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -6959,7 +6463,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -6997,17 +6501,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -7016,7 +6510,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -7057,17 +6551,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -7076,7 +6560,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -7102,17 +6586,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -7121,7 +6595,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -7163,17 +6637,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        call: string;
-                        changed: {
-                            ids: number[];
-                            table: string;
-                        }[];
-                        ids: number[];
-                        /** Format: int64 */
-                        run?: number;
-                    };
+                    "application/json": components["schemas"]["Result"];
                 };
             };
             /** @description Error */
@@ -7182,7 +6646,65 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    me: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description me */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Me"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    meta: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description meta */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Meta"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -7203,13 +6725,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "external_id" | "name" | "address" | "archived";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "external_id" | "name" | "address" | "archived")[];
                     limit?: number;
                     offset?: number;
@@ -7249,7 +6773,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -7270,13 +6794,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "label";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "label")[];
                     limit?: number;
                     offset?: number;
@@ -7310,7 +6836,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -7331,13 +6857,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "connection_id" | "created_at" | "state" | "attempts" | "last_at" | "last_status" | "last_detail";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "connection_id" | "created_at" | "state" | "attempts" | "last_at" | "last_status" | "last_detail")[];
                     limit?: number;
                     offset?: number;
@@ -7398,7 +6926,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -7415,18 +6943,20 @@ export interface operations {
                 "application/json": {
                     agg?: {
                         /** @enum {string} */
-                        col?: "id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "frozen_rate" | "frozen_billed_min" | "frozen_amount" | "project_id" | "day_type" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed";
+                        col?: "id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "project_id" | "day_type" | "span_tod" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed";
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
-                        col: "id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "frozen_rate" | "frozen_billed_min" | "frozen_amount" | "project_id" | "day_type" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed";
+                        col: "id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "project_id" | "day_type" | "span_tod" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
-                    group?: ("id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "frozen_rate" | "frozen_billed_min" | "frozen_amount" | "project_id" | "day_type" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed")[];
+                    } | {
+                        action: string;
+                    })[];
+                    group?: ("id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "project_id" | "day_type" | "span_tod" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed")[];
                     limit?: number;
                     offset?: number;
                     params?: Record<string, never>;
@@ -7446,11 +6976,11 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** @description Amount: frozen, else rate times billed hours, weighted by the rate coefficients of the hour classes touched. */
+                        /** @description Amount: that of its invoice line, else rate times billed hours, weighted by the rate coefficients of the hour classes touched. */
                         amount: number | null;
                         /**
                          * Format: int64
-                         * @description Billed duration: frozen, else the real duration (always), the entered one or the real one (sometimes), 0 (never).
+                         * @description Billed duration: that of its invoice line, else the real duration (always), the entered one or the real one (sometimes), 0 (never).
                          */
                         billed_min: number | null;
                         /**
@@ -7472,13 +7002,12 @@ export interface operations {
                         entry_open: boolean | null;
                         /** Format: int64 */
                         folder_id: number;
-                        frozen_amount: number | null;
-                        /** Format: int64 */
-                        frozen_billed_min: number | null;
-                        frozen_rate: number | null;
                         /** Format: int64 */
                         id: number;
-                        /** Format: int64 */
+                        /**
+                         * Format: int64
+                         * @description Invoice of its invoice line.
+                         */
                         invoice_id: number | null;
                         /** @description Validated. */
                         is_validated: boolean | null;
@@ -7487,7 +7016,7 @@ export interface operations {
                          * @enum {string|null}
                          */
                         kind: "service" | "absence" | "vacation" | null;
-                        /** @description Not on an invoiced invoice. */
+                        /** @description On no invoice line. */
                         not_invoiced: boolean | null;
                         /** @description The date is in no locked period of the user or of all. */
                         not_locked: boolean | null;
@@ -7498,8 +7027,10 @@ export interface operations {
                          * @description Project of the folder.
                          */
                         project_id: number | null;
-                        /** @description Hourly rate: frozen, else user and task, folder, project, task, 0. */
+                        /** @description Hourly rate: that of its invoice line, else user and task, folder, project, task, 0. */
                         rate: number | null;
+                        /** @description Minutes of the day worked: from the start, for the duration. */
+                        span_tod: string | null;
                         /** Format: int64 */
                         start_tod: number;
                         /** @description The task is allowed in the folder. */
@@ -7523,7 +7054,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -7544,13 +7075,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "label";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "label")[];
                     limit?: number;
                     offset?: number;
@@ -7584,7 +7117,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -7605,13 +7138,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "activity_id" | "user_id" | "hour_class_id" | "duration_min" | "counted_min" | "amount";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("activity_id" | "user_id" | "hour_class_id" | "duration_min" | "counted_min" | "amount")[];
                     limit?: number;
                     offset?: number;
@@ -7641,14 +7176,14 @@ export interface operations {
                          */
                         activity_id: number;
                         /** @description Share of the amount, weighted by the rate coefficient. */
-                        amount: number;
+                        amount: number | null;
                         /** @description Minutes counted, weighted by the hours coefficient. */
-                        counted_min: number;
+                        counted_min: number | null;
                         /**
                          * Format: int64
                          * @description Real minutes in the class.
                          */
-                        duration_min: number;
+                        duration_min: number | null;
                         /**
                          * Format: int64
                          * @description Hour class; empty = outside any class.
@@ -7665,7 +7200,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -7682,18 +7217,20 @@ export interface operations {
                 "application/json": {
                     agg?: {
                         /** @enum {string} */
-                        col?: "id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "frozen_rate" | "frozen_billed_min" | "frozen_amount" | "project_id" | "day_type" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed";
+                        col?: "id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "project_id" | "day_type" | "span_tod" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed";
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
-                        col: "id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "frozen_rate" | "frozen_billed_min" | "frozen_amount" | "project_id" | "day_type" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed";
+                        col: "id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "project_id" | "day_type" | "span_tod" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
-                    group?: ("id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "frozen_rate" | "frozen_billed_min" | "frozen_amount" | "project_id" | "day_type" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed")[];
+                    } | {
+                        action: string;
+                    })[];
+                    group?: ("id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "project_id" | "day_type" | "span_tod" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed")[];
                     limit?: number;
                     offset?: number;
                     params?: {
@@ -7718,13 +7255,13 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** @description Amount: frozen, else rate times billed hours, weighted by the rate coefficients of the hour classes touched. */
+                        /** @description Amount: that of its invoice line, else rate times billed hours, weighted by the rate coefficients of the hour classes touched. */
                         amount: number | null;
                         /**
                          * Format: int64
-                         * @description Billed duration: frozen, else the real duration (always), the entered one or the real one (sometimes), 0 (never).
+                         * @description Billed duration: that of its invoice line, else the real duration (always), the entered one or the real one (sometimes), 0 (never).
                          */
-                        billed_min: number | null;
+                        billed_min: number;
                         /**
                          * Format: int64
                          * @description Minutes counted in the hours done: 0 for a task not counting hours, else weighted by the hours coefficients of the hour classes touched.
@@ -7744,13 +7281,12 @@ export interface operations {
                         entry_open: boolean | null;
                         /** Format: int64 */
                         folder_id: number;
-                        frozen_amount: number | null;
-                        /** Format: int64 */
-                        frozen_billed_min: number | null;
-                        frozen_rate: number | null;
                         /** Format: int64 */
                         id: number;
-                        /** Format: int64 */
+                        /**
+                         * Format: int64
+                         * @description Invoice of its invoice line.
+                         */
                         invoice_id: number | null;
                         /** @description Validated. */
                         is_validated: boolean | null;
@@ -7759,7 +7295,7 @@ export interface operations {
                          * @enum {string|null}
                          */
                         kind: "service" | "absence" | "vacation" | null;
-                        /** @description Not on an invoiced invoice. */
+                        /** @description On no invoice line. */
                         not_invoiced: boolean | null;
                         /** @description The date is in no locked period of the user or of all. */
                         not_locked: boolean | null;
@@ -7770,8 +7306,10 @@ export interface operations {
                          * @description Project of the folder.
                          */
                         project_id: number | null;
-                        /** @description Hourly rate: frozen, else user and task, folder, project, task, 0. */
+                        /** @description Hourly rate: that of its invoice line, else user and task, folder, project, task, 0. */
                         rate: number;
+                        /** @description Minutes of the day worked: from the start, for the duration. */
+                        span_tod: string;
                         /** Format: int64 */
                         start_tod: number;
                         /** @description The task is allowed in the folder. */
@@ -7795,12 +7333,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
     };
-    view_activity_to_validate: {
+    view_activity_team: {
         parameters: {
             query?: never;
             header?: never;
@@ -7812,18 +7350,20 @@ export interface operations {
                 "application/json": {
                     agg?: {
                         /** @enum {string} */
-                        col?: "id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "frozen_rate" | "frozen_billed_min" | "frozen_amount" | "project_id" | "day_type" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed";
+                        col?: "id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "project_id" | "day_type" | "span_tod" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed";
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
-                        col: "id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "frozen_rate" | "frozen_billed_min" | "frozen_amount" | "project_id" | "day_type" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed";
+                        col: "id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "project_id" | "day_type" | "span_tod" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
-                    group?: ("id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "frozen_rate" | "frozen_billed_min" | "frozen_amount" | "project_id" | "day_type" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed")[];
+                    } | {
+                        action: string;
+                    })[];
+                    group?: ("id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "project_id" | "day_type" | "span_tod" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed")[];
                     limit?: number;
                     offset?: number;
                     params?: {
@@ -7848,13 +7388,13 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** @description Amount: frozen, else rate times billed hours, weighted by the rate coefficients of the hour classes touched. */
+                        /** @description Amount: that of its invoice line, else rate times billed hours, weighted by the rate coefficients of the hour classes touched. */
                         amount: number | null;
                         /**
                          * Format: int64
-                         * @description Billed duration: frozen, else the real duration (always), the entered one or the real one (sometimes), 0 (never).
+                         * @description Billed duration: that of its invoice line, else the real duration (always), the entered one or the real one (sometimes), 0 (never).
                          */
-                        billed_min: number | null;
+                        billed_min: number;
                         /**
                          * Format: int64
                          * @description Minutes counted in the hours done: 0 for a task not counting hours, else weighted by the hours coefficients of the hour classes touched.
@@ -7874,13 +7414,12 @@ export interface operations {
                         entry_open: boolean | null;
                         /** Format: int64 */
                         folder_id: number;
-                        frozen_amount: number | null;
-                        /** Format: int64 */
-                        frozen_billed_min: number | null;
-                        frozen_rate: number | null;
                         /** Format: int64 */
                         id: number;
-                        /** Format: int64 */
+                        /**
+                         * Format: int64
+                         * @description Invoice of its invoice line.
+                         */
                         invoice_id: number | null;
                         /** @description Validated. */
                         is_validated: boolean | null;
@@ -7889,7 +7428,7 @@ export interface operations {
                          * @enum {string|null}
                          */
                         kind: "service" | "absence" | "vacation" | null;
-                        /** @description Not on an invoiced invoice. */
+                        /** @description On no invoice line. */
                         not_invoiced: boolean | null;
                         /** @description The date is in no locked period of the user or of all. */
                         not_locked: boolean | null;
@@ -7900,8 +7439,10 @@ export interface operations {
                          * @description Project of the folder.
                          */
                         project_id: number | null;
-                        /** @description Hourly rate: frozen, else user and task, folder, project, task, 0. */
+                        /** @description Hourly rate: that of its invoice line, else user and task, folder, project, task, 0. */
                         rate: number;
+                        /** @description Minutes of the day worked: from the start, for the duration. */
+                        span_tod: string;
                         /** Format: int64 */
                         start_tod: number;
                         /** @description The task is allowed in the folder. */
@@ -7925,7 +7466,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -7946,13 +7487,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "user_id" | "carried_min" | "due_min" | "done_min" | "balance_min" | "vac_carried_min" | "vac_available_min" | "vac_taken_min" | "vac_balance_min";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("user_id" | "carried_min" | "due_min" | "done_min" | "balance_min" | "vac_carried_min" | "vac_available_min" | "vac_taken_min" | "vac_balance_min")[];
                     limit?: number;
                     offset?: number;
@@ -8005,7 +7548,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -8026,13 +7569,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "name" | "address" | "vat_no" | "currency";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "name" | "address" | "vat_no" | "currency")[];
                     limit?: number;
                     offset?: number;
@@ -8072,7 +7617,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -8093,13 +7638,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "label";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "label")[];
                     limit?: number;
                     offset?: number;
@@ -8133,7 +7680,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -8154,13 +7701,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "kind" | "name" | "endpoint" | "secret_name" | "subject" | "cursor" | "pulled_at" | "pull_error";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "kind" | "name" | "endpoint" | "secret_name" | "subject" | "cursor" | "pulled_at" | "pull_error")[];
                     limit?: number;
                     offset?: number;
@@ -8211,7 +7760,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -8232,13 +7781,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "label";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "label")[];
                     limit?: number;
                     offset?: number;
@@ -8272,7 +7823,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -8293,13 +7844,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "root_table" | "root_id" | "created_at" | "state" | "attempts" | "last_at" | "last_status" | "last_detail";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "root_table" | "root_id" | "created_at" | "state" | "attempts" | "last_at" | "last_status" | "last_detail")[];
                     limit?: number;
                     offset?: number;
@@ -8361,7 +7914,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -8382,13 +7935,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "user_id" | "valid_from" | "hourly_cost";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "user_id" | "valid_from" | "hourly_cost")[];
                     limit?: number;
                     offset?: number;
@@ -8432,7 +7987,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -8453,13 +8008,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "label";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "label")[];
                     limit?: number;
                     offset?: number;
@@ -8492,7 +8049,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -8509,18 +8066,20 @@ export interface operations {
                 "application/json": {
                     agg?: {
                         /** @enum {string} */
-                        col?: "id" | "connection_id" | "kind" | "root_table" | "root_id" | "payload" | "principal_id" | "created_at";
+                        col?: "id" | "connection_id" | "path" | "content_type" | "body" | "root_table" | "root_id" | "principal_id" | "created_at";
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
-                        col: "id" | "connection_id" | "kind" | "root_table" | "root_id" | "payload" | "principal_id" | "created_at";
+                        col: "id" | "connection_id" | "path" | "content_type" | "body" | "root_table" | "root_id" | "principal_id" | "created_at";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
-                    group?: ("id" | "connection_id" | "kind" | "root_table" | "root_id" | "payload" | "principal_id" | "created_at")[];
+                    } | {
+                        action: string;
+                    })[];
+                    group?: ("id" | "connection_id" | "path" | "content_type" | "body" | "root_table" | "root_id" | "principal_id" | "created_at")[];
                     limit?: number;
                     offset?: number;
                     params?: Record<string, never>;
@@ -8540,11 +8099,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
+                        /** @description Body sent. */
+                        body: string;
                         /**
                          * Format: int64
                          * @description Target connection.
                          */
                         connection_id: number;
+                        /** @description Media type of the body. */
+                        content_type: string;
                         /**
                          * Format: date-time
                          * @description When the delivery was written.
@@ -8552,10 +8115,8 @@ export interface operations {
                         created_at: string;
                         /** Format: int64 */
                         id: number;
-                        /** @description Kind of message. */
-                        kind: string;
-                        /** @description Body sent to the endpoint. */
-                        payload: unknown;
+                        /** @description Path appended to the endpoint of the connection. */
+                        path: string;
                         /**
                          * Format: int64
                          * @description Principal who caused the delivery.
@@ -8577,7 +8138,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -8598,13 +8159,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "label";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "label")[];
                     limit?: number;
                     offset?: number;
@@ -8627,7 +8190,7 @@ export interface operations {
                     "application/json": {
                         /** Format: int64 */
                         id: number;
-                        /** @description Kind of message. */
+                        /** @description Path appended to the endpoint of the connection. */
                         label: string | null;
                     }[];
                 };
@@ -8638,7 +8201,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -8659,13 +8222,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "delivery_id" | "at" | "ok" | "status" | "detail";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "delivery_id" | "at" | "ok" | "status" | "detail")[];
                     limit?: number;
                     offset?: number;
@@ -8716,7 +8281,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -8737,13 +8302,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "label";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "label")[];
                     limit?: number;
                     offset?: number;
@@ -8776,7 +8343,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -8793,18 +8360,20 @@ export interface operations {
                 "application/json": {
                     agg?: {
                         /** @enum {string} */
-                        col?: "id" | "activity_id" | "expense_type_id" | "quantity" | "amount" | "mode" | "receipt_file_id" | "ocr_amount" | "frozen_user_amount" | "frozen_billed_amount" | "user_id" | "effective_mode" | "user_amount" | "billed_amount";
+                        col?: "id" | "activity_id" | "expense_type_id" | "quantity" | "amount" | "mode" | "receipt_file_id" | "ocr_amount" | "user_id" | "effective_mode" | "user_amount" | "billed_amount";
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
-                        col: "id" | "activity_id" | "expense_type_id" | "quantity" | "amount" | "mode" | "receipt_file_id" | "ocr_amount" | "frozen_user_amount" | "frozen_billed_amount" | "user_id" | "effective_mode" | "user_amount" | "billed_amount";
+                        col: "id" | "activity_id" | "expense_type_id" | "quantity" | "amount" | "mode" | "receipt_file_id" | "ocr_amount" | "user_id" | "effective_mode" | "user_amount" | "billed_amount";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
-                    group?: ("id" | "activity_id" | "expense_type_id" | "quantity" | "amount" | "mode" | "receipt_file_id" | "ocr_amount" | "frozen_user_amount" | "frozen_billed_amount" | "user_id" | "effective_mode" | "user_amount" | "billed_amount")[];
+                    } | {
+                        action: string;
+                    })[];
+                    group?: ("id" | "activity_id" | "expense_type_id" | "quantity" | "amount" | "mode" | "receipt_file_id" | "ocr_amount" | "user_id" | "effective_mode" | "user_amount" | "billed_amount")[];
                     limit?: number;
                     offset?: number;
                     params?: Record<string, never>;
@@ -8827,7 +8396,7 @@ export interface operations {
                         /** Format: int64 */
                         activity_id: number;
                         amount: number | null;
-                        /** @description Amount billed: frozen, else 0 (user only), quantity times billing unit price, or the amount. */
+                        /** @description Amount billed: that of its invoice line, else 0 (user only), quantity times billing unit price, or the amount. */
                         billed_amount: number | null;
                         /**
                          * @description Mode of the expense, else of its type.
@@ -8836,8 +8405,6 @@ export interface operations {
                         effective_mode: "both" | "user_only" | "billing_only" | null;
                         /** Format: int64 */
                         expense_type_id: number;
-                        frozen_billed_amount: number | null;
-                        frozen_user_amount: number | null;
                         /** Format: int64 */
                         id: number;
                         /** @enum {string|null} */
@@ -8846,7 +8413,7 @@ export interface operations {
                         quantity: number | null;
                         /** Format: int64 */
                         receipt_file_id: number | null;
-                        /** @description Amount reimbursed to the user: frozen, else 0 (billing only), quantity times unit price, or the amount. */
+                        /** @description Amount reimbursed to the user: that of its invoice line, else 0 (billing only), quantity times unit price, or the amount. */
                         user_amount: number | null;
                         /**
                          * Format: int64
@@ -8862,7 +8429,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -8883,13 +8450,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "label";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "label")[];
                     limit?: number;
                     offset?: number;
@@ -8922,7 +8491,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -8939,18 +8508,20 @@ export interface operations {
                 "application/json": {
                     agg?: {
                         /** @enum {string} */
-                        col?: "id" | "activity_id" | "expense_type_id" | "quantity" | "amount" | "mode" | "receipt_file_id" | "ocr_amount" | "frozen_user_amount" | "frozen_billed_amount" | "user_id" | "effective_mode" | "user_amount" | "billed_amount" | "by_quantity";
+                        col?: "id" | "activity_id" | "expense_type_id" | "quantity" | "amount" | "mode" | "receipt_file_id" | "ocr_amount" | "user_id" | "effective_mode" | "user_amount" | "billed_amount" | "by_quantity";
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
-                        col: "id" | "activity_id" | "expense_type_id" | "quantity" | "amount" | "mode" | "receipt_file_id" | "ocr_amount" | "frozen_user_amount" | "frozen_billed_amount" | "user_id" | "effective_mode" | "user_amount" | "billed_amount" | "by_quantity";
+                        col: "id" | "activity_id" | "expense_type_id" | "quantity" | "amount" | "mode" | "receipt_file_id" | "ocr_amount" | "user_id" | "effective_mode" | "user_amount" | "billed_amount" | "by_quantity";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
-                    group?: ("id" | "activity_id" | "expense_type_id" | "quantity" | "amount" | "mode" | "receipt_file_id" | "ocr_amount" | "frozen_user_amount" | "frozen_billed_amount" | "user_id" | "effective_mode" | "user_amount" | "billed_amount" | "by_quantity")[];
+                    } | {
+                        action: string;
+                    })[];
+                    group?: ("id" | "activity_id" | "expense_type_id" | "quantity" | "amount" | "mode" | "receipt_file_id" | "ocr_amount" | "user_id" | "effective_mode" | "user_amount" | "billed_amount" | "by_quantity")[];
                     limit?: number;
                     offset?: number;
                     params?: {
@@ -8976,7 +8547,7 @@ export interface operations {
                         /** Format: int64 */
                         activity_id: number;
                         amount: number | null;
-                        /** @description Amount billed: frozen, else 0 (user only), quantity times billing unit price, or the amount. */
+                        /** @description Amount billed: that of its invoice line, else 0 (user only), quantity times billing unit price, or the amount. */
                         billed_amount: number | null;
                         /** @description Entered as a quantity priced by the type, instead of an amount. */
                         by_quantity: boolean | null;
@@ -8987,8 +8558,6 @@ export interface operations {
                         effective_mode: "both" | "user_only" | "billing_only";
                         /** Format: int64 */
                         expense_type_id: number;
-                        frozen_billed_amount: number | null;
-                        frozen_user_amount: number | null;
                         /** Format: int64 */
                         id: number;
                         /** @enum {string|null} */
@@ -8997,7 +8566,7 @@ export interface operations {
                         quantity: number | null;
                         /** Format: int64 */
                         receipt_file_id: number | null;
-                        /** @description Amount reimbursed to the user: frozen, else 0 (billing only), quantity times unit price, or the amount. */
+                        /** @description Amount reimbursed to the user: that of its invoice line, else 0 (billing only), quantity times unit price, or the amount. */
                         user_amount: number | null;
                         /**
                          * Format: int64
@@ -9013,7 +8582,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -9034,13 +8603,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "activity_id" | "receipt_file_id" | "hash";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "activity_id" | "receipt_file_id" | "hash")[];
                     limit?: number;
                     offset?: number;
@@ -9080,7 +8651,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -9101,13 +8672,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "name" | "by_quantity" | "unit_price" | "billing_unit_price" | "mode" | "archived";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "name" | "by_quantity" | "unit_price" | "billing_unit_price" | "mode" | "archived")[];
                     limit?: number;
                     offset?: number;
@@ -9154,7 +8727,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -9175,13 +8748,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "label";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "label")[];
                     limit?: number;
                     offset?: number;
@@ -9215,7 +8790,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -9236,13 +8811,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "hash" | "size" | "type" | "name" | "created_at";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "hash" | "size" | "type" | "name" | "created_at")[];
                     limit?: number;
                     offset?: number;
@@ -9290,7 +8867,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -9311,13 +8888,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "label";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "label")[];
                     limit?: number;
                     offset?: number;
@@ -9351,7 +8930,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -9372,13 +8951,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "project_id" | "parent_id" | "name" | "rate" | "estimated_min" | "entry_closed" | "entry_open";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "project_id" | "parent_id" | "name" | "rate" | "estimated_min" | "entry_closed" | "entry_open")[];
                     limit?: number;
                     offset?: number;
@@ -9400,7 +8981,7 @@ export interface operations {
                 content: {
                     "application/json": {
                         entry_closed: boolean;
-                        /** @description Activities can be entered: the folder and its project are open and the project is not archived. */
+                        /** @description Activities can be entered: the folder is open and so is its project. */
                         entry_open: boolean | null;
                         /** Format: int64 */
                         estimated_min: number | null;
@@ -9421,7 +9002,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -9442,13 +9023,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "label" | "project_id" | "entry_open";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "label" | "project_id" | "entry_open")[];
                     limit?: number;
                     offset?: number;
@@ -9469,7 +9052,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** @description Activities can be entered: the folder and its project are open and the project is not archived. */
+                        /** @description Activities can be entered: the folder is open and so is its project. */
                         entry_open: boolean | null;
                         /** Format: int64 */
                         id: number;
@@ -9485,7 +9068,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -9506,13 +9089,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "folder_id" | "task_id";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "folder_id" | "task_id")[];
                     limit?: number;
                     offset?: number;
@@ -9554,7 +9139,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -9575,13 +9160,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "label";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "label")[];
                     limit?: number;
                     offset?: number;
@@ -9614,7 +9201,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -9635,13 +9222,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "name" | "kind" | "billing" | "requires_validation" | "counts_hours";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "name" | "kind" | "billing" | "requires_validation" | "counts_hours")[];
                     limit?: number;
                     offset?: number;
@@ -9692,7 +9281,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -9713,13 +9302,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "at" | "command" | "principal_id" | "for_id" | "tbl" | "row_id" | "changes";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("at" | "command" | "principal_id" | "for_id" | "tbl" | "row_id" | "changes")[];
                     limit?: number;
                     offset?: number;
@@ -9779,7 +9370,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -9800,13 +9391,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "label" | "hours_coef" | "rate_coef" | "requires_validation";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "label" | "hours_coef" | "rate_coef" | "requires_validation")[];
                     limit?: number;
                     offset?: number;
@@ -9846,7 +9439,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -9867,13 +9460,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "label";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "label")[];
                     limit?: number;
                     offset?: number;
@@ -9907,7 +9502,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -9928,13 +9523,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "hour_class_id" | "day_type" | "span_tod";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "hour_class_id" | "day_type" | "span_tod")[];
                     limit?: number;
                     offset?: number;
@@ -9978,7 +9575,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -9999,13 +9596,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "label";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "label")[];
                     limit?: number;
                     offset?: number;
@@ -10038,7 +9637,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -10059,13 +9658,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "project_id" | "date_from" | "date_to" | "invoiced_at" | "invoiced_by" | "pdf_file_id" | "account_id" | "state" | "activity_count" | "billed_min" | "services_amount" | "expenses_amount" | "total_amount" | "export_state" | "is_draft" | "is_invoiced" | "has_activities" | "not_exported";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "project_id" | "date_from" | "date_to" | "invoiced_at" | "invoiced_by" | "pdf_file_id" | "account_id" | "state" | "activity_count" | "billed_min" | "services_amount" | "expenses_amount" | "total_amount" | "export_state" | "is_draft" | "is_invoiced" | "has_activities" | "not_exported")[];
                     limit?: number;
                     offset?: number;
@@ -10148,7 +9749,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -10169,13 +9770,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "label";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "label")[];
                     limit?: number;
                     offset?: number;
@@ -10208,7 +9811,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -10225,18 +9828,20 @@ export interface operations {
                 "application/json": {
                     agg?: {
                         /** @enum {string} */
-                        col?: "id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "frozen_rate" | "frozen_billed_min" | "frozen_amount" | "project_id" | "day_type" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed";
+                        col?: "id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "project_id" | "day_type" | "span_tod" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed";
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
-                        col: "id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "frozen_rate" | "frozen_billed_min" | "frozen_amount" | "project_id" | "day_type" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed";
+                        col: "id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "project_id" | "day_type" | "span_tod" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
-                    group?: ("id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "frozen_rate" | "frozen_billed_min" | "frozen_amount" | "project_id" | "day_type" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed")[];
+                    } | {
+                        action: string;
+                    })[];
+                    group?: ("id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "project_id" | "day_type" | "span_tod" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed")[];
                     limit?: number;
                     offset?: number;
                     params?: {
@@ -10259,13 +9864,13 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** @description Amount: frozen, else rate times billed hours, weighted by the rate coefficients of the hour classes touched. */
+                        /** @description Amount: that of its invoice line, else rate times billed hours, weighted by the rate coefficients of the hour classes touched. */
                         amount: number | null;
                         /**
                          * Format: int64
-                         * @description Billed duration: frozen, else the real duration (always), the entered one or the real one (sometimes), 0 (never).
+                         * @description Billed duration: that of its invoice line, else the real duration (always), the entered one or the real one (sometimes), 0 (never).
                          */
-                        billed_min: number | null;
+                        billed_min: number;
                         /**
                          * Format: int64
                          * @description Minutes counted in the hours done: 0 for a task not counting hours, else weighted by the hours coefficients of the hour classes touched.
@@ -10285,13 +9890,12 @@ export interface operations {
                         entry_open: boolean | null;
                         /** Format: int64 */
                         folder_id: number;
-                        frozen_amount: number | null;
-                        /** Format: int64 */
-                        frozen_billed_min: number | null;
-                        frozen_rate: number | null;
                         /** Format: int64 */
                         id: number;
-                        /** Format: int64 */
+                        /**
+                         * Format: int64
+                         * @description Invoice of its invoice line.
+                         */
                         invoice_id: number | null;
                         /** @description Validated. */
                         is_validated: boolean | null;
@@ -10300,7 +9904,7 @@ export interface operations {
                          * @enum {string|null}
                          */
                         kind: "service" | "absence" | "vacation" | null;
-                        /** @description Not on an invoiced invoice. */
+                        /** @description On no invoice line. */
                         not_invoiced: boolean | null;
                         /** @description The date is in no locked period of the user or of all. */
                         not_locked: boolean | null;
@@ -10311,8 +9915,10 @@ export interface operations {
                          * @description Project of the folder.
                          */
                         project_id: number | null;
-                        /** @description Hourly rate: frozen, else user and task, folder, project, task, 0. */
+                        /** @description Hourly rate: that of its invoice line, else user and task, folder, project, task, 0. */
                         rate: number;
+                        /** @description Minutes of the day worked: from the start, for the duration. */
+                        span_tod: string;
                         /** Format: int64 */
                         start_tod: number;
                         /** @description The task is allowed in the folder. */
@@ -10336,7 +9942,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -10357,13 +9963,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "invoice_id" | "document";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("invoice_id" | "document")[];
                     limit?: number;
                     offset?: number;
@@ -10403,7 +10011,286 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    view_invoice_expense: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    agg?: {
+                        /** @enum {string} */
+                        col?: "id" | "invoice_id" | "expense_id" | "user_amount" | "billed_amount";
+                        /** @enum {string} */
+                        fn: "sum" | "count" | "min" | "max" | "avg";
+                    }[];
+                    filter?: ({
+                        /** @enum {string} */
+                        col: "id" | "invoice_id" | "expense_id" | "user_amount" | "billed_amount";
+                        /** @enum {string} */
+                        op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
+                        value?: unknown;
+                    } | {
+                        action: string;
+                    })[];
+                    group?: ("id" | "invoice_id" | "expense_id" | "user_amount" | "billed_amount")[];
+                    limit?: number;
+                    offset?: number;
+                    params?: Record<string, never>;
+                    sort?: {
+                        col: string;
+                        /** @enum {string} */
+                        dir?: "asc" | "desc";
+                    }[];
+                };
+            };
+        };
+        responses: {
+            /** @description Rows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description Amount billed. */
+                        billed_amount: number;
+                        /**
+                         * Format: int64
+                         * @description Expense billed; on one invoice at most.
+                         */
+                        expense_id: number;
+                        /** Format: int64 */
+                        id: number;
+                        /**
+                         * Format: int64
+                         * @description Invoice.
+                         */
+                        invoice_id: number;
+                        /** @description Amount reimbursed to the user. */
+                        user_amount: number;
+                    }[];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "view_invoice_expense.lookup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    agg?: {
+                        /** @enum {string} */
+                        col?: "id" | "label";
+                        /** @enum {string} */
+                        fn: "sum" | "count" | "min" | "max" | "avg";
+                    }[];
+                    filter?: ({
+                        /** @enum {string} */
+                        col: "id" | "label";
+                        /** @enum {string} */
+                        op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
+                        value?: unknown;
+                    } | {
+                        action: string;
+                    })[];
+                    group?: ("id" | "label")[];
+                    limit?: number;
+                    offset?: number;
+                    params?: Record<string, never>;
+                    sort?: {
+                        col: string;
+                        /** @enum {string} */
+                        dir?: "asc" | "desc";
+                    }[];
+                };
+            };
+        };
+        responses: {
+            /** @description Rows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: int64 */
+                        id: number;
+                        label: string | null;
+                    }[];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    view_invoice_line: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    agg?: {
+                        /** @enum {string} */
+                        col?: "id" | "invoice_id" | "activity_id" | "rate" | "billed_min" | "amount";
+                        /** @enum {string} */
+                        fn: "sum" | "count" | "min" | "max" | "avg";
+                    }[];
+                    filter?: ({
+                        /** @enum {string} */
+                        col: "id" | "invoice_id" | "activity_id" | "rate" | "billed_min" | "amount";
+                        /** @enum {string} */
+                        op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
+                        value?: unknown;
+                    } | {
+                        action: string;
+                    })[];
+                    group?: ("id" | "invoice_id" | "activity_id" | "rate" | "billed_min" | "amount")[];
+                    limit?: number;
+                    offset?: number;
+                    params?: Record<string, never>;
+                    sort?: {
+                        col: string;
+                        /** @enum {string} */
+                        dir?: "asc" | "desc";
+                    }[];
+                };
+            };
+        };
+        responses: {
+            /** @description Rows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * Format: int64
+                         * @description Activity billed; on one invoice at most.
+                         */
+                        activity_id: number;
+                        /** @description Amount billed. */
+                        amount: number;
+                        /**
+                         * Format: int64
+                         * @description Duration billed.
+                         */
+                        billed_min: number;
+                        /** Format: int64 */
+                        id: number;
+                        /**
+                         * Format: int64
+                         * @description Invoice.
+                         */
+                        invoice_id: number;
+                        /** @description Hourly rate billed. */
+                        rate: number;
+                    }[];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "view_invoice_line.lookup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    agg?: {
+                        /** @enum {string} */
+                        col?: "id" | "label";
+                        /** @enum {string} */
+                        fn: "sum" | "count" | "min" | "max" | "avg";
+                    }[];
+                    filter?: ({
+                        /** @enum {string} */
+                        col: "id" | "label";
+                        /** @enum {string} */
+                        op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
+                        value?: unknown;
+                    } | {
+                        action: string;
+                    })[];
+                    group?: ("id" | "label")[];
+                    limit?: number;
+                    offset?: number;
+                    params?: Record<string, never>;
+                    sort?: {
+                        col: string;
+                        /** @enum {string} */
+                        dir?: "asc" | "desc";
+                    }[];
+                };
+            };
+        };
+        responses: {
+            /** @description Rows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: int64 */
+                        id: number;
+                        label: string | null;
+                    }[];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -10424,13 +10311,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "project_id" | "date_from" | "date_to";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("project_id" | "date_from" | "date_to")[];
                     limit?: number;
                     offset?: number;
@@ -10474,7 +10363,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -10495,13 +10384,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "company_id" | "date_from" | "date_to" | "user_id";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "company_id" | "date_from" | "date_to" | "user_id")[];
                     limit?: number;
                     offset?: number;
@@ -10553,7 +10444,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -10574,13 +10465,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "label";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "label")[];
                     limit?: number;
                     offset?: number;
@@ -10613,7 +10506,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -10634,13 +10527,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "project_id" | "folder_id" | "duration_min" | "billed_min" | "services_amount" | "expense_billed_amount" | "expense_user_amount" | "realized_amount" | "invoiced_amount" | "balance_amount";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("project_id" | "folder_id" | "duration_min" | "billed_min" | "services_amount" | "expense_billed_amount" | "expense_user_amount" | "realized_amount" | "invoiced_amount" | "balance_amount")[];
                     limit?: number;
                     offset?: number;
@@ -10692,7 +10587,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -10713,13 +10608,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "project_id" | "folder_id" | "duration_min" | "billed_min" | "counted_min" | "services_amount" | "expense_billed_amount" | "expense_user_amount" | "realized_amount" | "invoiced_amount" | "balance_amount" | "cost_amount" | "services_margin_amount" | "balance_margin_amount";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("project_id" | "folder_id" | "duration_min" | "billed_min" | "counted_min" | "services_amount" | "expense_billed_amount" | "expense_user_amount" | "realized_amount" | "invoiced_amount" | "balance_amount" | "cost_amount" | "services_margin_amount" | "balance_margin_amount")[];
                     limit?: number;
                     offset?: number;
@@ -10776,7 +10673,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -10793,18 +10690,20 @@ export interface operations {
                 "application/json": {
                     agg?: {
                         /** @enum {string} */
-                        col?: "id" | "external_id" | "account_id" | "name" | "rate" | "entry_closed" | "archived" | "lead_user_id";
+                        col?: "id" | "external_id" | "account_id" | "name" | "rate" | "entry_closed" | "archived" | "lead_user_id" | "entry_open";
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
-                        col: "id" | "external_id" | "account_id" | "name" | "rate" | "entry_closed" | "archived" | "lead_user_id";
+                        col: "id" | "external_id" | "account_id" | "name" | "rate" | "entry_closed" | "archived" | "lead_user_id" | "entry_open";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
-                    group?: ("id" | "external_id" | "account_id" | "name" | "rate" | "entry_closed" | "archived" | "lead_user_id")[];
+                    } | {
+                        action: string;
+                    })[];
+                    group?: ("id" | "external_id" | "account_id" | "name" | "rate" | "entry_closed" | "archived" | "lead_user_id" | "entry_open")[];
                     limit?: number;
                     offset?: number;
                     params?: Record<string, never>;
@@ -10824,27 +10723,18 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /**
-                         * Format: int64
-                         * @description Client billed for the project.
-                         */
+                        /** Format: int64 */
                         account_id: number;
-                        /** @description Archived projects accept no activity. */
                         archived: boolean;
-                        /** @description No activity can be entered in the project. */
                         entry_closed: boolean;
-                        /** @description Id in the accounting system. */
+                        /** @description Activities can be entered: the project is open and not archived. */
+                        entry_open: boolean | null;
                         external_id: string;
                         /** Format: int64 */
                         id: number;
-                        /**
-                         * Format: int64
-                         * @description User responsible for the project.
-                         */
+                        /** Format: int64 */
                         lead_user_id: number | null;
-                        /** @description Project name. */
                         name: string;
-                        /** @description Hourly rate of the project, used when the folder has none. */
                         rate: number | null;
                     }[];
                 };
@@ -10855,7 +10745,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -10872,18 +10762,20 @@ export interface operations {
                 "application/json": {
                     agg?: {
                         /** @enum {string} */
-                        col?: "id" | "label" | "account_id" | "closed";
+                        col?: "id" | "label" | "account_id" | "entry_open";
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
-                        col: "id" | "label" | "account_id" | "closed";
+                        col: "id" | "label" | "account_id" | "entry_open";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
-                    group?: ("id" | "label" | "account_id" | "closed")[];
+                    } | {
+                        action: string;
+                    })[];
+                    group?: ("id" | "label" | "account_id" | "entry_open")[];
                     limit?: number;
                     offset?: number;
                     params?: Record<string, never>;
@@ -10903,12 +10795,10 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /**
-                         * Format: int64
-                         * @description Client billed for the project.
-                         */
+                        /** Format: int64 */
                         account_id: number;
-                        closed: boolean | null;
+                        /** @description Activities can be entered: the project is open and not archived. */
+                        entry_open: boolean | null;
                         /** Format: int64 */
                         id: number;
                         label: string | null;
@@ -10921,7 +10811,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -10942,13 +10832,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "date" | "label" | "deducted_min";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "date" | "label" | "deducted_min")[];
                     limit?: number;
                     offset?: number;
@@ -10992,7 +10884,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -11013,13 +10905,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "label";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "label")[];
                     limit?: number;
                     offset?: number;
@@ -11053,7 +10947,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -11070,18 +10964,20 @@ export interface operations {
                 "application/json": {
                     agg?: {
                         /** @enum {string} */
-                        col?: "id" | "name" | "input" | "principal_id" | "for_id" | "state" | "total" | "done" | "rejected" | "error" | "cancel_requested" | "created_at" | "finished_at";
+                        col?: "id" | "name" | "input" | "owner_id" | "principal_id" | "for_id" | "state" | "total" | "done" | "rejected" | "error" | "cancel_requested" | "created_at" | "finished_at";
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
-                        col: "id" | "name" | "input" | "principal_id" | "for_id" | "state" | "total" | "done" | "rejected" | "error" | "cancel_requested" | "created_at" | "finished_at";
+                        col: "id" | "name" | "input" | "owner_id" | "principal_id" | "for_id" | "state" | "total" | "done" | "rejected" | "error" | "cancel_requested" | "created_at" | "finished_at";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
-                    group?: ("id" | "name" | "input" | "principal_id" | "for_id" | "state" | "total" | "done" | "rejected" | "error" | "cancel_requested" | "created_at" | "finished_at")[];
+                    } | {
+                        action: string;
+                    })[];
+                    group?: ("id" | "name" | "input" | "owner_id" | "principal_id" | "for_id" | "state" | "total" | "done" | "rejected" | "error" | "cancel_requested" | "created_at" | "finished_at")[];
                     limit?: number;
                     offset?: number;
                     params?: Record<string, never>;
@@ -11133,6 +11029,11 @@ export interface operations {
                         name: string;
                         /**
                          * Format: int64
+                         * @description Effective identity who started the run (the human an agent acted for); the run is theirs.
+                         */
+                        owner_id: number;
+                        /**
+                         * Format: int64
                          * @description Principal who started the run.
                          */
                         principal_id: number;
@@ -11157,7 +11058,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -11178,13 +11079,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "label";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "label")[];
                     limit?: number;
                     offset?: number;
@@ -11218,7 +11121,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -11239,13 +11142,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "owner_id" | "screen" | "name" | "state";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "owner_id" | "screen" | "name" | "state")[];
                     limit?: number;
                     offset?: number;
@@ -11288,7 +11193,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -11309,13 +11214,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "label";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "label")[];
                     limit?: number;
                     offset?: number;
@@ -11349,7 +11256,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -11370,13 +11277,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "name" | "kind" | "billing" | "requires_validation" | "counts_hours" | "rate" | "archived";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "name" | "kind" | "billing" | "requires_validation" | "counts_hours" | "rate" | "archived")[];
                     limit?: number;
                     offset?: number;
@@ -11428,7 +11337,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -11449,13 +11358,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "label";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "label")[];
                     limit?: number;
                     offset?: number;
@@ -11489,7 +11400,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -11506,18 +11417,20 @@ export interface operations {
                 "application/json": {
                     agg?: {
                         /** @enum {string} */
-                        col?: "id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "frozen_rate" | "frozen_billed_min" | "frozen_amount" | "project_id" | "day_type" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed" | "billing";
+                        col?: "id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "project_id" | "day_type" | "span_tod" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed" | "billing";
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
-                        col: "id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "frozen_rate" | "frozen_billed_min" | "frozen_amount" | "project_id" | "day_type" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed" | "billing";
+                        col: "id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "project_id" | "day_type" | "span_tod" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed" | "billing";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
-                    group?: ("id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "frozen_rate" | "frozen_billed_min" | "frozen_amount" | "project_id" | "day_type" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed" | "billing")[];
+                    } | {
+                        action: string;
+                    })[];
+                    group?: ("id" | "user_id" | "date" | "start_tod" | "duration_min" | "folder_id" | "task_id" | "description" | "validated_by" | "validated_at" | "invoice_id" | "project_id" | "day_type" | "span_tod" | "kind" | "billed_min" | "rate" | "amount" | "counted_min" | "to_validate" | "not_locked" | "not_invoiced" | "not_validated" | "is_validated" | "entry_open" | "task_allowed" | "billing")[];
                     limit?: number;
                     offset?: number;
                     params?: {
@@ -11544,13 +11457,13 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** @description Amount: frozen, else rate times billed hours, weighted by the rate coefficients of the hour classes touched. */
+                        /** @description Amount: that of its invoice line, else rate times billed hours, weighted by the rate coefficients of the hour classes touched. */
                         amount: number | null;
                         /**
                          * Format: int64
-                         * @description Billed duration: frozen, else the real duration (always), the entered one or the real one (sometimes), 0 (never).
+                         * @description Billed duration: that of its invoice line, else the real duration (always), the entered one or the real one (sometimes), 0 (never).
                          */
-                        billed_min: number | null;
+                        billed_min: number;
                         /**
                          * @description Billed duration: always the real duration, sometimes an entered duration, never.
                          * @enum {string|null}
@@ -11575,13 +11488,12 @@ export interface operations {
                         entry_open: boolean | null;
                         /** Format: int64 */
                         folder_id: number;
-                        frozen_amount: number | null;
-                        /** Format: int64 */
-                        frozen_billed_min: number | null;
-                        frozen_rate: number | null;
                         /** Format: int64 */
                         id: number;
-                        /** Format: int64 */
+                        /**
+                         * Format: int64
+                         * @description Invoice of its invoice line.
+                         */
                         invoice_id: number | null;
                         /** @description Validated. */
                         is_validated: boolean | null;
@@ -11590,7 +11502,7 @@ export interface operations {
                          * @enum {string|null}
                          */
                         kind: "service" | "absence" | "vacation" | null;
-                        /** @description Not on an invoiced invoice. */
+                        /** @description On no invoice line. */
                         not_invoiced: boolean | null;
                         /** @description The date is in no locked period of the user or of all. */
                         not_locked: boolean | null;
@@ -11601,8 +11513,10 @@ export interface operations {
                          * @description Project of the folder.
                          */
                         project_id: number | null;
-                        /** @description Hourly rate: frozen, else user and task, folder, project, task, 0. */
+                        /** @description Hourly rate: that of its invoice line, else user and task, folder, project, task, 0. */
                         rate: number;
+                        /** @description Minutes of the day worked: from the start, for the duration. */
+                        span_tod: string;
                         /** Format: int64 */
                         start_tod: number;
                         /** @description The task is allowed in the folder. */
@@ -11626,7 +11540,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -11647,13 +11561,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "user_id" | "date" | "due_min" | "done_min" | "holiday" | "locked";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("user_id" | "date" | "due_min" | "done_min" | "holiday" | "locked")[];
                     limit?: number;
                     offset?: number;
@@ -11701,7 +11617,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -11722,13 +11638,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "kind" | "subject" | "name" | "manager_id" | "lang" | "archived";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "kind" | "subject" | "name" | "manager_id" | "lang" | "archived")[];
                     limit?: number;
                     offset?: number;
@@ -11781,7 +11699,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -11802,13 +11720,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "label" | "kind" | "archived";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "label" | "kind" | "archived")[];
                     limit?: number;
                     offset?: number;
@@ -11849,7 +11769,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -11870,13 +11790,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "name" | "admin";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "name" | "admin")[];
                     limit?: number;
                     offset?: number;
@@ -11912,7 +11834,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -11933,13 +11855,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "label";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "label")[];
                     limit?: number;
                     offset?: number;
@@ -11973,7 +11897,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -11994,13 +11918,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "user_group_id" | "fn";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "user_group_id" | "fn")[];
                     limit?: number;
                     offset?: number;
@@ -12042,7 +11968,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -12063,13 +11989,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "label";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "label")[];
                     limit?: number;
                     offset?: number;
@@ -12102,7 +12030,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -12123,13 +12051,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "user_group_id" | "user_id";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "user_group_id" | "user_id")[];
                     limit?: number;
                     offset?: number;
@@ -12171,7 +12101,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -12192,13 +12122,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "label";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "label")[];
                     limit?: number;
                     offset?: number;
@@ -12231,7 +12163,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -12252,13 +12184,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "user_id" | "task_id" | "rate";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "user_id" | "task_id" | "rate")[];
                     limit?: number;
                     offset?: number;
@@ -12302,7 +12236,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -12323,13 +12257,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "label";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "label")[];
                     limit?: number;
                     offset?: number;
@@ -12362,7 +12298,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -12383,13 +12319,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "user_id" | "valid_from" | "week_min" | "vacation_days" | "activity_pct";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "user_id" | "valid_from" | "week_min" | "vacation_days" | "activity_pct")[];
                     limit?: number;
                     offset?: number;
@@ -12437,7 +12375,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -12458,13 +12396,15 @@ export interface operations {
                         /** @enum {string} */
                         fn: "sum" | "count" | "min" | "max" | "avg";
                     }[];
-                    filter?: {
+                    filter?: ({
                         /** @enum {string} */
                         col: "id" | "label";
                         /** @enum {string} */
                         op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
                         value?: unknown;
-                    }[];
+                    } | {
+                        action: string;
+                    })[];
                     group?: ("id" | "label")[];
                     limit?: number;
                     offset?: number;
@@ -12497,7 +12437,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": Record<string, never>;
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };

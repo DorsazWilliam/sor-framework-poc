@@ -12,7 +12,7 @@ import (
 type Col struct {
 	Name        string `json:"name"`
 	Type        string `json:"type"`
-	Format      string `json:"format"`
+	Format      string `json:"format" enum:",min,tod,pct,coef,money"`
 	Nullable    bool   `json:"nullable"`
 	Ref         string `json:"ref,omitempty"`
 	Enum        string `json:"enum,omitempty"`
@@ -68,7 +68,8 @@ type View struct {
 type Command struct {
 	Name        string `json:"name"`
 	Table       string `json:"table"`
-	Kind        string `json:"kind"`
+	Kind        string `json:"kind" enum:"create,update,delete,custom,run"`
+	IDs         bool   `json:"ids" doc:"Takes the ids of rows"`
 	Rootless    bool   `json:"rootless"`
 	Input       []Col  `json:"input"`
 	When        string `json:"when,omitempty"`
@@ -136,10 +137,10 @@ func permittedScreens(ss []Screen, views []*View, commands []*Command) []Screen 
 // Me is the JSON of GET /api/me.
 type Me struct {
 	ID        int64              `json:"id"`
-	Self      int64              `json:"self"` // the effective identity: the human an agent acts for
+	Self      int64              `json:"self" doc:"The effective identity: the human an agent acts for"`
 	Name      string             `json:"name"`
 	Kind      string             `json:"kind"`
-	Lang      string             `json:"lang"`
+	Lang      string             `json:"lang" enum:"fr,de,en"`
 	Functions []string           `json:"functions"`
 	Reach     map[string][]int64 `json:"reach"`
 	For       *MeFor             `json:"for,omitempty"`
@@ -154,7 +155,7 @@ type MeFor struct {
 type Problem struct {
 	Status     int            `json:"status"`
 	Title      string         `json:"title"`
-	Code       string         `json:"code"`
+	Code       string         `json:"code" enum:"unauthenticated,forbidden,not_found,rejected,constraint,invalid,internal"`
 	Detail     string         `json:"detail,omitempty"`
 	Needs      string         `json:"needs,omitempty"`
 	Action     string         `json:"action,omitempty"`
@@ -189,7 +190,7 @@ func problem(status int, code, detail string) *Problem {
 
 // Result is the body of a successful command.
 type Result struct {
-	Call    string    `json:"call"` // the e of the live keys of the command
+	Call    string    `json:"call" format:"uuid" doc:"The e of the live keys of the command"`
 	Changed []Changed `json:"changed"`
 	IDs     []int64   `json:"ids"`
 	Run     *int64    `json:"run,omitempty"`

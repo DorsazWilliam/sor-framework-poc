@@ -8,7 +8,7 @@
   import Drawer from "../ds/Drawer.svelte";
   import Tabs from "../ds/Tabs.svelte";
   import UserMenu from "../shell/UserMenu.svelte";
-  import ViewScreen from "../screen/ViewScreen.svelte";
+  import { screenComponent } from "../screen/components";
   import History from "../screen/History.svelte";
   import EntryLine from "./EntryLine.svelte";
   import { Entry, Line, addDays, forgetAllowed } from "./store.svelte";
@@ -305,7 +305,8 @@
                 <History {root} id={current!.id!} />
               {:else}
                 {@const child = screen.children.find((c) => c.id === v)!}
-                {#key current!.id}<ViewScreen screen={child} link={linked(child)} parent={current!.row!} />{/key}
+                {@const C = screenComponent(child)}
+                {#key current!.id}<C screen={child} link={linked(child)} parent={current!.row!} />{/key}
               {/if}
             {/snippet}
           </Tabs>

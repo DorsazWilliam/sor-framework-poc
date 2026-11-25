@@ -1,13 +1,11 @@
 <script lang="ts">
   import Toggle from "~icons/fluent/navigation-20-regular";
-  import Other from "~icons/fluent/text-bullet-list-square-20-regular";
   import Open from "~icons/fluent/chevron-down-12-regular";
   import Closed from "~icons/fluent/chevron-right-12-regular";
   import Dot from "~icons/fluent/circle-12-filled";
-  import ViewScreen from "../screen/ViewScreen.svelte";
-  import Entry from "../entry/Entry.svelte";
   import Toaster from "../ds/Toaster.svelte";
-  import { groupIcons, screenIcons } from "./icons";
+  import { icon } from "../ds/icons";
+  import { screenComponent } from "../screen/components";
   import { screenLabel, session, store, stored } from "../app/session.svelte";
   import { live } from "../app/live.svelte";
   import { go, route } from "../app/router.svelte";
@@ -41,7 +39,7 @@
       <Toggle />
     </button>
     {#each groups as { g, screens } (g)}
-      {@const I = groupIcons[g] ?? Other}
+      {@const I = icon(screens[0].icon)}
       <div class="group">
         <button class="ghead" title={t(`g.${g}`)} aria-expanded={!collapsed && isOpen(g)} onclick={() => toggle(g)}>
           <I /><span>{t(`g.${g}`)}</span>
@@ -49,7 +47,7 @@
         </button>
         {#if !collapsed && isOpen(g)}
           {#each screens as s (s.id)}
-            {@const SI = screenIcons[s.id] ?? I}
+            {@const SI = icon(s.icon)}
             <a class="item" href="#/{s.id}" aria-current={s.id === route.screen ? "page" : undefined}><SI /><span>{screenLabel(s)}</span></a>
           {/each}
         {/if}
@@ -60,7 +58,8 @@
   <main>
     {#if screen}
       {#key `${screen.id}:${route.visit}`}
-        {#if screen.component === "entry"}<Entry {screen} />{:else}<ViewScreen {screen} />{/if}
+        {@const C = screenComponent(screen)}
+        <C {screen} />
       {/key}
     {/if}
   </main>

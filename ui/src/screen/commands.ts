@@ -13,12 +13,10 @@ import Flash from "~icons/fluent/flash-16-regular";
 
 export const kindIcon: Record<Command["kind"], Icon> = { create: Add, update: Edit, delete: Delete, run: Play, custom: Flash };
 
-export const takesIds = (c: Command) => !c.rootless && c.kind !== "create" && c.kind !== "run";
-
 // Enabled = action true (the meta holds the permitted commands only); otherwise the reasons, as labels. The action is the root's:
 // read on the rows for a root table, on the parent row for a child table (SPEC §7).
 export function evaluate(c: Command, rows: Row[], parent?: Row): { enabled: boolean; reasons: string[] } {
-  if (takesIds(c) && !rows.length) return { enabled: false, reasons: [t("ui.select_rows")] };
+  if (c.ids && !rows.length) return { enabled: false, reasons: [t("ui.select_rows")] };
   const tbl = table(c.table);
   const conds = (c.when && tbl && table(tbl.root)?.actions[c.when]) || [];
   const on = tbl && tbl.root !== tbl.name ? (parent ? [parent] : []) : rows;

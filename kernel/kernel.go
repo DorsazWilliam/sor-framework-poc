@@ -60,7 +60,11 @@ type Row struct {
 	Inserted  bool
 }
 
-var schemaRegistry = huma.NewMapRegistry("#/components/schemas/", huma.DefaultSchemaNamer)
+// schemaRegistry holds the schemas of the contract; its lists are never null (SPEC §13).
+var schemaRegistry = func() huma.Registry {
+	huma.DefaultArrayNullable = false
+	return huma.NewMapRegistry("#/components/schemas/", huma.DefaultSchemaNamer)
+}()
 
 // NewPool opens a pool set up for the kernel: statements prepared and cached per connection (a view
 // opts out, see View), no ping on acquire, round trips counted per request.
