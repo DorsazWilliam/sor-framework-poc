@@ -570,18 +570,27 @@ textarea.input {
   margin: 0 var(--s-2);
   background: var(--border);
 }
-/* Commands shrink to their icon and an ellipsis when the bar is too narrow; the full label stays in the title. */
+/* Commands keep their full label; those that do not fit are hidden here and listed in the "more" popover. */
 .commandbar .commands {
   display: flex;
   flex: 1 1 auto;
   align-items: center;
   gap: var(--s-2);
   min-width: 0;
+  overflow: hidden;
 }
-.commandbar .commands > *,
-.commandbar .commands .btn {
-  flex: 0 1 auto;
-  min-width: 0;
+.commandbar .commands > * {
+  flex: none;
+}
+.more-commands .list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.more-commands .list > *,
+.more-commands .list .btn {
+  width: 100%;
+  justify-content: flex-start;
 }
 .btn .label {
   overflow: hidden;

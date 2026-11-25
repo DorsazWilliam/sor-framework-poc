@@ -11,8 +11,7 @@
   import { screenLabel, screenView, session, store, stored } from "../app/session.svelte";
   import { live } from "../app/live.svelte";
   import { go, route } from "../app/router.svelte";
-  import { fmtNumber } from "../ds/format";
-  import { t } from "../labels/i18n.svelte";
+  import { t, tn } from "../labels/i18n.svelte";
 
   let collapsed = $state(false);
 
@@ -67,8 +66,8 @@
   </main>
 
   <footer class="status">
-    <span>{t("ui.rows", { n: fmtNumber(session.status.rows) })}</span>
-    {#if session.status.selected}<span>{t("ui.selected", { n: fmtNumber(session.status.selected) })}</span>{/if}
+    <span>{tn("ui.rows", session.status.rows)}</span>
+    {#if session.status.selected}<span>{tn("ui.selected", session.status.selected)}</span>{/if}
     <span class="live" data-state={live.state}><Dot />{t(`ui.live.${live.state}`)}</span>
   </footer>
 </div>

@@ -1,5 +1,6 @@
 import type { Labels, Lang } from "../api/contract";
 import { api } from "../api/client";
+import { fmtNumber } from "../ds/format";
 import fr from "./fr.json";
 import de from "./de.json";
 import en from "./en.json";
@@ -15,6 +16,12 @@ export function has(key: string) {
 export function t(key: string, vars?: Record<string, unknown>): string {
   const s = i18n.registry[key] ?? chrome[i18n.lang][key] ?? chrome.fr[key] ?? key;
   return vars ? s.replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? "")) : s;
+}
+
+// A count: the label <key>.<plural category of n> (one, other, …), with {n} formatted.
+export function tn(key: string, n: number): string {
+  const k = `${key}.${new Intl.PluralRules(i18n.lang).select(n)}`;
+  return t(has(k) ? k : `${key}.other`, { n: fmtNumber(n) });
 }
 
 export async function setLang(lang: Lang) {
