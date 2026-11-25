@@ -241,31 +241,50 @@ create index hour_class_slot_class on hour_class_slot (hour_class_id);
 create view day_profile as
 select s.day_type,
        range_agg(s.span_tod) as classed,
-       coalesce(range_agg(s.span_tod) filter (where c.requires_validation), '{}') as validating
+       coalesce(range_agg(s.span_tod) filter (where c.requires_validation), '{}') as validating,
+       array_agg(s.span_tod order by s.span_tod) as slots,
+       array_agg(c.rate_coef - 1 order by s.span_tod) as rate_extra,
+       array_agg(c.hours_coef - 1 order by s.span_tod) as hours_extra
 from hour_class_slot s
 join hour_class c on c.id = s.hour_class_id
 group by s.day_type;
-comment on view day_profile is 'Per day type: minutes covered by an hour class, and by a class requiring validation.';
+comment on view day_profile is 'Per day type: minutes covered by an hour class, by a class requiring validation, and the slots with their coefficients.';
 comment on column day_profile.day_type is 'ISO weekday 1 to 7, or 8 for a full public holiday.';
 comment on column day_profile.classed is 'Minutes of the day in some hour class.';
 comment on column day_profile.validating is 'Minutes of the day in a class requiring validation.';
+comment on column day_profile.slots is 'Slots of the day, in order.';
+comment on column day_profile.rate_extra is 'Rate coefficient minus one of each slot.';
+comment on column day_profile.hours_extra is 'Hours coefficient minus one of each slot.';
 
-create function hour_class_extra(day_type integer, span int4range, coef text) returns numeric
-language sql stable parallel safe as $$
-  select coalesce(sum((upper(s.span_tod * span) - lower(s.span_tod * span))
-                      * ((case coef when 'rate' then c.rate_coef else c.hours_coef end) - 1)), 0)
-  from hour_class_slot s join hour_class c on c.id = s.hour_class_id
-  where s.day_type = hour_class_extra.day_type and s.span_tod && span $$;
-comment on function hour_class_extra(integer, int4range, text) is 'Extra weighted minutes of a span: overlap with each class times its coefficient (rate or hours) minus one.';
+create function hour_class_extra(span int4range, slots int4range[], extra numeric[]) returns numeric
+language plpgsql immutable parallel safe as $$
+declare
+  r numeric := 0;
+begin
+  for i in 1 .. coalesce(array_length(slots, 1), 0) loop
+    if slots[i] && span then
+      r := r + (upper(slots[i] * span) - lower(slots[i] * span)) * extra[i];
+    end if;
+  end loop;
+  return r;
+end $$;
+comment on function hour_class_extra(int4range, int4range[], numeric[]) is 'Extra weighted minutes of a span: its overlap with each slot times the slot''s coefficient minus one.';
 
 create view work_period_span as
 select w.id, w.user_id, w.valid_from, coalesce(min(n.valid_from), 'infinity') as valid_to,
        w.week_min, w.vacation_days, w.activity_pct
 from work_period w
 left join work_period n on n.user_id = w.user_id and n.valid_from > w.valid_from
-group by w.id;
+group by w.id, w.user_id;
 comment on view work_period_span is 'Work periods with their end: the start of the next period of the user (excluded).';
 comment on column work_period_span.valid_to is 'First day after the period.';
+
+create view work_start as
+select w.user_id, min(w.valid_from) as first_day
+from work_period w
+group by w.user_id;
+comment on view work_start is 'First day of the first work period of each user: where balances start.';
+comment on column work_start.first_day is 'First day worked.';
 
 create function work_due(user_id bigint, date_from date, date_to date, out due_min numeric, out vacation_min numeric)
 language sql stable parallel safe as $$
@@ -295,6 +314,6 @@ create view cost_rate_span as
 select c.id, c.user_id, c.valid_from, coalesce(min(n.valid_from), 'infinity') as valid_to, c.hourly_cost
 from cost_rate c
 left join cost_rate n on n.user_id = c.user_id and n.valid_from > c.valid_from
-group by c.id;
+group by c.id, c.user_id;
 comment on view cost_rate_span is 'Cost rates with their end: the start of the next cost rate of the user (excluded). Sensitive.';
 comment on column cost_rate_span.valid_to is 'First day after the cost rate.';

@@ -29,7 +29,7 @@ where @user_id::bigint = any(@reach::bigint[])
 order by d.date;
 
 -- name: ActivityGrid :many
--- Activities in reach over a period, with user, project, folder and task names.
+-- Activities in reach over a period, with user, project, folder and task names. Unordered: the wrap sorts, so a page stops early.
 -- @anchor user_id user
 select a.*, u.name as user_name, p.name as project_name, f.name as folder_name, t.name as task_name
 from activity_p a
@@ -37,11 +37,10 @@ left join "user" u on u.id = a.user_id
 left join project p on p.id = a.project_id
 left join folder f on f.id = a.folder_id
 left join task t on t.id = a.task_id
-where a.date between @date_from and @date_to and a.user_id = any(@reach::bigint[])
-order by a.date desc, a.id desc;
+where a.date between @date_from and @date_to and a.user_id = any(@reach::bigint[]);
 
 -- name: ActivityToValidate :many
--- Activities of the team over a period that need a validation and are not validated.
+-- Activities of the team over a period that need a validation and are not validated. Unordered: the wrap sorts.
 -- @anchor user_id team
 -- @needs validation
 select a.*, u.name as user_name, p.name as project_name, f.name as folder_name, t.name as task_name
@@ -50,8 +49,7 @@ left join "user" u on u.id = a.user_id
 left join project p on p.id = a.project_id
 left join folder f on f.id = a.folder_id
 left join task t on t.id = a.task_id
-where a.date between @date_from and @date_to and a.to_validate and a.not_validated and a.user_id = any(@reach::bigint[])
-order by a.date desc, a.id desc;
+where a.date between @date_from and @date_to and a.to_validate and a.not_validated and a.user_id = any(@reach::bigint[]);
 
 -- name: ActivityClass :many
 -- Split of an activity by hour class, plus the part outside any class.
@@ -75,30 +73,23 @@ order by e.id;
 -- Hours and vacation balances per user in reach over [date_from, date_to], nothing after today, in minutes.
 -- Carried = done minus due from the first work period of the user to date_from excluded.
 -- @anchor user_id user
-with r as (
-    select @date_from::date as a, least(@date_to::date, sor_today()) as b
-), ws as (
-    select w.user_id, min(w.valid_from) as first_day from work_period w group by w.user_id
-), d as (
-    select x.user_id,
-           coalesce(sum(x.counted_min) filter (where x.date < r.a and x.date >= ws.first_day), 0) as done_before,
-           coalesce(sum(x.counted_min) filter (where x.date >= r.a), 0) as done,
-           coalesce(sum(x.duration_min) filter (where x.kind = 'vacation' and x.date < r.a and x.date >= ws.first_day), 0) as vac_before,
-           coalesce(sum(x.duration_min) filter (where x.kind = 'vacation' and x.date >= r.a), 0) as vac_taken
-    from activity_p x
-    cross join r
-    left join ws on ws.user_id = x.user_id
-    where x.date <= r.b and x.user_id = any(@reach::bigint[])
-    group by x.user_id
-)
 select u.id as user_id, k.carried_min, k.due_min, k.done_min, k.carried_min + k.done_min - k.due_min as balance_min,
        k.vac_carried_min, k.vac_available_min, k.vac_taken_min, k.vac_carried_min + k.vac_available_min - k.vac_taken_min as vac_balance_min
 from "user" u
-cross join r
-left join ws on ws.user_id = u.id
-left join d on d.user_id = u.id
-cross join lateral work_due(u.id, ws.first_day, r.a - 1) w0
-cross join lateral work_due(u.id, r.a, r.b) w1
+left join work_start s on s.user_id = u.id
+left join (
+    select x.user_id,
+           sum(x.counted_min) filter (where x.date < cast(@date_from as date) and x.date >= ws.first_day) as done_before,
+           sum(x.counted_min) filter (where x.date >= cast(@date_from as date)) as done,
+           sum(x.duration_min) filter (where x.kind = 'vacation' and x.date < cast(@date_from as date) and x.date >= ws.first_day) as vac_before,
+           sum(x.duration_min) filter (where x.kind = 'vacation' and x.date >= cast(@date_from as date)) as vac_taken
+    from activity_p x
+    left join work_start ws on ws.user_id = x.user_id
+    where x.date <= least(cast(@date_to as date), sor_today()) and x.user_id = any(@reach::bigint[])
+    group by x.user_id
+) d on d.user_id = u.id
+cross join lateral work_due(u.id, s.first_day, cast(@date_from as date) - 1) w0
+cross join lateral work_due(u.id, cast(@date_from as date), least(cast(@date_to as date), sor_today())) w1
 cross join lateral (
     select round(coalesce(d.done_before, 0) - w0.due_min)::integer as carried_min,
            round(w1.due_min)::integer as due_min,

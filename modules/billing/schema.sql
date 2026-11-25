@@ -40,14 +40,6 @@ comment on view invoice_line is 'Activities of an invoice: attached ones once in
 comment on column invoice_line.invoice_id is 'Invoice.';
 comment on column invoice_line.activity_id is 'Activity.';
 
-create view expense_total as
-select e.activity_id, sum(e.user_amount) as user_amount, sum(e.billed_amount) as billed_amount
-from expense_p e
-group by e.activity_id;
-comment on view expense_total is 'Expense amounts per activity.';
-comment on column expense_total.user_amount is 'Sum reimbursed to the user.';
-comment on column expense_total.billed_amount is 'Sum billed.';
-
 create view delivery_state as
 select q.delivery_id, q.connection_id, q.root_table, q.root_id, q.created_at,
        (case when q.ok then 'exported' when q.last_at is not null then 'failed' else 'created' end)::export_state as state,
@@ -150,24 +142,30 @@ comment on column invoice_document.document is 'The document.';
 create view activity_revenue as
 select q.*, q.realized_amount - q.invoiced_amount as balance_amount
 from (
-    select r.*, case when r.invoice_id is null then 0 else r.realized_amount end as invoiced_amount
+    select r.*, r.services_amount + r.expenses_billed as realized_amount,
+           case when r.invoice_id is null then 0 else r.services_amount + r.expenses_billed end as invoiced_amount
     from (
-        select a.id, a.user_id, a.date, a.project_id, a.folder_id, a.task_id, a.invoice_id,
-               a.duration_min, a.billed_min, a.counted_min,
-               a.amount as services_amount,
-               coalesce(e.billed_amount, 0) as expenses_billed,
-               coalesce(e.user_amount, 0) as expenses_user,
-               a.amount + coalesce(e.billed_amount, 0) as realized_amount
+        select a.id as activity_id, a.user_id, a.date, a.project_id, a.folder_id, a.invoice_id,
+               a.duration_min::integer as duration_min, a.billed_min::integer as billed_min, a.counted_min,
+               a.amount as services_amount, 0::numeric as expenses_billed, 0::numeric as expenses_user
         from activity_p a
-        left join expense_total e on e.activity_id = a.id
+        union all
+        select a.id, a.user_id, a.date, a.project_id, a.folder_id, a.invoice_id,
+               0, 0, 0, 0::numeric, e.billed_amount, e.user_amount
+        from expense_p e
+        join activity_p a on a.id = e.activity_id
     ) r
 ) q;
-comment on view activity_revenue is 'Revenue of each activity: services, expenses billed and reimbursed, realized, invoiced and balance.';
-comment on column activity_revenue.services_amount is 'Amount of the activity.';
-comment on column activity_revenue.expenses_billed is 'Expenses billed.';
-comment on column activity_revenue.expenses_user is 'Expenses reimbursed to the user.';
+comment on view activity_revenue is 'Revenue lines of the activities: one line per activity (services) and one per expense (expenses billed and reimbursed); realized, invoiced and balance per line.';
+comment on column activity_revenue.activity_id is 'Activity of the line.';
+comment on column activity_revenue.duration_min is 'Real duration (activity line).';
+comment on column activity_revenue.billed_min is 'Billed duration (activity line).';
+comment on column activity_revenue.counted_min is 'Counted duration (activity line).';
+comment on column activity_revenue.services_amount is 'Amount of the activity (activity line).';
+comment on column activity_revenue.expenses_billed is 'Expense billed (expense line).';
+comment on column activity_revenue.expenses_user is 'Expense reimbursed to the user (expense line).';
 comment on column activity_revenue.realized_amount is 'Services plus expenses billed.';
-comment on column activity_revenue.invoiced_amount is 'Realized amount of an invoiced activity, else 0.';
+comment on column activity_revenue.invoiced_amount is 'Realized amount of a line of an invoiced activity, else 0.';
 comment on column activity_revenue.balance_amount is 'Realized minus invoiced.';
 
 create view activity_cost as
@@ -177,7 +175,7 @@ from (
     from activity_revenue r
     left join cost_rate_span c on c.user_id = r.user_id and r.date >= c.valid_from and r.date < c.valid_to
 ) q;
-comment on view activity_cost is 'Revenue and cost of each activity: counted minutes times the hourly cost in force at its date. Sensitive.';
+comment on view activity_cost is 'Revenue lines with the cost of each activity: counted minutes times the hourly cost in force at its date (0 on expense lines). Sensitive.';
 comment on column activity_cost.hourly_cost is 'Hourly cost of the user at the date.';
 comment on column activity_cost.cost_amount is 'Cost of the activity.';
 comment on column activity_cost.margin_services is 'Services minus cost.';

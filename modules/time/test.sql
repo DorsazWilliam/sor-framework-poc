@@ -148,10 +148,10 @@ select pg_temp.eq('day out of reach', (select count(*) from tn), 0::bigint);
 -- Balances of dave over March, today 2026-03-20: 100 % from 2026-01-05, 50 % from 2026-03-02.
 -- Carried: 40 weekdays x 480 due, 960 done -> -18240. Due: 15 weekdays x 480 - 480 (full) - 240 (partial) = 6480 at 50 % -> 3240.
 -- Vacation: 55/365 x 20 x 480 - 480 taken -> 967 carried; (1/365 x 9600 + 19/365 x 4800) -> 276 available.
-create temp table bal as execute balance(array[pg_temp.uid('dave')], '2026-03-01', '2026-03-31');
+create temp table bal as execute balance('2026-03-01', '2026-03-31', array[pg_temp.uid('dave')]);
 select pg_temp.eq('balance', (select row(carried_min, due_min, done_min, balance_min)::text from bal), '(-18240,3240,300,-21180)');
 select pg_temp.eq('vacation balance', (select row(vac_carried_min, vac_available_min, vac_taken_min, vac_balance_min)::text from bal), '(967,276,0,1243)');
-create temp table bal2 as execute balance(array[pg_temp.uid('dave')], '2026-01-05', '2026-03-20');
+create temp table bal2 as execute balance('2026-01-05', '2026-03-20', array[pg_temp.uid('dave')]);
 select pg_temp.eq('balance whole history', (select row(carried_min, due_min, done_min, vac_taken_min)::text from bal2), '(0,22440,1260,480)');
 
 \echo time: ok

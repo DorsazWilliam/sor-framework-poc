@@ -121,9 +121,8 @@ where f.project_id <= 1500;
 insert into folder_task (folder_id, task_id) values (6001, 27), (6002, 28), (6002, 29), (6002, 30), (6003, 25), (6003, 26), (6003, 24);
 
 insert into user_task_rate (user_id, task_id, rate)
-select distinct on (u, t) u, t, 120 + 10 * floor(random() * 10)
-from p, generate_series(1, p.users * 2) g
-cross join lateral (select 1 + floor(random() * p.users)::bigint as u, 1 + floor(random() * 20)::bigint as t) x;
+select distinct on (x.u, x.t) x.u, x.t, 120 + 10 * floor(random() * 10)
+from (select 1 + floor(random() * p.users)::bigint as u, 1 + floor(random() * 20)::bigint as t from p, generate_series(1, p.users * 2) g) x;
 
 insert into expense_type (name, by_quantity, unit_price, billing_unit_price, mode) values
     ('Kilomètres', true, 0.70, 0.90, 'both'), ('Repas', false, null, null, 'both'), ('Hôtel', false, null, null, 'both'),
@@ -310,13 +309,11 @@ order by z.id;
 
 -- Expenses on about 5 % of the activities of project folders; frozen on invoiced activities.
 insert into expense (activity_id, expense_type_id, quantity, amount)
-select a.id, x.t,
+select x.id, x.t,
        case x.t when 1 then 10 + floor(random() * 190) when 6 then 1 + floor(random() * 3) end,
        case when x.t not in (1, 6) then round((8 + random() * 240)::numeric, 2) end
-from activity a
-cross join lateral (select 1 + floor(random() * 6)::integer as t) x
-where a.folder_id <= 6000 and random() < 0.05
-order by a.id;
+from (select a.id, 1 + floor(random() * 6)::integer as t from activity a where a.folder_id <= 6000 and random() < 0.05) x
+order by x.id;
 update expense e set (frozen_user_amount, frozen_billed_amount) = (x.user_amount, x.billed_amount)
 from expense_p x, activity a
 where x.id = e.id and a.id = e.activity_id and a.invoice_id is not null;

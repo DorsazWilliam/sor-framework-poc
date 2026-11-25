@@ -40,7 +40,6 @@ create index activity_user_date on activity (user_id, date) include (start_tod, 
 create index activity_date on activity (date, id);
 create index activity_folder on activity (folder_id) include (duration_min);
 create index activity_invoice on activity (invoice_id) where invoice_id is not null;
-alter table activity set (parallel_workers = 4);
 
 create table expense_type (
     id bigint generated always as identity primary key,
@@ -119,9 +118,9 @@ select q.id, q.user_id, q.date, q.start_tod, q.duration_min, q.folder_id, q.task
        q.validated_by, q.validated_at, q.invoice_id, q.frozen_rate, q.frozen_billed_min, q.frozen_amount,
        q.project_id, q.day_type, q.kind, q.billed_min, q.rate,
        coalesce(q.frozen_amount, round(q.rate * q.billed_min / 60.0
-           * case when q.span && dp.classed then (q.duration_min + hour_class_extra(q.day_type, q.span, 'rate')) / q.duration_min else 1 end, 2)) as amount,
+           * case when q.span && dp.classed then (q.duration_min + hour_class_extra(q.span, dp.slots, dp.rate_extra)) / q.duration_min else 1 end, 2)) as amount,
        case when not q.counts_hours then 0
-            when q.span && dp.classed then round(q.duration_min + hour_class_extra(q.day_type, q.span, 'hours'))::integer
+            when q.span && dp.classed then round(q.duration_min + hour_class_extra(q.span, dp.slots, dp.hours_extra))::integer
             else q.duration_min::integer end as counted_min,
        q.requires_validation or coalesce(q.span && dp.validating, false) or coalesce(fs.spent_min > fs.estimated_min, false) as to_validate,
        q.not_locked, q.not_invoiced, q.not_validated, q.is_validated, q.entry_open, q.task_allowed
