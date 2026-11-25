@@ -1,6 +1,7 @@
 import type { Command, Lang, Me, Meta, Screen, Table, View } from "../api/contract";
 import { api } from "../api/client";
-import { has, setLang, t } from "../labels/i18n.svelte";
+import { begin, clear, remember, restore, type Boot } from "./cache.svelte";
+import { has, i18n, setLabels, setLang, t } from "../labels/i18n.svelte";
 
 export const session = $state({
   me: null as unknown as Me,
@@ -51,16 +52,41 @@ export function setTheme(theme: "light" | "dark") {
 export async function changeLang(lang: Lang) {
   await setLang(lang);
   store("lang", lang);
+  remember($state.snapshot({ me: session.me, meta: session.meta, lang, labels: i18n.registry }));
 }
 
+function start(b: Boot) {
+  for (const x of b.meta.tables) index.tables.set(x.name, x);
+  for (const x of b.meta.views) index.views.set(x.name, x);
+  for (const x of b.meta.commands) index.commands.set(x.name, x);
+  session.me = b.me;
+  session.meta = b.meta;
+  setLabels(b.lang, b.labels);
+  begin(b.me, b.meta);
+  remember(b);
+}
+
+// From the tab's cache at once when it holds a boot, then read again: another identity or registry starts over.
 export async function boot() {
-  const [me, meta] = await Promise.all([api.me(), api.meta()]);
-  for (const x of meta.tables) index.tables.set(x.name, x);
-  for (const x of meta.views) index.views.set(x.name, x);
-  for (const x of meta.commands) index.commands.set(x.name, x);
-  session.me = me;
-  session.meta = meta;
   const theme = stored("theme");
   setTheme(theme === "dark" || theme === "light" ? theme : matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-  await setLang((stored("lang") as Lang | null) ?? me.lang);
+  const kept = restore();
+  if (kept) {
+    start(kept);
+    Promise.all([api.me(), api.meta(), api.labels(kept.lang)])
+      .then(([me, meta, labels]) => {
+        if (JSON.stringify(me) !== JSON.stringify(kept.me) || meta.version !== kept.meta.version) throw new Error("changed");
+        setLabels(kept.lang, labels);
+        remember({ ...kept, labels });
+      })
+      .catch(() => {
+        clear();
+        location.reload();
+      });
+    return;
+  }
+  clear();
+  const [me, meta] = await Promise.all([api.me(), api.meta()]);
+  const lang = (stored("lang") as Lang | null) ?? me.lang;
+  start({ me, meta, lang, labels: await api.labels(lang) });
 }

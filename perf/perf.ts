@@ -1,7 +1,8 @@
 // Browser-side performance harness (SPEC §23) against the running stack.
 //   npm run perf [-- B1,B3,...]     SOR_URL (default http://localhost:8080), RUNS (default 20), OUT (JSON file)
 // Each scenario runs RUNS + 1 times, the first run is discarded. Times are measured in the page, from the user
-// action (click, key, commit) to the screen's marker (data-ready, data-saved, a displayed row). Server-Timing of
+// action (click, key, commit) to the screen's marker (data-fresh: confirmed by the server; data-ready: displayed,
+// from the client cache or the server; data-saved, a displayed row). Server-Timing of
 // every /api/v and /api/c request involved gives the DB time, the round trips and the server time; a view request
 // with aggregates and no group is named "<view> totals".
 // Between measures, sessions park on the company screen: every measured user sees it and its data does not change.
@@ -51,6 +52,13 @@ const helpers = () => {
     return res;
   };
   w.__requests = (t0: number) => log.filter((q) => q.t >= t0).map(({ t, ...q }) => q);
+  // the first screen displayed after the page's navigation start (a reload)
+  new MutationObserver((_, o) => {
+    if (document.querySelector("[data-screen][data-ready]")) {
+      w.__shown = performance.now();
+      o.disconnect();
+    }
+  }).observe(document, { subtree: true, childList: true, attributes: true });
   w.__until = (cond: () => boolean) =>
     new Promise<number>((res, rej) => {
       if (cond()) return res(performance.now());
@@ -74,7 +82,7 @@ async function login(user: string) {
   await page.click('input[type="submit"]');
   await page.waitForURL((u) => u.pathname === "/" && !u.port.startsWith("809"));
   await page.goto(`${base}/${hash("company")}`);
-  await page.waitForSelector('[data-screen="company"][data-ready]');
+  await page.waitForSelector('[data-screen="company"][data-fresh]');
   return { ctx, page, user };
 }
 type Session = Awaited<ReturnType<typeof login>>;
@@ -108,12 +116,15 @@ async function measure(page: Page, act: string, selector: string, cond?: string)
 const link = (h: string) => `const a = document.createElement("a"); a.href = ${JSON.stringify(h)}; document.body.append(a); a.click(); a.remove();`;
 const away = async (page: Page) => {
   await page.evaluate((h) => (location.hash = h), hash("company"));
-  await page.waitForSelector('[data-screen="company"][data-ready]');
+  await page.waitForSelector('[data-screen="company"][data-fresh]');
 };
-// Clicks a link to a screen (from another screen) until the screen shows its data.
+// Clicks a link to a screen (from another screen) until the screen shows the server's data: a reload first makes
+// every entry of the client cache stale, so the server path is measured.
 const open = async (page: Page, screen: string, state?: object) => {
   await away(page);
-  return measure(page, link(hash(screen, state)), `[data-screen="${screen}"][data-ready]`);
+  await page.reload();
+  await page.waitForSelector('[data-screen="company"][data-fresh]');
+  return measure(page, link(hash(screen, state)), `[data-screen="${screen}"][data-fresh]`);
 };
 
 const results: Result[] = [];
@@ -184,7 +195,7 @@ const focusedLine = (page: Page) =>
 async function entryOnPerfDay(page: Page) {
   await away(page);
   await page.evaluate(() => (location.hash = "#/entry"));
-  await page.waitForSelector('[data-screen="entry"][data-ready]');
+  await page.waitForSelector('[data-screen="entry"][data-fresh]');
   await page.locator(".strip .day").first().waitFor();
   for (let i = 0; i < 400 && (await page.locator(".strip .day[aria-pressed=true]").getAttribute("data-date"))! < perfDay(0); i++) await page.keyboard.press("Alt+ArrowDown");
   for (let i = 0; i < 7 && (await page.locator(".strip .day[aria-pressed=true]").getAttribute("data-date")) !== perfDay(0); i++) await page.keyboard.press("Alt+ArrowLeft");
@@ -237,7 +248,7 @@ await scenario(
     const page = admin.page;
     await away(page);
     await page.evaluate((h) => (location.hash = h), hash("validation", { wrap: { filter: [{ action: "validatable" }, { col: "id", op: "in", value: toValidate }] } }));
-    await page.waitForSelector('[data-screen="validation"][data-ready]');
+    await page.waitForSelector('[data-screen="validation"][data-fresh]');
     await page.locator(".grid .row[data-id]").first().waitFor();
     await page.locator(".hrow .checkbox").click();
     await page.waitForFunction(() => document.querySelector(".status")?.textContent?.includes("100 sélectionnée"));
@@ -271,6 +282,24 @@ await scenario("B9d", "activities grid, 1 month, deep scroll (middle)", 120, adm
   );
 });
 
+// B13: back to a visited screen, displayed from the client cache; B14: a reload, from its navigation start to the
+// shell and the screen displayed (from the cache kept by the tab).
+const month30 = { params: { date_from: daysAgo(30), date_to: iso(today) } };
+await scenario("B13", "return to a visited screen → displayed", 50, admin, async () => {
+  await away(admin.page);
+  return measure(admin.page, link(hash("activities", month30)), '[data-screen="activities"][data-ready]');
+});
+await scenario("B14", "reload the page → shell and screen displayed", 500, admin, async () => {
+  const page = admin.page;
+  await page.evaluate((h) => (location.hash = h), hash("activities", month30));
+  await page.waitForSelector('[data-screen="activities"][data-fresh]');
+  await page.reload();
+  await page.waitForSelector('[data-screen="activities"][data-ready]');
+  const ms = await page.evaluate(() => (window as unknown as { __shown: number }).__shown);
+  await page.waitForSelector('[data-screen="activities"][data-fresh]');
+  return { ms, requests: [] };
+});
+
 // B10: invoice run for one month: first progress and end; then cancel at first progress and rerun.
 const month = (() => {
   const a = new Date(today.getFullYear(), today.getMonth() - 1, 1);
@@ -300,7 +329,7 @@ await scenario(
     const page = admin.page;
     await away(page);
     await page.evaluate((h) => (location.hash = h), hash("invoicing"));
-    await page.waitForSelector('[data-screen="invoicing"][data-ready]');
+    await page.waitForSelector('[data-screen="invoicing"][data-fresh]');
     await startRun(page);
     const start = `[...document.querySelectorAll(".dialog-footer button")].at(-1).click()`;
     const first = await measure(page, start, ".run[data-run-state]", progressed);
@@ -346,10 +375,10 @@ await scenario(
     await call(admin, "invoice.attach_pdf", { ids: [printed], pdf_file_id: null });
     await away(page);
     await page.evaluate((h) => (location.hash = h), hash("invoicing", { wrap: { filter: [{ col: "id", op: "eq", value: printed }] } }));
-    await page.waitForSelector('[data-screen="invoicing"][data-ready]');
+    await page.waitForSelector('[data-screen="invoicing"][data-fresh]');
     await page.locator(".grid .row[data-id]").first().dblclick();
     await page.getByRole("tab", { name: "PDF" }).click();
-    await page.waitForSelector('[data-screen="invoice_pdf"][data-ready]');
+    await page.waitForSelector('[data-screen="invoice_pdf"][data-fresh]');
     await page.locator(".grid .row[data-id]").first().click();
     return measure(page, `document.querySelector('[data-command="invoice.print"]').click()`, '[data-screen="invoice_pdf"] iframe');
   },
@@ -385,7 +414,7 @@ await scenario(
   async () => {
     liveId = (await call(admin, "activity.create", { user_id: me.id, date: perfDay(1), start_tod: 480, duration_min: 30, folder_id: folder.id, task_id: task.id })).ids[0];
     await other.page.evaluate((h) => (location.hash = h), hash("activities", { params: { date_from: perfDay(1), date_to: perfDay(1) } }));
-    await other.page.waitForSelector('[data-screen="activities"][data-ready]');
+    await other.page.waitForSelector('[data-screen="activities"][data-fresh]');
   },
   clearPerfWeek,
 );

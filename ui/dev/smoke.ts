@@ -305,6 +305,65 @@ await step("12 live: a commit in one session updates another session", async () 
   await other.ctx.close();
 });
 
+await step("cache: a return without requests, a change from another session, a reload painted from cache, logout, another user", async () => {
+  const { ctx, page: p } = await login("admin");
+  const first = await (await ctx.request.get(`${base}/api/me`)).json();
+  await open(p, "locks");
+  await p.locator('.live[data-state="live"]').waitFor();
+  const a = { params: { date_from: testDay(0), date_to: testDay(0) } };
+  const hash = (screen: string, state?: object) => `#/${screen}${state ? `?s=${encodeURIComponent(JSON.stringify(state))}` : ""}`;
+  const visit = async (screen: string, state?: object) => {
+    await p.evaluate((h) => (location.hash = h), hash(screen, state));
+    await p.locator(`[data-screen="${screen}"][data-fresh]`).waitFor();
+  };
+  await visit("activities", a);
+  await visit("locks");
+  // back to the activities: shown at once (no skeleton, no empty state) and nothing read
+  const requests: string[] = [];
+  p.on("request", (r) => r.url().includes("/api/v/") && requests.push(r.url()));
+  const flashed = await p.evaluate(async (h) => {
+    let seen = false;
+    const o = new MutationObserver(() => (seen ||= !!document.querySelector('[data-screen="activities"]:not([data-ready]), .row.loading, .empty-state')));
+    o.observe(document, { subtree: true, childList: true, attributes: true });
+    location.hash = h;
+    while (!document.querySelector('[data-screen="activities"][data-fresh]')) await new Promise((r) => setTimeout(r, 10));
+    o.disconnect();
+    return seen;
+  }, hash("activities", a));
+  check(!flashed && !requests.length, `return shown at once without requests (${requests.length})`);
+  // a change from another session while away: the activities show it on return
+  await visit("locks");
+  const text = `Smoke cache ${Date.now() % 100000}`;
+  await call(admin.ctx, "activity.update", { ids: [activityId], description: text });
+  await p.evaluate((h) => (location.hash = h), hash("activities", a));
+  await grid(p).filter({ hasText: text }).waitFor({ timeout: 3000 });
+  // a reload paints from the cache while every API response is held
+  const api = (u: URL) => u.pathname.startsWith("/api/");
+  await p.route(api, async (r) => {
+    await new Promise((res) => setTimeout(res, 2000));
+    await r.continue().catch(() => {});
+  });
+  await p.reload({ waitUntil: "commit" });
+  await grid(p).filter({ hasText: text }).waitFor({ timeout: 1500 });
+  await p.unroute(api);
+  await p.locator('[data-screen="activities"][data-fresh]').waitFor();
+  // logout empties the tab's cache; the next user sees nothing of the first one
+  await p.route("**/auth/login", (r) => r.fulfill({ body: "" }));
+  await p.getByTestId("user-menu").click();
+  await p.getByRole("menuitem", { name: "Se déconnecter" }).click();
+  await p.waitForURL((u) => u.pathname === "/auth/login");
+  check(!(await p.evaluate(() => Object.keys(sessionStorage).length)), "sessionStorage empty after logout");
+  await p.unroute("**/auth/login");
+  await p.goto(`${base}/auth/login`);
+  await p.fill('input[name="username"]', "user");
+  await p.click('input[type="submit"]');
+  const name = await p.getByTestId("user-menu").innerText();
+  const me = await (await ctx.request.get(`${base}/api/me`)).json();
+  const keys = await p.evaluate(() => Object.keys(sessionStorage));
+  check(me.self !== first.self && name.includes(me.name) && !name.includes(first.name) && keys.every((k) => k === "sor:boot" || k.startsWith(`sor:v:${me.self}|`)), "only the second user's data");
+  await ctx.close();
+});
+
 await step("3 validation: manager's list, bulk validate, live list", async () => {
   const mgr = await login("manager");
   const p = mgr.page;

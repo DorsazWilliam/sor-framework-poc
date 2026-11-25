@@ -1,7 +1,5 @@
 <script lang="ts">
-  import type { Row } from "../api/contract";
-  import { api } from "../api/client";
-  import { watch } from "../app/live.svelte";
+  import { follow } from "../app/cache.svelte";
   import { colLabel, table, view } from "../app/session.svelte";
   import { display } from "../app/display";
   import { fmtInstant } from "../ds/format";
@@ -17,15 +15,12 @@
   };
   let events = $state<Event[]>([]);
 
-  async function load() {
-    const rows = await api.view("history", { params: { root_table: root, root_id: id }, sort: [{ col: "at", dir: "desc" }] });
-    events = rows as Row[] as Event[];
-  }
-
-  $effect(() => {
-    load();
-    return watch([root, ...(view("history")?.roots ?? [])], load);
-  });
+  // The history view reads the event log: the root it is about is named by its params, not by its own roots.
+  $effect(() =>
+    follow([["history", { params: { root_table: root, root_id: id }, sort: [{ col: "at", dir: "desc" }] }, [root]]], ([rows]) => {
+      events = rows as Event[];
+    }),
+  );
 
   const show = (tbl: string, col: string, v: unknown) => {
     const c = table(tbl)?.columns.find((x) => x.name === col);

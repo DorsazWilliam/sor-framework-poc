@@ -8,9 +8,9 @@
   import Input from "../ds/Input.svelte";
   import Bookmark from "~icons/fluent/bookmark-16-regular";
   import Chevron from "~icons/fluent/chevron-down-16-regular";
-  import { api, ApiError } from "../api/client";
-  import { watch } from "../app/live.svelte";
-  import { command, session, view } from "../app/session.svelte";
+  import { ApiError } from "../api/client";
+  import { follow, load, type Read } from "../app/cache.svelte";
+  import { command, session } from "../app/session.svelte";
   import { execute } from "./commands";
   import { t } from "../labels/i18n.svelte";
 
@@ -23,25 +23,20 @@
   let naming = $state(false);
   let name = $state("");
 
-  async function load() {
-    saved = await api.view("saved_view", {
-      filter: [{ col: "screen", op: "eq", value: screen }],
-      sort: [{ col: "name", dir: "asc" }],
-    });
+  const list = (): Read[] => [["saved_view", { filter: [{ col: "screen", op: "eq", value: screen }], sort: [{ col: "name", dir: "asc" }] }]];
+  function show([rows]: Row[][]) {
+    saved = rows;
     if (active) active = saved.find((s) => s.id === active!.id) ?? null;
   }
 
-  $effect(() => {
-    load();
-    return watch(view("saved_view")?.roots ?? ["saved_view"], load);
-  });
+  $effect(() => follow(list(), show));
 
   async function create(e: Event) {
     e.preventDefault();
     const res = await execute(command("saved_view.create")!, { owner_id: session.me.self, screen, name, state: current() });
     if (res instanceof ApiError) return;
     naming = false;
-    await load();
+    await load(list(), show);
     active = saved.find((s) => s.id === res.ids[0]) ?? null;
   }
 

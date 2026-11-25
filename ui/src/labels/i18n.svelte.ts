@@ -24,8 +24,10 @@ export function tn(key: string, n: number): string {
   return t(has(k) ? k : `${key}.other`, { n: fmtNumber(n) });
 }
 
-export async function setLang(lang: Lang) {
-  i18n.registry = await api.labels(lang);
+export function setLabels(lang: Lang, registry: Labels) {
+  i18n.registry = registry;
   i18n.lang = lang;
   document.documentElement.lang = lang;
 }
+
+export const setLang = async (lang: Lang) => setLabels(lang, await api.labels(lang));

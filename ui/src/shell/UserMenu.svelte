@@ -5,6 +5,7 @@
   import Person from "~icons/fluent/person-16-regular";
   import SignOut from "~icons/fluent/sign-out-20-regular";
   import { changeLang, session, setTheme } from "../app/session.svelte";
+  import { clear } from "../app/cache.svelte";
   import { i18n, t } from "../labels/i18n.svelte";
 
   const langs: Lang[] = ["fr", "de", "en"];
@@ -20,7 +21,7 @@
       onselect: () => setTheme(th),
     })),
     "separator",
-    { label: t("ui.logout"), icon: SignOut, onselect: () => (location.href = "/auth/logout") },
+    { label: t("ui.logout"), icon: SignOut, onselect: () => (clear(), (location.href = "/auth/logout")) },
   ]);
 </script>
 

@@ -2,6 +2,7 @@
   import { Tooltip } from "bits-ui";
   import Shell from "./shell/Shell.svelte";
   import { boot } from "./app/session.svelte";
+  import { clear } from "./app/cache.svelte";
   import { connect } from "./app/live.svelte";
   import { ApiError } from "./api/client";
   import { t } from "./labels/i18n.svelte";
@@ -21,7 +22,7 @@
         <h1>{t("ui.boot_failed")}</h1>
         <p>{e instanceof ApiError ? (e.problem.detail ?? e.problem.title) : String(e)}</p>
       {/if}
-      <a class="btn" href="/auth/logout">{t("ui.logout")}</a>
+      <a class="btn" href="/auth/logout" onclick={clear}>{t("ui.logout")}</a>
     </div>
   {/await}
 </Tooltip.Provider>

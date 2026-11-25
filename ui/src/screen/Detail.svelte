@@ -4,8 +4,7 @@
   import Form from "./Form.svelte";
   import History from "./History.svelte";
   import { screenComponent } from "./components";
-  import { api } from "../api/client";
-  import { watch } from "../app/live.svelte";
+  import { follow } from "../app/cache.svelte";
   import { screenLabel, view } from "../app/session.svelte";
   import { t } from "../labels/i18n.svelte";
 
@@ -26,16 +25,10 @@
   let tab = $state("form");
   const list = $derived(view(tbl.name));
 
-  async function load() {
-    if (id == null || !list) return;
-    row = (await api.view(tbl.name, { filter: [{ col: "id", op: "eq", value: id }] }))[0] ?? null;
-  }
-
   $effect(() => {
     row = null;
-    if (id == null) return;
-    load();
-    return watch(list?.roots ?? [tbl.root], load);
+    if (id == null || !list) return;
+    return follow([[list.name, { filter: [{ col: "id", op: "eq", value: id }] }]], ([rows]) => (row = rows[0] ?? null));
   });
 
   const items = $derived([

@@ -1,7 +1,8 @@
 import { SvelteMap } from "svelte/reactivity";
 import type { Commands, Row } from "../api/contract";
 import type { Item } from "../ds/types";
-import { api, ApiError } from "../api/client";
+import { ApiError } from "../api/client";
+import { load } from "../app/cache.svelte";
 import { all, lookup } from "../app/lookups.svelte";
 import { command, session } from "../app/session.svelte";
 import { call, report } from "../screen/commands";
@@ -49,13 +50,12 @@ export function allowedTasks(folder: number | null): Item[] {
   const items = allowed.get(folder);
   if (!items && !asking.has(folder)) {
     asking.add(folder);
-    api
-      .view("folder_task_allowed", { params: { folder_id: folder }, limit: 5000 })
-      .then((rows) => {
+    queueMicrotask(() =>
+      load([["folder_task_allowed", { params: { folder_id: folder }, limit: 5000 }]], ([rows]) => {
         for (const r of rows) billings.set(r.id as number, r.billing);
         allowed.set(folder, rows.map((r) => ({ value: String(r.id), label: String(r.name) })));
-      })
-      .finally(() => asking.delete(folder));
+      }).finally(() => asking.delete(folder)),
+    );
   }
   return items ?? [];
 }
@@ -117,21 +117,19 @@ export class Entry {
   #shown = "";
   #gen = 0;
 
-  async refresh() {
+  refresh() {
     const gen = ++this.#gen;
     const key = `${this.user}:${this.monday}`;
     const params = { user_id: this.user, date_from: this.week[0], date_to: this.week[6] };
-    const [rows, days] = await Promise.all([
-      api.view("timesheet", { params, limit: 5000 }),
-      api.view("timesheet_day", { params }),
-      loadPicks(),
-    ]);
-    if (gen !== this.#gen) return;
-    for (const r of rows) billings.set(r.task_id as number, r.billing);
-    this.#merge(rows, key !== this.#shown);
-    this.days = days;
-    this.#shown = key;
-    this.ready = true;
+    loadPicks();
+    return load([["timesheet", { params, limit: 5000 }], ["timesheet_day", { params }]], ([rows, days]) => {
+      if (gen !== this.#gen) return;
+      for (const r of rows) billings.set(r.task_id as number, r.billing);
+      this.#merge(rows, key !== this.#shown);
+      this.days = days;
+      this.#shown = key;
+      this.ready = true;
+    });
   }
 
   // Lines keep their place and their drafts; new rows are inserted by start, removed rows dropped.

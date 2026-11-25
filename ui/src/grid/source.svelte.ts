@@ -1,6 +1,6 @@
 import { SvelteMap } from "svelte/reactivity";
 import type { Agg, Filter, Row, Sort } from "../api/contract";
-import { api } from "../api/client";
+import { load, read, type Read } from "../app/cache.svelte";
 
 export const PAGE = 200;
 export const ROW = 24;
@@ -57,19 +57,16 @@ export class Pager {
     for (let p = a; p <= b; p++) if (!this.#pages.has(p) && !this.#loading.has(p)) this.#load(p);
   }
 
-  async #load(p: number) {
+  #load(p: number) {
     const loading = this.#loading;
     const pages = this.#pages;
+    const { view, params, sort } = this.q;
     loading.add(p);
-    try {
-      const { view, params, sort } = this.q;
-      const rows = await api.view(view, { params, filter: this.filter, sort, limit: PAGE, offset: p * PAGE });
+    load([[view, { params, filter: this.filter, sort, limit: PAGE, offset: p * PAGE }]], ([rows]) => {
       if (pages !== this.#pages) return;
       this.#set(p, rows);
       this.#version++;
-    } finally {
-      loading.delete(p);
-    }
+    }).finally(() => loading.delete(p));
   }
 
   async all(): Promise<Row[]> {
@@ -78,7 +75,7 @@ export class Pager {
       let missing = false;
       for (let p = off / PAGE; p < (off + BULK) / PAGE && p * PAGE < this.count; p++) missing ||= !this.#pages.has(p);
       if (!missing) continue;
-      const rows = await api.view(view, { params, filter: this.filter, sort, limit: BULK, offset: off });
+      const rows = await read(view, { params, filter: this.filter, sort, limit: BULK, offset: off });
       for (let i = 0; i < rows.length; i += PAGE) this.#set((off + i) / PAGE, rows.slice(i, i + PAGE));
     }
     this.#version++;
@@ -109,7 +106,6 @@ export class Source {
 
   constructor(q: Query) {
     this.q = q;
-    this.refresh();
   }
 
   get grouped() {
@@ -229,29 +225,35 @@ export class Source {
     return (await Promise.all(pagers.map((p) => p.all()))).flat();
   }
 
-  // Re-run the wrap (first load, live key, own command): totals, groups, then visible pages.
-  async refresh() {
+  // Re-run the wrap (first load, live key, own command): totals, groups, then visible pages. The pages are read
+  // again when the wrap is; a second answer (the server's after the cached one) only updates the counts.
+  refresh() {
     const gen = ++this.#gen;
     const { view, params, filter, group, sort } = this.q;
     const agg = aggs(this.q);
-    const [totals, groups] = await Promise.all([
-      api.view(view, { params, filter, agg }),
-      group.length
-        ? api.view(view, { params, filter, group, agg, sort: group.map((col) => ({ col, dir: "asc" as const })), limit: BULK })
-        : Promise.resolve([]),
-    ]);
-    if (gen !== this.#gen) return;
-    this.totals = totals[0] ?? null;
-    const count = (this.totals?.count as number) ?? 0;
-    if (group.length) {
-      this.groups = groups;
-      for (const [key, pager] of this.open) {
-        const g = groups.find((r) => keyOf(this.q, r) === key);
-        if (g) pager.reset(g.count as number);
-        else this.open.delete(key);
-      }
-    } else if (this.flat) this.flat.reset(count);
-    else this.flat = new Pager(this.q, filter, count);
-    this.ready = true;
+    let again = false;
+    return load(
+      [
+        [view, { params, filter, agg }],
+        ...(group.length ? [[view, { params, filter, group, agg, sort: group.map((col) => ({ col, dir: "asc" as const })), limit: BULK }] as Read] : []),
+      ],
+      ([totals, groups = []]) => {
+        if (gen !== this.#gen) return;
+        this.totals = totals[0] ?? null;
+        const count = (this.totals?.count as number) ?? 0;
+        const reset = (p: Pager, n: number) => (again ? (p.count = n) : p.reset(n));
+        if (group.length) {
+          this.groups = groups;
+          for (const [key, pager] of this.open) {
+            const g = groups.find((r) => keyOf(this.q, r) === key);
+            if (g) reset(pager, g.count as number);
+            else this.open.delete(key);
+          }
+        } else if (this.flat) reset(this.flat, count);
+        else this.flat = new Pager(this.q, filter, count);
+        this.ready = true;
+        again = true;
+      },
+    );
   }
 }

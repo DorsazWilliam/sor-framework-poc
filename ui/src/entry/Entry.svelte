@@ -19,7 +19,7 @@
   import Panel from "~icons/fluent/panel-right-16-regular";
   import Locked from "~icons/fluent/lock-closed-12-regular";
   import Holiday from "~icons/fluent/star-12-regular";
-  import { watch } from "../app/live.svelte";
+  import { reads, watch } from "../app/cache.svelte";
   import { lookup } from "../app/lookups.svelte";
   import { colLabel, command, screenLabel, session, table, view } from "../app/session.svelte";
   import { evaluate } from "../screen/commands";
@@ -197,7 +197,7 @@
 
 <svelte:window onkeydown={windowKeys} />
 
-<section class="entry" data-screen={screen.id} data-ready={store.ready || undefined}>
+<section class="entry" data-screen={screen.id} data-ready={store.ready || undefined} data-fresh={(store.ready && !reads.pending) || undefined}>
   <CommandBar title={screenLabel(screen)}>
     <Button variant="subtle" icon={Copy} title="{t('ui.entry.duplicate')} (Ctrl+D)" disabled={!current || !evaluate(command("activity.create")!, []).enabled} onclick={() => current && duplicate(current)}>
       {t("ui.entry.duplicate")}

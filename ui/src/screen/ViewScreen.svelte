@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Command, Filter, Row, Screen, Sort } from "../api/contract";
+  import type { Command, Filter, Row, Screen, Sort, Wrap } from "../api/contract";
   import CommandBar from "../ds/CommandBar.svelte";
   import Button from "../ds/Button.svelte";
   import Tooltip from "../ds/Tooltip.svelte";
@@ -19,7 +19,7 @@
   import { colLabel, command, screenLabel, screenView, session, table } from "../app/session.svelte";
   import { isNumeric } from "../app/display";
   import { lookup } from "../app/lookups.svelte";
-  import { watch } from "../app/live.svelte";
+  import { reads, watch } from "../app/cache.svelte";
   import { defaults, linkWrap } from "../app/params";
   import { keep, route, type ScreenState } from "../app/router.svelte";
   import { t } from "../labels/i18n.svelte";
@@ -37,10 +37,12 @@
 
   // The screen's wrap keeps the columns of the view chosen (SPEC §19): a screen lists several views.
   const has = (col: string) => v.columns.some((c) => c.name === col);
+  // The grid groups by plain columns (a date by period is for tiles).
+  const columnsOf = (g: Wrap["group"] = []) => g.filter((x): x is string => typeof x === "string" && has(x));
   const wrap = $derived({
     filter: (screen.wrap?.filter ?? []).filter((f) => !("col" in f) || has(f.col)),
     sort: (screen.wrap?.sort ?? []).filter((s) => has(s.col)),
-    group: (screen.wrap?.group ?? []).filter(has),
+    group: columnsOf(screen.wrap?.group),
     agg: (screen.wrap?.agg ?? []).filter((a) => a.fn === "count" || has(a.col)),
   });
   // Full state from a partial one (URL or saved view; ignored for a child screen) over the screen's defaults and wrap.
@@ -50,7 +52,7 @@
       params: { ...defaults(screen.defaults, session.me), ...s.params, ...linked.params },
       filter: s.wrap?.filter ?? wrap.filter,
       sort: s.wrap?.sort ?? wrap.sort,
-      group: s.wrap?.group ?? wrap.group,
+      group: s.wrap?.group ? columnsOf(s.wrap.group) : wrap.group,
       widths: s.widths ?? {},
     };
   };
@@ -114,6 +116,7 @@
 
   $effect(() => {
     const s = source;
+    s.refresh();
     return watch(v.roots, () => s.refresh());
   });
 
@@ -163,7 +166,7 @@
   {/each}
 {/snippet}
 
-<section class="screen" class:nested data-screen={screen.id} data-ready={ready || undefined}>
+<section class="screen" class:nested data-screen={screen.id} data-ready={ready || undefined} data-fresh={(ready && !reads.pending) || undefined}>
   {#if nested}
     <div class="subbar">{@render commandButtons()}</div>
   {:else}

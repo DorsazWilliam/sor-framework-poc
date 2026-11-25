@@ -1,4 +1,5 @@
 import type { Changed, Commands, Labels, Lang, Me, Meta, Problem, Row, ViewBody, Views } from "./contract";
+import { clear } from "../app/cache.svelte";
 
 export class ApiError extends Error {
   constructor(public problem: Problem) {
@@ -17,6 +18,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (res.status === 401) {
+    clear();
     location.href = "/auth/login";
     return new Promise<T>(() => {});
   }

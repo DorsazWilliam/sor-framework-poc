@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Screen } from "../api/contract";
   import { api } from "../api/client";
-  import { watch } from "../app/live.svelte";
+  import { follow, reads } from "../app/cache.svelte";
   import { screenView } from "../app/session.svelte";
   import { linkWrap } from "../app/params";
   import { t } from "../labels/i18n.svelte";
@@ -15,23 +15,19 @@
   let loaded = $state(false);
   let shown: unknown = null;
 
-  async function load() {
-    const { params, filter } = linkWrap(v, link);
-    const row = (await api.view(v.name, { params, filter, limit: 1 }))[0];
-    const id = column && row?.[column];
-    if (id == null) file = null;
-    else if (id !== shown) file = await api.file({ view: v.name, params, id: row.id as number, column: column! });
-    shown = id;
-    loaded = true;
-  }
-
   $effect(() => {
-    load();
-    return watch(v.roots, load);
+    const { params, filter } = linkWrap(v, link);
+    return follow([[v.name, { params, filter, limit: 1 }]], async ([[row]]) => {
+      const id = column && row?.[column];
+      if (id == null) file = null;
+      else if (id !== shown) file = await api.file({ view: v.name, params, id: row.id as number, column: column! });
+      shown = id;
+      loaded = true;
+    });
   });
 </script>
 
-<div class="fileview" data-screen={screen.id} data-ready={loaded || undefined}>
+<div class="fileview" data-screen={screen.id} data-ready={loaded || undefined} data-fresh={(loaded && !reads.pending) || undefined}>
   {#if file}
     <iframe src={file.url} title={file.name}></iframe>
   {:else if loaded}

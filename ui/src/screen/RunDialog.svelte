@@ -6,9 +6,9 @@
   import Badge from "../ds/Badge.svelte";
   import FieldEditor from "./FieldEditor.svelte";
   import { execute } from "./commands";
-  import { api, ApiError } from "../api/client";
-  import { watch } from "../app/live.svelte";
-  import { colLabel, command, view } from "../app/session.svelte";
+  import { ApiError } from "../api/client";
+  import { follow } from "../app/cache.svelte";
+  import { colLabel, command } from "../app/session.svelte";
   import { t } from "../labels/i18n.svelte";
 
   let { cmd, initial, onclose }: { cmd: Command; initial: Record<string, unknown>; onclose: () => void } = $props();
@@ -21,15 +21,9 @@
   const finished = $derived(run != null && ["done", "cancelled", "failed"].includes(run.state as string));
   const rejected = $derived((run?.rejected as Rejected[] | null) ?? []);
 
-  async function load() {
-    if (runId == null) return;
-    run = (await api.view("run", { filter: [{ col: "id", op: "eq", value: runId }] }))[0] ?? null;
-  }
-
   $effect(() => {
     if (runId == null) return;
-    load();
-    return watch(view("run")?.roots ?? ["run"], load);
+    return follow([["run", { filter: [{ col: "id", op: "eq", value: runId }] }]], ([rows]) => (run = rows[0] ?? null));
   });
 
   $effect(() => {

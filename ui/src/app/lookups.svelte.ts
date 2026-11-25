@@ -1,8 +1,7 @@
 import { SvelteMap } from "svelte/reactivity";
 import type { Filter, Row } from "../api/contract";
 import type { Item } from "../ds/types";
-import { api } from "../api/client";
-import { watch } from "./live.svelte";
+import { load, watch } from "./cache.svelte";
 import { view } from "./session.svelte";
 
 // <table>.lookup views: id → label, loaded by batches of missing ids, dropped on live keys.
@@ -19,7 +18,7 @@ export function lookup(tbl: string, id: number): string | undefined {
     missing.set(tbl, ids);
     if (!scheduled) {
       scheduled = true;
-      queueMicrotask(load);
+      queueMicrotask(loadMissing);
     }
   }
   return label;
@@ -38,9 +37,12 @@ function labels(tbl: string) {
 
 async function fetchLookup(tbl: string, filter: Filter[], limit: number, offset = 0) {
   const m = labels(tbl);
-  const rows = await api.view(`${tbl}.lookup`, { filter, limit, offset });
-  for (const r of rows as Row[]) m.set(r.id as number, String(r.label));
-  return rows;
+  let out: Row[] = [];
+  await load([[`${tbl}.lookup`, { filter, limit, offset }]], ([rows]) => {
+    for (const r of rows) m.set(r.id as number, String(r.label));
+    out = rows;
+  });
+  return out;
 }
 
 // Every row of a lookup view (with its extra columns), for pickers filtered in memory.
@@ -53,7 +55,7 @@ export async function all(tbl: string): Promise<Row[]> {
   }
 }
 
-function load() {
+function loadMissing() {
   scheduled = false;
   for (const [tbl, ids] of missing) {
     const list = [...ids];
