@@ -19,11 +19,7 @@ import (
 // Call runs a command (SPEC §7): lock and read (1 round trip), effects and re-read (1), commit (1, plus
 // one when it inserts jobs).
 func (k *Kernel) Call(ctx context.Context, p *Principal, name string, body []byte) (*Result, error) {
-	id, _ := ctx.Value(callKey{}).(string)
-	if id == "" {
-		id = uuid()
-	}
-	x, err := k.newCall(p, name, body, id)
+	x, err := k.newCall(p, name, body, callID(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -49,8 +45,18 @@ func (k *Kernel) Call(ctx context.Context, p *Principal, name string, body []byt
 
 type callKey struct{}
 
-// WithCall returns a context whose command invocations use id as their call id (SPEC §13 Sor-Call).
-func WithCall(ctx context.Context, id string) context.Context { return context.WithValue(ctx, callKey{}, id) }
+// WithCall returns a context whose command invocations use id as their call id (SPEC §13 Sor-Call, §9).
+func WithCall(ctx context.Context, id string) context.Context {
+	return context.WithValue(ctx, callKey{}, id)
+}
+
+// callID is the call id of ctx, or a new one.
+func callID(ctx context.Context) string {
+	if id, _ := ctx.Value(callKey{}).(string); id != "" {
+		return id
+	}
+	return uuid()
+}
 
 // newCall checks the capability and validates the input of a command.
 func (k *Kernel) newCall(p *Principal, name string, body []byte, id string) (*call, error) {
@@ -75,6 +81,7 @@ type call struct {
 	in   map[string]any
 	conn *pgxpool.Conn
 	id   string
+	mark int64 // last event id before the call: its events are those of its call id after the mark
 	ids  []int64
 
 	// what the call changed, for its commit
@@ -113,6 +120,8 @@ func (x *call) exec(ctx context.Context, open string) (*Result, error) {
 
 	// Round trip 2: begin, locks, projection of the roots.
 	b := &pgx.Batch{}
+	// a call id can span invocations (a run's roots, a job's commands): this one's events come after the mark
+	b.Queue("select coalesce(pg_sequence_last_value(pg_get_serial_sequence('event', 'id')::regclass), 0)")
 	b.Queue(open)
 	// the statements of a command are prepared and keep their generic plan: their shape does not depend on the values
 	b.Queue("set local plan_cache_mode = force_generic_plan")
@@ -150,7 +159,10 @@ func (x *call) exec(ctx context.Context, open string) (*Result, error) {
 	var before map[int64]json.RawMessage
 	var found int
 	err := func() error {
-		for range plain {
+		if err := br.QueryRow().Scan(&x.mark); err != nil {
+			return err
+		}
+		for range plain - 1 {
 			if _, err := br.Exec(); err != nil {
 				return err
 			}
@@ -209,13 +221,13 @@ returning tbl, row_id, root_table, root_id`, s.sql, n+1, n+2, n+3, n+4, literal(
 			append(s.args, x.id, c.Name, strconv.FormatInt(x.p.ID, 10), optInt(x.p.forID()))...)
 	}
 	touched := func(t *Table) string {
-		return "any(array(select root_id from event where call = $1::uuid and root_table = " + literal(t.Name) + "))"
+		return "any(array(select root_id from event where call = $1::uuid and id > $2 and root_table = " + literal(t.Name) + "))"
 	}
 	var reread []*Table
 	for _, t := range []*Table{root, c.ensureT} {
 		if t != nil && !slices.Contains(reread, t) {
 			reread = append(reread, t)
-			b.Queue("select id, to_jsonb(r) from "+ident(t.source)+" r where id = "+touched(t), x.id)
+			b.Queue("select id, to_jsonb(r) from "+ident(t.source)+" r where id = "+touched(t), x.id, x.mark)
 		}
 	}
 	var anchored []*Table
@@ -226,8 +238,8 @@ returning tbl, row_id, root_table, root_id`, s.sql, n+1, n+2, n+3, n+4, literal(
 			a := ident(t.Anchor.Column)
 			b.Queue(fmt.Sprintf(`select coalesce(array_agg(distinct a), '{}') from (
 select r.%s::bigint a from %s r where r.id = %s
-union all select (e.changes->%s->>0)::bigint from event e where e.call = $1::uuid and e.tbl = %s) x where a is not null`,
-				a, ident(t.Name), touched(t), literal(t.Anchor.Column), literal(t.Name)), x.id)
+union all select (e.changes->%s->>0)::bigint from event e where e.call = $1::uuid and e.id > $2 and e.tbl = %s) x where a is not null`,
+				a, ident(t.Name), touched(t), literal(t.Anchor.Column), literal(t.Name)), x.id, x.mark)
 		}
 	}
 	var rows []Row

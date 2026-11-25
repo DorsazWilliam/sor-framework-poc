@@ -60,7 +60,7 @@ comment on column event.root_table is 'Root table of the changed row.';
 comment on column event.root_id is 'Root id of the changed row.';
 comment on column event.changes is 'Changed columns: {column: [before, after]}.';
 create index event_root on event (root_table, root_id, at);
-create index event_call on event (call);
+create index event_call on event (call, id);
 
 create table run (
     id bigint generated always as identity primary key,

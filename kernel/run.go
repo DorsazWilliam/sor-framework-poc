@@ -26,6 +26,7 @@ type runRejection struct {
 type runner struct {
 	k        *Kernel
 	id       int64
+	call     string // the run job's call id: its events, its progress and its commit
 	live     string // live key of the run row
 	mu       sync.Mutex
 	done     int
@@ -49,15 +50,15 @@ func runExecute(ctx context.Context, k *Kernel, job Job) error {
 	if state != "queued" && state != "running" {
 		return nil
 	}
-	r := &runner{k: k, id: a.IDs[0]}
-	r.live = livePayload("run", []int64{r.id}, []int64{owner}, name, a.Call)
+	r := &runner{k: k, id: a.IDs[0], call: callID(ctx)}
+	r.live = livePayload("run", []int64{r.id}, []int64{owner}, name, r.call)
 	c := k.commands[name]
 	conn, err := k.Pool.Acquire(ctx)
 	if err != nil {
 		return err
 	}
 	defer conn.Release()
-	err = r.execute(ctx, conn, job.Principal, c, input, a.Call)
+	err = r.execute(ctx, conn, job.Principal, c, input)
 	if err != nil {
 		conn.Exec(context.WithoutCancel(ctx), "rollback")
 		return r.set(ctx, "state = 'failed', error = $3, finished_at = sor_now()", err.Error())
@@ -65,7 +66,7 @@ func runExecute(ctx context.Context, k *Kernel, job Job) error {
 	return nil
 }
 
-func (r *runner) execute(ctx context.Context, conn *pgxpool.Conn, p *Principal, c *Command, input []byte, callID string) error {
+func (r *runner) execute(ctx context.Context, conn *pgxpool.Conn, p *Principal, c *Command, input []byte) error {
 	body, _ := json.Marshal(map[string]any{"params": json.RawMessage(input), "limit": maxLimit})
 	if _, err := conn.Exec(ctx, "begin"); err != nil {
 		return err
@@ -110,7 +111,7 @@ func (r *runner) execute(ctx context.Context, conn *pgxpool.Conn, p *Principal, 
 		if cancelled {
 			break
 		}
-		x, err := r.k.newCall(p, c.run.PerRoot, cand, uuid())
+		x, err := r.k.newCall(p, c.run.PerRoot, cand, r.call)
 		if err == nil {
 			x.conn = conn
 			if _, err = x.exec(ctx, "savepoint root"); err == nil {
@@ -141,7 +142,7 @@ func (r *runner) execute(ctx context.Context, conn *pgxpool.Conn, p *Principal, 
 		}
 		return r.set(ctx, "state = 'cancelled', finished_at = sor_now()")
 	}
-	err = r.k.commit(ctx, conn, &Commit{Command: c.Name, Call: callID, Principal: p.ID, For: p.forID(), Subjects: p.Subjects,
+	err = r.k.commit(ctx, conn, &Commit{Command: c.Name, Call: r.call, Principal: p.ID, For: p.forID(), Subjects: p.Subjects,
 		Rows: rows, Run: &r.id}, anchors, jobs)
 	if err != nil {
 		return err

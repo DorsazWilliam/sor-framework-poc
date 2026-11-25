@@ -126,6 +126,60 @@ func TestRun(t *testing.T) {
 	}
 }
 
+// TestRunCall: a run is an invocation of its own (SPEC §9). Started with a Sor-Call, its progress, its commit
+// and its events carry the run job's call id, so the client that started it does not take them for its echo.
+func TestRunCall(t *testing.T) {
+	k := setup(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go k.Listen(ctx)
+	start(t, k)
+	keys, stop := k.Subscribe(principal(t, k, "boss"))
+	defer stop()
+	time.Sleep(200 * time.Millisecond) // LISTEN in place
+	const sent = "6f1c2a10-3b4d-4e5f-8a9b-0c1d2e3f4a5b"
+	req, _ := http.NewRequest("POST", server(t, k).URL+"/api/c/entry.run", strings.NewReader(`{"day":"2026-11-12","n":3,"split":3,"bad":-1}`))
+	req.Header.Set("Authorization", "Bearer boss")
+	req.Header.Set("Sor-Call", sent)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var res kernel.Result
+	json.NewDecoder(resp.Body).Decode(&res)
+	resp.Body.Close()
+	if res.Call != sent || res.Run == nil {
+		t.Fatalf("start: %d %+v", resp.StatusCode, res)
+	}
+	eventually(t, 10*time.Second, "run done", func() bool { return readRun(t, k, *res.Run).State == "done" })
+	var started, progress int
+	calls := map[string]bool{}
+	for drained := false; !drained; {
+		select {
+		case msg := <-keys:
+			var key struct{ T, E string }
+			json.Unmarshal(msg, &key)
+			switch {
+			case key.T == "run" && key.E == sent:
+				started++
+			case key.T == "run":
+				progress++
+				calls[key.E] = true
+			}
+		case <-time.After(300 * time.Millisecond):
+			drained = true
+		}
+	}
+	if started != 1 || progress < 2 || len(calls) != 1 {
+		t.Fatalf("run keys: %d with the Sor-Call, %d progress keys with calls %v", started, progress, calls)
+	}
+	for runCall := range calls {
+		if n := count(t, k, "select count(*) from event where call = $1::uuid and command = 'entry.create'", runCall); n != 3 {
+			t.Fatalf("events of the run's call: %d", n)
+		}
+	}
+}
+
 func TestRunCancel(t *testing.T) {
 	k := setup(t)
 	start(t, k)

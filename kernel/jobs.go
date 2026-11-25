@@ -130,7 +130,8 @@ func (w *worker) Work(ctx context.Context, j *river.Job[sorArgs]) error {
 		}
 		job.Principal = p
 	}
-	return d.Fn(ctx, w.k, job)
+	// a job is an invocation of its own: its commits carry its call id, not the one of the command that enqueued it
+	return d.Fn(WithCall(ctx, uuid()), w.k, job)
 }
 
 // backoff retries after 1 s, 2 s, 4 s, 8 s.
