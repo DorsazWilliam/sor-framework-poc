@@ -61,10 +61,10 @@ func (b *booter) bootJobs(ctx context.Context) {
 				&river.PeriodicJobOpts{RunOnStart: true}))
 		}
 	}
-	for cmd, kinds := range b.Reactions {
+	for on, kinds := range mergedKeys(b.Reactions, b.OnInserts) {
 		for _, kind := range kinds {
 			if b.jobs[kind] == nil {
-				b.fail("reaction %s: job %s is not declared", cmd, kind)
+				b.fail("reaction on %s: job %s is not declared", on, kind)
 			}
 		}
 	}
@@ -87,6 +87,16 @@ func (b *booter) bootJobs(ctx context.Context) {
 	if err != nil {
 		b.fail("jobs: %v", err)
 	}
+}
+
+func mergedKeys(ms ...map[string][]string) map[string][]string {
+	out := map[string][]string{}
+	for _, m := range ms {
+		for k, v := range m {
+			out[k] = append(out[k], v...)
+		}
+	}
+	return out
 }
 
 // jobParams builds the insertion of a job; As replaces the subjects.
@@ -130,8 +140,7 @@ func (w *worker) Work(ctx context.Context, j *river.Job[sorArgs]) error {
 		}
 		job.Principal = p
 	}
-	// a job is an invocation of its own: its commits carry its call id, not the one of the command that enqueued it
-	return d.Fn(WithCall(ctx, uuid()), w.k, job)
+	return d.Fn(ctx, w.k, job)
 }
 
 // backoff retries after 1 s, 2 s, 4 s, 8 s.

@@ -14,15 +14,16 @@ var coreSchema string
 // declaring the table again (options add up), as it adds options to a command by declaring it again.
 var Core = Module{Name: "kernel", Schema: coreSchema, Register: func(r *Registry) {
 	r.Table("file", NoCRUD(), Label("name"))
-	r.Table("run", Anchor("principal_id", "self"), Read(Any), Write(Any), NoCRUD())
+	r.Table("run", Anchor("owner_id", "self"), Read(Any), Write(Any), NoCRUD())
 	r.Table("saved_view", Anchor("owner_id", "self"), Read(Any), Write(Any))
 	r.Table("connection", NoCRUD())
-	r.Table("delivery", AppendOnly(), NoCRUD(), Label("kind"))
+	r.Table("delivery", AppendOnly(), NoCRUD(), Label("path"))
 	r.Table("delivery_result", ChildOf("delivery", "delivery_id"), AppendOnly(), NoCRUD(), Label("status"))
 	r.Command("run.cancel", On("run"), Effect("RunCancel"))
 	r.Command("delivery.result", On("delivery"), Effect("DeliveryResult"))
 	r.Command("delivery.retry", On("delivery"))
 	r.Reaction("delivery.retry", "delivery.send")
+	r.OnInsert("delivery", "delivery.send")
 	r.Job("run.execute", runExecute)
 	r.Job("delivery.send", deliverySend)
 	r.Job("event.partition", func(ctx context.Context, k *Kernel, _ Job) error { return EnsurePartitions(ctx, k.Pool) },

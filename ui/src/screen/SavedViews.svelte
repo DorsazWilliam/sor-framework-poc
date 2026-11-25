@@ -38,7 +38,7 @@
 
   async function create(e: Event) {
     e.preventDefault();
-    const res = await execute(command("saved_view.create")!, { owner_id: session.me.id, screen, name, state: current() });
+    const res = await execute(command("saved_view.create")!, { owner_id: session.me.self, screen, name, state: current() });
     if (res instanceof ApiError) return;
     naming = false;
     await load();

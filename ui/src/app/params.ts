@@ -7,7 +7,7 @@ export function resolve(expr: string, me: Me): unknown {
   if (expr === "$today") return isoDate(d);
   if (expr === "$month_start") return isoDate(new Date(d.getFullYear(), d.getMonth(), 1));
   if (expr === "$year_start") return isoDate(new Date(d.getFullYear(), 0, 1));
-  if (expr === "$self") return me.id;
+  if (expr === "$self") return me.self;
   const m = /^\$days\((-?\d+)\)$/.exec(expr);
   if (m) return isoDate(new Date(d.getFullYear(), d.getMonth(), d.getDate() + +m[1]));
   return expr;

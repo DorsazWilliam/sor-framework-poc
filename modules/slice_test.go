@@ -440,23 +440,27 @@ func acct(t *testing.T, method, path, body string) []byte {
 	return b
 }
 
-// received counts the invoices the accounting system holds under idempotency key key.
-func received(t *testing.T, key int64) int {
+// received returns the uploads the accounting system holds under idempotency key key.
+func received(t *testing.T, key int64) []struct{ ContentType, Body string } {
 	t.Helper()
 	var inv struct {
-		Items []struct{ Key string } `json:"items"`
+		Items []struct {
+			Key         string `json:"key"`
+			ContentType string `json:"content_type"`
+			Body        string `json:"body"`
+		} `json:"items"`
 	}
 	json.Unmarshal(acct(t, "GET", "/invoices", ""), &inv)
-	n := 0
+	var out []struct{ ContentType, Body string }
 	for _, i := range inv.Items {
 		if i.Key == strconv.FormatInt(key, 10) {
-			n++
+			out = append(out, struct{ ContentType, Body string }{i.ContentType, i.Body})
 		}
 	}
-	return n
+	return out
 }
 
-// (g) Accounting down: the export stays pending with failed results, then is received exactly once.
+// (g) Accounting down: the export stays pending with failed results, then its CSV is received exactly once.
 func TestAccountingDown(t *testing.T) {
 	need(t, "TEST_ACCT_URL")
 	k := setup(t)
@@ -475,8 +479,9 @@ func TestAccountingDown(t *testing.T) {
 	eventually(t, 10*time.Second, "failed attempt", func() bool { return state() == "failed" })
 	acct(t, "POST", "/admin/fail", `{"on":false}`)
 	eventually(t, 20*time.Second, "exported", func() bool { return state() == "exported" })
-	if n := received(t, delivery); n != 1 {
-		t.Fatalf("received %d times", n)
+	if got := received(t, delivery); len(got) != 1 || got[0].ContentType != "text/csv; charset=utf-8" ||
+		!strings.HasPrefix(got[0].Body, "invoice;account;project;date;user;task;description;minutes;rate;amount\n"+strconv.FormatInt(inv, 10)+";") {
+		t.Fatalf("received: %+v", got)
 	}
 }
 

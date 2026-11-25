@@ -576,6 +576,32 @@
                 "array_dims": 0
               },
               {
+                "name": "owner_id",
+                "not_null": true,
+                "is_array": false,
+                "comment": "Effective identity who started the run (the human an agent acted for); the run is theirs.",
+                "length": -1,
+                "is_named_param": false,
+                "is_func_call": false,
+                "scope": "",
+                "table": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "run"
+                },
+                "table_alias": "",
+                "type": {
+                  "catalog": "",
+                  "schema": "pg_catalog",
+                  "name": "int8"
+                },
+                "is_sqlc_slice": false,
+                "embed_table": null,
+                "original_name": "",
+                "unsigned": false,
+                "array_dims": 0
+              },
+              {
                 "name": "principal_id",
                 "not_null": true,
                 "is_array": false,
@@ -1282,10 +1308,62 @@
                 "array_dims": 0
               },
               {
-                "name": "kind",
+                "name": "path",
                 "not_null": true,
                 "is_array": false,
-                "comment": "Kind of message.",
+                "comment": "Path appended to the endpoint of the connection.",
+                "length": -1,
+                "is_named_param": false,
+                "is_func_call": false,
+                "scope": "",
+                "table": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "delivery"
+                },
+                "table_alias": "",
+                "type": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "text"
+                },
+                "is_sqlc_slice": false,
+                "embed_table": null,
+                "original_name": "",
+                "unsigned": false,
+                "array_dims": 0
+              },
+              {
+                "name": "content_type",
+                "not_null": true,
+                "is_array": false,
+                "comment": "Media type of the body.",
+                "length": -1,
+                "is_named_param": false,
+                "is_func_call": false,
+                "scope": "",
+                "table": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "delivery"
+                },
+                "table_alias": "",
+                "type": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "text"
+                },
+                "is_sqlc_slice": false,
+                "embed_table": null,
+                "original_name": "",
+                "unsigned": false,
+                "array_dims": 0
+              },
+              {
+                "name": "body",
+                "not_null": true,
+                "is_array": false,
+                "comment": "Body sent.",
                 "length": -1,
                 "is_named_param": false,
                 "is_func_call": false,
@@ -1360,32 +1438,6 @@
                 "array_dims": 0
               },
               {
-                "name": "payload",
-                "not_null": true,
-                "is_array": false,
-                "comment": "Body sent to the endpoint.",
-                "length": -1,
-                "is_named_param": false,
-                "is_func_call": false,
-                "scope": "",
-                "table": {
-                  "catalog": "",
-                  "schema": "",
-                  "name": "delivery"
-                },
-                "table_alias": "",
-                "type": {
-                  "catalog": "",
-                  "schema": "",
-                  "name": "jsonb"
-                },
-                "is_sqlc_slice": false,
-                "embed_table": null,
-                "original_name": "",
-                "unsigned": false,
-                "array_dims": 0
-              },
-              {
                 "name": "principal_id",
                 "not_null": true,
                 "is_array": false,
@@ -1438,7 +1490,7 @@
                 "array_dims": 0
               }
             ],
-            "comment": "An outgoing message to an external system; sent by a job."
+            "comment": "An outgoing message to an external system: any content, posted to the endpoint of the connection plus its path by a job."
           },
           {
             "rel": {
@@ -68642,7 +68694,7 @@
       "insert_into_table": null
     },
     {
-      "text": "insert into delivery (connection_id, kind, root_table, root_id, payload, principal_id)\nselect 1, 'invoice', 'entry', e.id, jsonb_build_object('id', e.id, 'note', e.note), $1::bigint\nfrom entry e where e.id = any($2::bigint[])",
+      "text": "insert into delivery (connection_id, path, content_type, body, root_table, root_id, principal_id)\nselect 1, '/invoices', 'application/json', jsonb_build_object('id', e.id, 'note', e.note)::text, 'entry', e.id, $1::bigint\nfrom entry e where e.id = any($2::bigint[])",
       "name": "EntryExport",
       "cmd": ":exec",
       "columns": [],
@@ -68699,7 +68751,7 @@
         }
       ],
       "comments": [
-        " Sends the entries to connection 1."
+        " Sends the entries to connection 1, as JSON to /invoices."
       ],
       "filename": "queries.sql",
       "insert_into_table": {

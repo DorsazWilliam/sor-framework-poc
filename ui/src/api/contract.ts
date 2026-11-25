@@ -4,7 +4,7 @@ import type { operations } from "../gen/api";
 export type Lang = "fr" | "de" | "en";
 
 export type Me = {
-  id: number; name: string; kind: string; lang: Lang;
+  id: number; self: number; name: string; kind: string; lang: Lang;
   functions: string[]; reach: Record<string, number[]>; for?: { id: number; name: string };
 };
 

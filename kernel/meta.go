@@ -136,6 +136,7 @@ func permittedScreens(ss []Screen, views []*View, commands []*Command) []Screen 
 // Me is the JSON of GET /api/me.
 type Me struct {
 	ID        int64              `json:"id"`
+	Self      int64              `json:"self"` // the effective identity: the human an agent acts for
 	Name      string             `json:"name"`
 	Kind      string             `json:"kind"`
 	Lang      string             `json:"lang"`

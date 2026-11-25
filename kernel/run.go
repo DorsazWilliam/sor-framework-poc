@@ -44,13 +44,13 @@ func runExecute(ctx context.Context, k *Kernel, job Job) error {
 	var name, state string
 	var input []byte
 	var owner int64
-	if err := k.Pool.QueryRow(ctx, "select name, input, state, principal_id from run where id = $1", a.IDs[0]).Scan(&name, &input, &state, &owner); err != nil {
+	if err := k.Pool.QueryRow(ctx, "select name, input, state, owner_id from run where id = $1", a.IDs[0]).Scan(&name, &input, &state, &owner); err != nil {
 		return err
 	}
 	if state != "queued" && state != "running" {
 		return nil
 	}
-	r := &runner{k: k, id: a.IDs[0], call: callID(ctx)}
+	r := &runner{k: k, id: a.IDs[0], call: uuid()}
 	r.live = livePayload("run", []int64{r.id}, []int64{owner}, name, r.call)
 	c := k.commands[name]
 	conn, err := k.Pool.Acquire(ctx)
@@ -67,17 +67,23 @@ func runExecute(ctx context.Context, k *Kernel, job Job) error {
 }
 
 func (r *runner) execute(ctx context.Context, conn *pgxpool.Conn, p *Principal, c *Command, input []byte) error {
-	body, _ := json.Marshal(map[string]any{"params": json.RawMessage(input), "limit": maxLimit})
 	if _, err := conn.Exec(ctx, "begin"); err != nil {
 		return err
 	}
-	raw, err := r.k.view(ctx, conn, p, c.run.Candidates, body)
-	if err != nil {
-		return err
-	}
+	// every candidate, page after page
 	var candidates []json.RawMessage
-	if err := json.Unmarshal(raw, &candidates); err != nil {
-		return err
+	for page := []json.RawMessage(nil); len(candidates)%maxLimit == 0; candidates = append(candidates, page...) {
+		body, _ := json.Marshal(map[string]any{"params": json.RawMessage(input), "limit": maxLimit, "offset": len(candidates)})
+		raw, err := r.k.view(ctx, conn, p, c.run.Candidates, body)
+		if err == nil {
+			err = json.Unmarshal(raw, &page)
+		}
+		if err != nil {
+			return err
+		}
+		if len(page) == 0 {
+			break
+		}
 	}
 	if err := r.set(ctx, "state = 'running', total = $3", strconv.Itoa(len(candidates))); err != nil {
 		return err
@@ -142,7 +148,7 @@ func (r *runner) execute(ctx context.Context, conn *pgxpool.Conn, p *Principal, 
 		}
 		return r.set(ctx, "state = 'cancelled', finished_at = sor_now()")
 	}
-	err = r.k.commit(ctx, conn, &Commit{Command: c.Name, Call: r.call, Principal: p.ID, For: p.forID(), Subjects: p.Subjects,
+	err := r.k.commit(ctx, conn, &Commit{Command: c.Name, Call: r.call, Principal: p.ID, For: p.forID(), Subjects: p.Subjects,
 		Rows: rows, Run: &r.id}, anchors, jobs)
 	if err != nil {
 		return err

@@ -5,8 +5,11 @@ type Sub = { roots: string[]; rerun: () => void };
 
 const subs = new Set<Sub>();
 const queued: LiveKey[] = [];
-// Invocation ids (Sor-Call) of this session's commands: their live keys echo a refresh already done by `applied`.
-const own = new Set<string>();
+// Echo (SPEC §13): while commands of this session are in flight, incoming keys are held; the calls they return
+// name the keys that echo a refresh already done, dropped when the last one is answered.
+let inflight = 0;
+const held: LiveKey[] = [];
+const answered = new Set<string>();
 let timer: ReturnType<typeof setTimeout> | undefined;
 
 export const live = $state({ state: "connecting" as "connecting" | "live" | "offline" });
@@ -26,15 +29,25 @@ function flush() {
   rerun(new Set(queued.splice(0).map((k) => k.t)));
 }
 
-export function newCall() {
-  const id = crypto.randomUUID();
-  own.add(id);
-  if (own.size > 200) own.delete(own.values().next().value!);
-  return id;
+function receive(key: LiveKey) {
+  queued.push(key);
+  timer ??= setTimeout(flush, 50);
 }
 
-export function applied(res: Changed) {
-  rerun(new Set(res.changed.map((c) => table(c.table)?.root ?? c.table)));
+// own runs a command of this session and refreshes what it changed.
+export async function own(command: () => Promise<Changed>): Promise<Changed> {
+  inflight++;
+  try {
+    const res = await command();
+    answered.add(res.call);
+    rerun(new Set(res.changed.map((c) => table(c.table)?.root ?? c.table)));
+    return res;
+  } finally {
+    if (--inflight === 0) {
+      for (const key of held.splice(0)) if (!answered.has(key.e)) receive(key);
+      answered.clear();
+    }
+  }
 }
 
 export function connect() {
@@ -52,8 +65,7 @@ export function connect() {
   };
   es.onmessage = (e) => {
     const key = JSON.parse(e.data) as LiveKey;
-    if (own.has(key.e)) return;
-    queued.push(key);
-    timer ??= setTimeout(flush, 50);
+    if (inflight) held.push(key);
+    else receive(key);
   };
 }

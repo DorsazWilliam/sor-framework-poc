@@ -128,12 +128,15 @@ order by c.relname, a.attnum`)
 	if err := rows.Err(); err != nil {
 		return err
 	}
+	// a column is a ref when a foreign key, single or composite, pairs it with the id of the referenced table
 	rows, err = b.conn.Query(ctx, `
 select a.attname, f.relname
 from pg_constraint c
-join pg_attribute a on a.attrelid = c.conrelid and a.attnum = c.conkey[1]
+cross join lateral unnest(c.conkey, c.confkey) k(col, fcol)
+join pg_attribute a on a.attrelid = c.conrelid and a.attnum = k.col
+join pg_attribute fa on fa.attrelid = c.confrelid and fa.attnum = k.fcol and fa.attname = 'id'
 join pg_class f on f.oid = c.confrelid
-where c.contype = 'f' and c.connamespace = 'public'::regnamespace and cardinality(c.conkey) = 1
+where c.contype = 'f' and c.connamespace = 'public'::regnamespace
 group by 1, 2 order by 1, 2`)
 	if err != nil {
 		return err
@@ -483,6 +486,9 @@ func (b *booter) bootCommands(ctx context.Context) {
 			b.fail("command %s: When, Ensure and ids need On(table)", d.Name)
 			continue
 		}
+		if c.Rootless && c.When != "" {
+			b.fail("command %s: Rootless has no state before its effect for When(%s)", d.Name, c.When)
+		}
 		if c.When != "" && c.table.root.Actions[c.When] == nil {
 			b.fail("command %s: When(%s) is not an action of %s", d.Name, c.When, c.table.Root)
 		}
@@ -539,8 +545,13 @@ func (b *booter) bootCommands(ctx context.Context) {
 		b.addCommand(c)
 	}
 	for cmd := range b.Reactions {
-		if b.commands[cmd] == nil && !slices.ContainsFunc(b.Static.Commands, func(d *CommandDecl) bool { return d.Name == cmd }) {
+		if b.commands[cmd] == nil {
 			b.fail("reaction on unknown command %s", cmd)
+		}
+	}
+	for t := range b.OnInserts {
+		if b.tables[t] == nil {
+			b.fail("OnInsert on undeclared table %s", t)
 		}
 	}
 }

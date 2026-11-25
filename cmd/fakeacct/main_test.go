@@ -27,6 +27,12 @@ func withKey(k string) map[string]string {
 	return map[string]string{"Authorization": "Bearer " + secret, "Idempotency-Key": k}
 }
 
+func csv(k string) map[string]string {
+	h := withKey(k)
+	h["Content-Type"] = "text/csv; charset=utf-8"
+	return h
+}
+
 func call(h http.Handler, method, path, body string, header map[string]string) (int, map[string]any) {
 	req := httptest.NewRequest(method, path, strings.NewReader(body))
 	for k, v := range header {
@@ -111,14 +117,15 @@ func TestScenario(t *testing.T) {
 			expect("cursor", "1816")(t, got)
 		}},
 		{name: "upsert creates", method: "POST", path: "/admin/accounts", body: `{"external_id":"A0999","name":"New AG"}`, status: 200, check: expect("revision", 1817.0)},
-		{name: "invoice without key", method: "POST", path: "/invoices", body: `{}`, header: bearer, status: 400},
-		{name: "invoice bad body", method: "POST", path: "/invoices", body: `{`, header: withKey("1"), status: 400},
-		{name: "invoice first", method: "POST", path: "/invoices", body: `{"total":"10.00"}`, header: withKey("1"), status: 200, check: expect("id", 1.0, "key", "1")},
-		{name: "invoice repeated", method: "POST", path: "/invoices", body: `{"total":"99.00"}`, header: withKey("1"), status: 200, check: expect("id", 1.0, "key", "1")},
+		{name: "invoice without key", method: "POST", path: "/invoices", body: "a;b\n", header: bearer, status: 400},
+		{name: "invoice empty body", method: "POST", path: "/invoices", body: "", header: withKey("1"), status: 400},
+		{name: "invoice first", method: "POST", path: "/invoices", body: "invoice;amount\n1;10.00\n1;5.00\n", header: csv("1"), status: 200, check: expect("id", 1.0, "key", "1")},
+		{name: "invoice repeated", method: "POST", path: "/invoices", body: "invoice;amount\n1;99.00\n", header: csv("1"), status: 200, check: expect("id", 1.0, "key", "1")},
 		{name: "invoice other key", method: "POST", path: "/invoices", body: `{"total":"20.00"}`, header: withKey("2"), status: 200, check: expect("id", 2.0)},
 		{name: "invoices received", method: "GET", path: "/invoices", header: bearer, status: 200, check: func(t *testing.T, got map[string]any) {
 			it := items(got)
-			if len(it) != 2 || it[0]["received"] != 2.0 || it[0]["body"].(map[string]any)["total"] != "10.00" || it[1]["received"] != 1.0 {
+			if len(it) != 2 || it[0]["received"] != 2.0 || it[0]["lines"] != 3.0 || it[0]["content_type"] != "text/csv; charset=utf-8" ||
+				!strings.HasSuffix(it[0]["body"].(string), "1;5.00\n") || it[1]["received"] != 1.0 {
 				t.Fatalf("invoices: %v", it)
 			}
 		}},

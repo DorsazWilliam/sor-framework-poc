@@ -118,6 +118,9 @@ func TestRun(t *testing.T) {
 		r.Rejected[0].Input["worked_min"].(float64) != 700 {
 		t.Fatalf("run: %+v", r)
 	}
+	if n := count(t, k, "select count(*) from run where id = $1 and owner_id = $2", itoa(*res.Run), itoa(boss.Self)); n != 1 {
+		t.Fatal("the run is not its starter's")
+	}
 	if n := count(t, k, "select count(*) from entry where day = '2026-11-10'"); n != 5 {
 		t.Fatalf("entries: %d", n)
 	}
@@ -126,8 +129,8 @@ func TestRun(t *testing.T) {
 	}
 }
 
-// TestRunCall: a run is an invocation of its own (SPEC §9). Started with a Sor-Call, its progress, its commit
-// and its events carry the run job's call id, so the client that started it does not take them for its echo.
+// TestRunCall: a run is an invocation of its own (SPEC §9): its progress, its commit and its events carry the
+// run job's call id, not the one of the command that started it, so the client does not take them for its echo.
 func TestRunCall(t *testing.T) {
 	k := setup(t)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -137,19 +140,10 @@ func TestRunCall(t *testing.T) {
 	keys, stop := k.Subscribe(principal(t, k, "boss"))
 	defer stop()
 	time.Sleep(200 * time.Millisecond) // LISTEN in place
-	const sent = "6f1c2a10-3b4d-4e5f-8a9b-0c1d2e3f4a5b"
-	req, _ := http.NewRequest("POST", server(t, k).URL+"/api/c/entry.run", strings.NewReader(`{"day":"2026-11-12","n":3,"split":3,"bad":-1}`))
-	req.Header.Set("Authorization", "Bearer boss")
-	req.Header.Set("Sor-Call", sent)
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var res kernel.Result
-	json.NewDecoder(resp.Body).Decode(&res)
-	resp.Body.Close()
-	if res.Call != sent || res.Run == nil {
-		t.Fatalf("start: %d %+v", resp.StatusCode, res)
+	res := call(t, k, principal(t, k, "boss"), "entry.run", `{"day":"2026-11-12","n":3,"split":3,"bad":-1}`)
+	sent := res.Call
+	if res.Run == nil {
+		t.Fatalf("start: %+v", res)
 	}
 	eventually(t, 10*time.Second, "run done", func() bool { return readRun(t, k, *res.Run).State == "done" })
 	var started, progress int
@@ -171,7 +165,7 @@ func TestRunCall(t *testing.T) {
 		}
 	}
 	if started != 1 || progress < 2 || len(calls) != 1 {
-		t.Fatalf("run keys: %d with the Sor-Call, %d progress keys with calls %v", started, progress, calls)
+		t.Fatalf("run keys: %d with the call of the start, %d progress keys with calls %v", started, progress, calls)
 	}
 	for runCall := range calls {
 		if n := count(t, k, "select count(*) from event where call = $1::uuid and command = 'entry.create'", runCall); n != 3 {
@@ -222,7 +216,7 @@ func TestDelivery(t *testing.T) {
 		mu.Lock()
 		defer mu.Unlock()
 		attempts++
-		if r.URL.Path != "/invoices" || r.Header.Get("Authorization") != "Bearer s3cret" {
+		if r.URL.Path != "/invoices" || r.Header.Get("Content-Type") != "application/json" || r.Header.Get("Authorization") != "Bearer s3cret" {
 			w.WriteHeader(400)
 			return
 		}

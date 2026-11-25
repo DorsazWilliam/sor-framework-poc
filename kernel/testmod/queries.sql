@@ -36,7 +36,7 @@ from generate_series(0, 7) i
 where i < @n::int;
 
 -- name: EntryExport :exec
--- Sends the entries to connection 1.
-insert into delivery (connection_id, kind, root_table, root_id, payload, principal_id)
-select 1, 'invoice', 'entry', e.id, jsonb_build_object('id', e.id, 'note', e.note), @self::bigint
+-- Sends the entries to connection 1, as JSON to /invoices.
+insert into delivery (connection_id, path, content_type, body, root_table, root_id, principal_id)
+select 1, '/invoices', 'application/json', jsonb_build_object('id', e.id, 'note', e.note)::text, 'entry', e.id, @self::bigint
 from entry e where e.id = any(@ids::bigint[]);

@@ -17,12 +17,12 @@ where s.root_table = 'invoice' and s.root_id = @invoice_id
 order by s.delivery_id desc;
 
 -- name: InvoiceExport :exec
--- Writes the delivery of each invoice document to the accounting connection.
-insert into delivery (connection_id, kind, root_table, root_id, payload, principal_id)
-select c.id, 'invoice', 'invoice', d.invoice_id, d.document, @self
-from invoice_document d
+-- Writes the delivery of the CSV of each invoice to /invoices of the accounting connection.
+insert into delivery (connection_id, path, content_type, body, root_table, root_id, principal_id)
+select c.id, '/invoices', 'text/csv; charset=utf-8', x.body, 'invoice', x.invoice_id, @self
+from invoice_csv x
 join connection c on c.kind = 'accounting'
-where d.invoice_id = any(@ids::bigint[]);
+where x.invoice_id = any(@ids::bigint[]);
 
 -- name: ConnectionAdvance :exec
 -- Records a pull of connections: its cursor (kept when empty), the instant and the error if any.

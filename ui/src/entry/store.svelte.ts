@@ -105,7 +105,7 @@ export class Line {
 }
 
 export class Entry {
-  user = $state(session.me.id);
+  user = $state(session.me.self);
   day = $state(isoDate(new Date()));
   mode = $state<"day" | "week">("day");
   lines = $state<Line[]>([]);

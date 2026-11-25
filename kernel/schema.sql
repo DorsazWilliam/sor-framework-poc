@@ -66,6 +66,7 @@ create table run (
     id bigint generated always as identity primary key,
     name text not null,
     input jsonb not null default '{}',
+    owner_id bigint not null,
     principal_id bigint not null,
     for_id bigint,
     state run_state not null default 'queued',
@@ -80,6 +81,7 @@ create table run (
 comment on table run is 'A command executed over a set of roots, in one job and one transaction.';
 comment on column run.name is 'Run name.';
 comment on column run.input is 'Params of the candidates view.';
+comment on column run.owner_id is 'Effective identity who started the run (the human an agent acted for); the run is theirs.';
 comment on column run.principal_id is 'Principal who started the run.';
 comment on column run.for_id is 'Human the principal acted for, if any.';
 comment on column run.state is 'Lifecycle state.';
@@ -129,19 +131,21 @@ comment on column connection.pull_error is 'Error of the last pull.';
 create table delivery (
     id bigint generated always as identity primary key,
     connection_id bigint not null references connection,
-    kind text not null,
+    path text not null,
+    content_type text not null,
+    body text not null,
     root_table text not null,
     root_id bigint not null,
-    payload jsonb not null,
     principal_id bigint not null,
     created_at timestamptz not null default sor_now()
 );
-comment on table delivery is 'An outgoing message to an external system; sent by a job.';
+comment on table delivery is 'An outgoing message to an external system: any content, posted to the endpoint of the connection plus its path by a job.';
 comment on column delivery.connection_id is 'Target connection.';
-comment on column delivery.kind is 'Kind of message.';
+comment on column delivery.path is 'Path appended to the endpoint of the connection.';
+comment on column delivery.content_type is 'Media type of the body.';
+comment on column delivery.body is 'Body sent.';
 comment on column delivery.root_table is 'Root table of the delivered row.';
 comment on column delivery.root_id is 'Root id of the delivered row.';
-comment on column delivery.payload is 'Body sent to the endpoint.';
 comment on column delivery.principal_id is 'Principal who caused the delivery.';
 comment on column delivery.created_at is 'When the delivery was written.';
 create index delivery_root on delivery (root_table, root_id);

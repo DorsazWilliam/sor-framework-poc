@@ -57,6 +57,7 @@ type Row struct {
 	ID        int64
 	RootTable string
 	RootID    int64
+	Inserted  bool
 }
 
 var schemaRegistry = huma.NewMapRegistry("#/components/schemas/", huma.DefaultSchemaNamer)
@@ -210,7 +211,19 @@ func (k *Kernel) Principal(ctx context.Context, subjects []string) (*Principal, 
 
 // Me is the principal as served by GET /api/me.
 func (p *Principal) Me() Me {
-	return Me{ID: p.ID, Name: p.Name, Kind: p.Kind, Lang: p.Lang, Functions: p.Functions, Reach: p.Reach, For: p.For}
+	return Me{ID: p.ID, Self: p.Self, Name: p.Name, Kind: p.Kind, Lang: p.Lang, Functions: p.Functions, Reach: p.Reach, For: p.For}
+}
+
+// reach resolves the rows reachable through anchor a: the ids of its named reach, or of name when given (a
+// command's Reach); nil for no anchor. Views, commands, history and live resolve reach through it.
+func (p *Principal) reach(a *AnchorDecl, name string) []int64 {
+	if a == nil {
+		return nil
+	}
+	if name == "" {
+		name = a.Reach
+	}
+	return p.Reach[name]
 }
 
 func (p *Principal) can(fn string) *Problem {

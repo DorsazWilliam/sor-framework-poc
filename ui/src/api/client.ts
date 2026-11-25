@@ -9,11 +9,11 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(method: string, path: string, body?: unknown, headers: Record<string, string> = {}): Promise<T> {
+async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const res = await fetch(path, {
     method,
     credentials: "same-origin",
-    headers: body === undefined ? headers : { "Content-Type": "application/json", ...headers },
+    headers: body === undefined ? {} : { "Content-Type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (res.status === 401) {
@@ -33,9 +33,8 @@ type Known<K, M, T, U> = K extends keyof M ? T : U;
 const view = <K extends string>(name: K, body: Known<K, Views, ViewBody<Views[K & keyof Views]["params"]>, ViewBody>) =>
   request<Known<K, Views, Views[K & keyof Views]["row"], Row>[]>("POST", `/api/v/${name}`, body);
 
-// `id` is the invocation id (Sor-Call header): the live keys of the command carry it as `e`.
-const call = <K extends string>(name: K, input: Known<K, Commands, Commands[K & keyof Commands]["input"], Record<string, unknown>>, id: string) =>
-  request<Changed>("POST", `/api/c/${name}`, input, { "Sor-Call": id });
+const call = <K extends string>(name: K, input: Known<K, Commands, Commands[K & keyof Commands]["input"], Record<string, unknown>>) =>
+  request<Changed>("POST", `/api/c/${name}`, input);
 
 export const api = {
   me: () => request<Me>("GET", "/api/me"),

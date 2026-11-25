@@ -70,7 +70,7 @@ func (k *Kernel) view(ctx context.Context, q querier, p *Principal, name string,
 	for _, name := range v.params {
 		switch name {
 		case "reach":
-			args = append(args, ints(p.Reach[reachName(v.Anchor)]))
+			args = append(args, ints(p.reach(v.Anchor, "")))
 		case "self":
 			args = append(args, strconv.FormatInt(p.Self, 10))
 		case "ids":
@@ -100,7 +100,7 @@ func (k *Kernel) view(ctx context.Context, q querier, p *Principal, name string,
 	args = append(args, pgValue(req.Params["root_id"], "int8"))
 	guard := fmt.Sprintf("select exists(select 1 from %s r where r.id = $%d::bigint and %s)", ident(t.Name), len(args)-1, t.reachFilter(len(args)))
 	if t.Anchor != nil {
-		args = append(args, ints(p.Reach[t.Anchor.Reach]))
+		args = append(args, ints(p.reach(t.Anchor, "")))
 	}
 	var ok bool
 	var out []byte
@@ -111,13 +111,6 @@ func (k *Kernel) view(ctx context.Context, q querier, p *Principal, name string,
 		return nil, problem(404, "not_found", "")
 	}
 	return out, nil
-}
-
-func reachName(a *AnchorDecl) string {
-	if a == nil {
-		return ""
-	}
-	return a.Reach
 }
 
 // label is the label column of a declared table, or "".

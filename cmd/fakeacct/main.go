@@ -1,16 +1,18 @@
 // Command fakeacct is an in-memory accounting server for local development:
-// cursor-paged accounts and projects, idempotent invoice intake, and admin
+// cursor-paged accounts and projects, idempotent invoice uploads (any content), and admin
 // switches to simulate outages and upstream changes.
 package main
 
 import (
 	"cmp"
 	"encoding/json"
+	"io"
 	"log"
 	"net/http"
 	"os"
 	"slices"
 	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -28,11 +30,14 @@ type project struct {
 	Revision          int64  `json:"revision"`
 }
 
+// invoice is an upload received under an idempotency key: its raw body, its content type and its number of lines.
 type invoice struct {
-	ID       int             `json:"id"`
-	Key      string          `json:"key"`
-	Received int             `json:"received"`
-	Body     json.RawMessage `json:"body"`
+	ID          int    `json:"id"`
+	Key         string `json:"key"`
+	Received    int    `json:"received"`
+	ContentType string `json:"content_type"`
+	Lines       int    `json:"lines"`
+	Body        string `json:"body"`
 }
 
 type store struct {
@@ -143,14 +148,15 @@ func (s *store) postInvoice(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusBadRequest, "missing Idempotency-Key")
 		return
 	}
-	var body json.RawMessage
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		fail(w, http.StatusBadRequest, "invalid JSON body")
+	body, err := io.ReadAll(r.Body)
+	if err != nil || len(body) == 0 {
+		fail(w, http.StatusBadRequest, "empty body")
 		return
 	}
 	inv, ok := s.byKey[key]
 	if !ok {
-		inv = &invoice{ID: len(s.invoices) + 1, Key: key, Body: body}
+		inv = &invoice{ID: len(s.invoices) + 1, Key: key, ContentType: r.Header.Get("Content-Type"), Body: string(body),
+			Lines: len(strings.Split(strings.TrimRight(string(body), "\n"), "\n"))}
 		s.invoices = append(s.invoices, inv)
 		s.byKey[key] = inv
 	}

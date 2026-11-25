@@ -16,8 +16,8 @@ type hub struct {
 }
 
 type subscriber struct {
-	reach map[string][]int64
-	ch    chan []byte
+	p  *Principal
+	ch chan []byte
 }
 
 type liveKey struct {
@@ -30,7 +30,7 @@ type liveKey struct {
 
 // Subscribe returns the stream of live keys visible to p, until cancel is called.
 func (k *Kernel) Subscribe(p *Principal) (<-chan []byte, func()) {
-	s := &subscriber{reach: p.Reach, ch: make(chan []byte, 64)}
+	s := &subscriber{p: p, ch: make(chan []byte, 64)}
 	k.hub.mu.Lock()
 	if k.hub.subs == nil {
 		k.hub.subs = map[*subscriber]struct{}{}
@@ -62,7 +62,7 @@ func (k *Kernel) publish(payload string) {
 	k.hub.mu.Lock()
 	defer k.hub.mu.Unlock()
 	for s := range k.hub.subs {
-		if anchor != nil && !slices.ContainsFunc(key.A, func(a int64) bool { return slices.Contains(s.reach[anchor.Reach], a) }) {
+		if anchor != nil && !slices.ContainsFunc(key.A, func(a int64) bool { return slices.Contains(s.p.reach(anchor, ""), a) }) {
 			continue
 		}
 		select {

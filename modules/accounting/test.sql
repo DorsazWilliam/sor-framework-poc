@@ -31,8 +31,8 @@ insert into company overriding system value values (1, 'Test SA');
 insert into "user" (subject, name) values ('fin', 'Finance');
 insert into task (name, rate) values ('dev', 100);
 insert into folder (project_id, name) select id, 'F' from project;
-insert into activity (user_id, date, start_tod, duration_min, folder_id, task_id)
-select u.id, '2026-02-03', 600, 60, f.id, t.id from "user" u, folder f, task t;
+insert into activity (user_id, date, start_tod, duration_min, folder_id, task_id, description)
+select u.id, '2026-02-03', 600, 60, f.id, t.id, 'a; "b"' from "user" u, folder f, task t;
 insert into invoice (project_id, date_from, date_to) select id, '2026-02-01', '2026-02-28' from project;
 create temp table ids as select array_agg(id) as ids from invoice;
 select format('create temp table lk as execute invoicelockactivities(%L)', (select ids from ids)) \gexec
@@ -40,7 +40,8 @@ select format('execute invoicewritelines(%L, %L)', (select ids from ids), (selec
 select format('execute invoicemarkinvoiced(%s, %L)', (select id from "user"), (select ids from ids)) \gexec
 select pg_temp.eq('not exported', (select export_state::text || '/' || not_exported from invoice_p), 'none/true');
 select format('execute invoiceexport(%s, %L)', (select id from "user"), (select ids from ids)) \gexec
-select pg_temp.eq('delivery', (select kind || '/' || root_table || '/' || (payload #>> '{totals,total}')::numeric from delivery), 'invoice/invoice/100.00');
+select pg_temp.eq('delivery', (select path || ' ' || content_type || ' ' || root_table from delivery), '/invoices text/csv; charset=utf-8 invoice');
+select pg_temp.eq('csv', (select body from delivery), format(E'invoice;account;project;date;user;task;description;minutes;rate;amount\n%s;A0001;P00001;2026-02-03;Finance;dev;"a; ""b""";60;100.00;100.00\n', (select ids[1] from ids)));
 select pg_temp.eq('created', (select export_state::text || '/' || not_exported from invoice_p), 'created/false');
 insert into delivery_result (delivery_id, ok, status, detail) select id, false, 503, 'down' from delivery;
 select pg_temp.eq('failed', (select export_state from invoice_p), 'failed'::export_state);

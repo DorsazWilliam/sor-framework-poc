@@ -135,13 +135,14 @@ type Registry struct {
 	Commands  []*CommandDecl
 	Jobs      []*JobDecl
 	Reactions map[string][]string // command → job kinds
+	OnInserts map[string][]string // table → job kinds, a job per inserted row
 	Screens   []Screen
 	Refs      map[string]string // column name → referenced table, for columns that are not foreign keys
 }
 
 func newRegistry() *Registry {
 	return &Registry{Tables: map[string]*TableDecl{}, Actions: map[string]map[string][]string{}, Reactions: map[string][]string{},
-		Refs: map[string]string{}}
+		OnInserts: map[string][]string{}, Refs: map[string]string{}}
 }
 
 // Ref gives every column named column a reference to table, like a foreign key column (stamps such as
@@ -238,6 +239,11 @@ func Unique() JobOpt               { return func(j *JobDecl) { j.Unique = true }
 // Reaction inserts a job of jobKind when command commits.
 func (r *Registry) Reaction(command, jobKind string) {
 	r.Reactions[command] = append(r.Reactions[command], jobKind)
+}
+
+// OnInsert inserts a job of jobKind for every row a command inserts in table, at its commit (as Reaction).
+func (r *Registry) OnInsert(table, jobKind string) {
+	r.OnInserts[table] = append(r.OnInserts[table], jobKind)
 }
 
 // Screen declares a screen.

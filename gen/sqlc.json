@@ -582,6 +582,32 @@
                 "array_dims": 0
               },
               {
+                "name": "owner_id",
+                "not_null": true,
+                "is_array": false,
+                "comment": "Effective identity who started the run (the human an agent acted for); the run is theirs.",
+                "length": -1,
+                "is_named_param": false,
+                "is_func_call": false,
+                "scope": "",
+                "table": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "run"
+                },
+                "table_alias": "",
+                "type": {
+                  "catalog": "",
+                  "schema": "pg_catalog",
+                  "name": "int8"
+                },
+                "is_sqlc_slice": false,
+                "embed_table": null,
+                "original_name": "",
+                "unsigned": false,
+                "array_dims": 0
+              },
+              {
                 "name": "principal_id",
                 "not_null": true,
                 "is_array": false,
@@ -1288,10 +1314,62 @@
                 "array_dims": 0
               },
               {
-                "name": "kind",
+                "name": "path",
                 "not_null": true,
                 "is_array": false,
-                "comment": "Kind of message.",
+                "comment": "Path appended to the endpoint of the connection.",
+                "length": -1,
+                "is_named_param": false,
+                "is_func_call": false,
+                "scope": "",
+                "table": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "delivery"
+                },
+                "table_alias": "",
+                "type": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "text"
+                },
+                "is_sqlc_slice": false,
+                "embed_table": null,
+                "original_name": "",
+                "unsigned": false,
+                "array_dims": 0
+              },
+              {
+                "name": "content_type",
+                "not_null": true,
+                "is_array": false,
+                "comment": "Media type of the body.",
+                "length": -1,
+                "is_named_param": false,
+                "is_func_call": false,
+                "scope": "",
+                "table": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "delivery"
+                },
+                "table_alias": "",
+                "type": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "text"
+                },
+                "is_sqlc_slice": false,
+                "embed_table": null,
+                "original_name": "",
+                "unsigned": false,
+                "array_dims": 0
+              },
+              {
+                "name": "body",
+                "not_null": true,
+                "is_array": false,
+                "comment": "Body sent.",
                 "length": -1,
                 "is_named_param": false,
                 "is_func_call": false,
@@ -1366,32 +1444,6 @@
                 "array_dims": 0
               },
               {
-                "name": "payload",
-                "not_null": true,
-                "is_array": false,
-                "comment": "Body sent to the endpoint.",
-                "length": -1,
-                "is_named_param": false,
-                "is_func_call": false,
-                "scope": "",
-                "table": {
-                  "catalog": "",
-                  "schema": "",
-                  "name": "delivery"
-                },
-                "table_alias": "",
-                "type": {
-                  "catalog": "",
-                  "schema": "",
-                  "name": "jsonb"
-                },
-                "is_sqlc_slice": false,
-                "embed_table": null,
-                "original_name": "",
-                "unsigned": false,
-                "array_dims": 0
-              },
-              {
                 "name": "principal_id",
                 "not_null": true,
                 "is_array": false,
@@ -1444,7 +1496,7 @@
                 "array_dims": 0
               }
             ],
-            "comment": "An outgoing message to an external system; sent by a job."
+            "comment": "An outgoing message to an external system: any content, posted to the endpoint of the connection plus its path by a job."
           },
           {
             "rel": {
@@ -9405,6 +9457,68 @@
               }
             ],
             "comment": "Revenue lines with the cost of each activity: counted minutes times the hourly cost in force at its date (0 on expense lines). Sensitive."
+          },
+          {
+            "rel": {
+              "catalog": "",
+              "schema": "",
+              "name": "invoice_csv"
+            },
+            "columns": [
+              {
+                "name": "invoice_id",
+                "not_null": true,
+                "is_array": false,
+                "comment": "Invoice.",
+                "length": -1,
+                "is_named_param": false,
+                "is_func_call": false,
+                "scope": "",
+                "table": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "invoice_csv"
+                },
+                "table_alias": "",
+                "type": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "pg_catalog.int8"
+                },
+                "is_sqlc_slice": false,
+                "embed_table": null,
+                "original_name": "",
+                "unsigned": false,
+                "array_dims": 0
+              },
+              {
+                "name": "body",
+                "not_null": false,
+                "is_array": false,
+                "comment": "The CSV.",
+                "length": -1,
+                "is_named_param": false,
+                "is_func_call": false,
+                "scope": "",
+                "table": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "invoice_csv"
+                },
+                "table_alias": "",
+                "type": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "any"
+                },
+                "is_sqlc_slice": false,
+                "embed_table": null,
+                "original_name": "",
+                "unsigned": false,
+                "array_dims": 0
+              }
+            ],
+            "comment": "The export of an invoice to the accounting system, as CSV (separator ;, decimal point, ISO dates): a header, then a line per activity line and per expense line of the invoice."
           }
         ],
         "enums": [
@@ -82101,7 +82215,7 @@
       "insert_into_table": null
     },
     {
-      "text": "insert into delivery (connection_id, kind, root_table, root_id, payload, principal_id)\nselect c.id, 'invoice', 'invoice', d.invoice_id, d.document, $1\nfrom invoice_document d\njoin connection c on c.kind = 'accounting'\nwhere d.invoice_id = any($2::bigint[])",
+      "text": "insert into delivery (connection_id, path, content_type, body, root_table, root_id, principal_id)\nselect c.id, '/invoices', 'text/csv; charset=utf-8', x.body, 'invoice', x.invoice_id, $1\nfrom invoice_csv x\njoin connection c on c.kind = 'accounting'\nwhere x.invoice_id = any($2::bigint[])",
       "name": "InvoiceExport",
       "cmd": ":exec",
       "columns": [],
@@ -82162,7 +82276,7 @@
         }
       ],
       "comments": [
-        " Writes the delivery of each invoice document to the accounting connection."
+        " Writes the delivery of the CSV of each invoice to /invoices of the accounting connection."
       ],
       "filename": "queries.sql",
       "insert_into_table": {

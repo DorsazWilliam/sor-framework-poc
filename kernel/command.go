@@ -19,7 +19,7 @@ import (
 // Call runs a command (SPEC §7): lock and read (1 round trip), effects and re-read (1), commit (1, plus
 // one when it inserts jobs).
 func (k *Kernel) Call(ctx context.Context, p *Principal, name string, body []byte) (*Result, error) {
-	x, err := k.newCall(p, name, body, callID(ctx))
+	x, err := k.newCall(p, name, body, uuid())
 	if err != nil {
 		return nil, err
 	}
@@ -41,21 +41,6 @@ func (k *Kernel) Call(ctx context.Context, p *Principal, name string, body []byt
 		return nil, pgProblem(err)
 	}
 	return res, nil
-}
-
-type callKey struct{}
-
-// WithCall returns a context whose command invocations use id as their call id (SPEC §13 Sor-Call, §9).
-func WithCall(ctx context.Context, id string) context.Context {
-	return context.WithValue(ctx, callKey{}, id)
-}
-
-// callID is the call id of ctx, or a new one.
-func callID(ctx context.Context) string {
-	if id, _ := ctx.Value(callKey{}).(string); id != "" {
-		return id
-	}
-	return uuid()
 }
 
 // newCall checks the capability and validates the input of a command.
@@ -98,12 +83,12 @@ type stmt struct {
 	table *Table // nil: a lock statement, run as is
 }
 
-func (x *call) reach() string {
-	r := x.c.Reach
-	if r == "" && x.c.table != nil {
-		r = reachName(x.c.table.root.Anchor)
+// reach is the reach of the call: the one its command names, else the anchor's of its root.
+func (x *call) reach() []int64 {
+	if x.c.table == nil {
+		return nil
 	}
-	return ints(x.p.Reach[r])
+	return x.p.reach(x.c.table.root.Anchor, x.c.Reach)
 }
 
 // exec runs the call up to its commit, opened by begin or by a savepoint inside a run's transaction.
@@ -229,7 +214,7 @@ func (x *call) exec(ctx context.Context, open string) (*Result, error) {
 insert into event (call, command, principal_id, for_id, tbl, row_id, root_table, root_id, changes)
 select $%d::uuid, $%d::text, $%d::bigint, $%d::bigint, %s, (coalesce(n, o)->>'id')::bigint, %s, (coalesce(n, o)->>%s)::bigint, sor_diff(o, n)
 from eff where o is distinct from n
-returning tbl, row_id, root_table, root_id`, s.sql, n+1, n+2, n+3, n+4, literal(s.table.Name), literal(s.table.Root), literal(rootFK)),
+returning tbl, row_id, root_table, root_id, changes ? 'id' and changes->'id'->>0 is null`, s.sql, n+1, n+2, n+3, n+4, literal(s.table.Name), literal(s.table.Root), literal(rootFK)),
 			append(s.args, x.id, c.Name, strconv.FormatInt(x.p.ID, 10), optInt(x.p.forID()))...)
 	}
 	touched := func(t *Table) string {
@@ -269,7 +254,7 @@ union all select (e.changes->%s->>0)::bigint from event e where e.call = $1::uui
 			}
 			for rs.Next() {
 				var r Row
-				if err := rs.Scan(&r.Table, &r.ID, &r.RootTable, &r.RootID); err != nil {
+				if err := rs.Scan(&r.Table, &r.ID, &r.RootTable, &r.RootID, &r.Inserted); err != nil {
 					return err
 				}
 				rows = append(rows, r)
@@ -315,7 +300,6 @@ union all select (e.changes->%s->>0)::bigint from event e where e.call = $1::uui
 	if rootExpr != "" {
 		res.IDs = sortedKeys64(before)
 	}
-	var deliveries []int64
 	for _, r := range rows {
 		i := slices.IndexFunc(res.Changed, func(ch Changed) bool { return ch.Table == r.Table })
 		if i < 0 {
@@ -325,8 +309,10 @@ union all select (e.changes->%s->>0)::bigint from event e where e.call = $1::uui
 		if root != nil && r.RootTable == root.Name {
 			res.IDs = append(res.IDs, r.RootID)
 		}
-		if r.Table == "delivery" { // append-only: every changed row is an insert
-			deliveries = append(deliveries, r.ID)
+		if r.Inserted {
+			for _, kind := range x.k.OnInserts[r.Table] {
+				x.enqueue(kind, []int64{r.ID})
+			}
 		}
 	}
 	for i := range res.Changed {
@@ -335,9 +321,6 @@ union all select (e.changes->%s->>0)::bigint from event e where e.call = $1::uui
 	res.IDs = uniq(res.IDs)
 	x.rows, x.anchors = rows, anchors
 	x.react(res.IDs)
-	for _, id := range uniq(deliveries) {
-		x.enqueue("delivery.send", []int64{id})
-	}
 	return res, nil
 }
 
@@ -403,10 +386,7 @@ func (x *call) checkReach(root *Table, rows map[int64]json.RawMessage) *Problem 
 	if root.Anchor == nil {
 		return nil
 	}
-	reach := x.p.Reach[x.c.Reach]
-	if x.c.Reach == "" {
-		reach = x.p.Reach[root.Anchor.Reach]
-	}
+	reach := x.reach()
 	for _, raw := range rows {
 		var row map[string]any
 		json.Unmarshal(raw, &row)
@@ -491,7 +471,7 @@ func (x *call) statements(lock bool) []stmt {
 		for _, name := range e.params {
 			switch name {
 			case "reach":
-				s.args = append(s.args, x.reach())
+				s.args = append(s.args, ints(x.reach()))
 			case "self":
 				s.args = append(s.args, strconv.FormatInt(x.p.Self, 10))
 			case "ids":
@@ -512,8 +492,8 @@ func (x *call) startRun(ctx context.Context) (*Result, error) {
 	input, _ := json.Marshal(x.in)
 	b := &pgx.Batch{}
 	b.Queue("begin")
-	b.Queue("insert into run (name, input, principal_id, for_id) values ($1, $2::jsonb, $3::bigint, $4::bigint) returning id",
-		x.c.Name, string(input), strconv.FormatInt(x.p.ID, 10), optInt(x.p.forID()))
+	b.Queue("insert into run (name, input, owner_id, principal_id, for_id) values ($1, $2::jsonb, $3::bigint, $4::bigint, $5::bigint) returning id",
+		x.c.Name, string(input), strconv.FormatInt(x.p.Self, 10), strconv.FormatInt(x.p.ID, 10), optInt(x.p.forID()))
 	br := x.conn.SendBatch(ctx, b)
 	var id int64
 	_, err := br.Exec()
@@ -528,10 +508,10 @@ func (x *call) startRun(ctx context.Context) (*Result, error) {
 	}
 	x.enqueue("run.execute", []int64{id})
 	x.react([]int64{id})
-	rows := []Row{{"run", id, "run", id}}
+	rows := []Row{{"run", id, "run", id, true}}
 	return &Result{Call: x.id, Changed: []Changed{{Table: "run", IDs: []int64{id}}}, IDs: []int64{}, Run: &id},
 		x.k.commit(ctx, x.conn, &Commit{Command: x.c.Name, Call: x.id, Principal: x.p.ID, For: x.p.forID(), Subjects: x.p.Subjects,
-			Rows: rows, Run: &id}, map[string][]int64{"run": {x.p.ID}}, x.jobs)
+			Rows: rows, Run: &id}, map[string][]int64{"run": {x.p.Self}}, x.jobs)
 }
 
 func projRows(br pgx.BatchResults) (map[int64]json.RawMessage, error) {
