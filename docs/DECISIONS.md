@@ -176,6 +176,12 @@ Expérience sur Postgres 18, 600k activities, avant d'écrire le domaine. Une pr
 - 1er ordre : l'auteur d'une projection écrit ses joins dans l'ordre d'exécution ; les plans sont déterministes
 - 2e ordre : les réglages dont le model dépend sont posés sur la database par `sor migrate`, pas par l'environnement
 
+Suite, mesurée après application :
+
+- Préparer ne suffit pas : en mode `auto` Postgres replanifiait les statements d'une command à chaque appel. Une command commence par `set local plan_cache_mode = force_generic_plan` (même aller-retour) : 256 appels, 2 planifications ; `activity.update` p95 7 ms
+- Avec l'ordre écrit, une view de plusieurs relations placée en `join` interne est planifiée en bloc et calculée en entier (160 à 730 ms au lieu de 0.2). Règle : une projection se lit par ses clés (`= any(array(…))` ou `left join`) ; une view de prédicat porte sur une seule relation. La pagination (D30) et la relecture des roots suivent déjà cette forme
+- Planification après changement : 1 à 5 ms sur toutes les views
+
 ### D30. Pagination par id : lecture par tableau d'ids
 
 - Constat : `k join (<view>) using (id)` est planifié sans `k` (view calculée en entier, 170 ms) ; `where id = any(array(select id from k))` pousse le filtre dans la view (12 ms)

@@ -24,7 +24,7 @@ Needs Docker.
 docker compose up
 ```
 
-Then open http://localhost:8080. The login page of the mock identity provider asks for a username: `admin`, `manager`, `finance` or `user`.
+The first run builds the images (about a minute). Then open http://localhost:8080. The login page of the mock identity provider asks for a username: `admin`, `manager`, `finance` or `user`.
 
 | Service | URL |
 |---|---|

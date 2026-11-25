@@ -60,7 +60,7 @@ Ordre des schemas (sqlc et pgschema) : kernel, base, time, billing, accounting.
 - snake_case, singulier ; identifiants toujours quotés par le kernel (`"user"`)
 - Toute table : `id bigint generated always as identity primary key` ; unicité composite par contrainte `unique`
 - Une colonne FK porte le même nom partout où elle cible la même table (`user_id`, `manager_id`, `validated_by` → `user`) ; le kernel résout « colonne → table référencée » par nom, depuis le catalog ; un nom ambigu échoue au check
-- Suffixes = format : `_min` durée en minutes (h:mm), `_tod` minute du jour (HH:MM), `_pct`, `_coef`, `_at` instant ; `numeric(…,2)` = montant ; `date` = date
+- Le dernier mot du nom d'une colonne = son format : `min` durée en minutes (h:mm), `tod` minute du jour (HH:MM), `pct`, `coef`, `at` instant ; `amount`, `rate`, `cost`, `price` = montant (2 décimales) ; le type `date` = date. Une colonne calculée suit la même règle : c'est son nom qui la formate
 - `archived boolean not null default false` sur les données de base ; archiver = update
 - Description anglaise de chaque table, colonne et view par `comment on` ; de chaque query par ses lignes de commentaire
 - Enum Postgres pour toute liste fermée
@@ -156,7 +156,8 @@ Wrap = `select <cols | group, agg> from (<query>) v where <filter> group by … 
 
 - La colonne `id` d'une view est l'identité de sa row, unique dans la view (sélection, commands, drawer)
 - Page d'une view qui a `id`, sans group ni agg : le kernel pagine sur les ids puis lit les rows — `with k as materialized (select id from (<query>) v where … order by … limit … offset …) select v.* from (<query>) v where v.id = any(array(select id from k)) order by …`. Les rows sautées ne paient que les colonnes du tri et du filtre ; la page se lit par clé primaire
-- Plans : une view s'exécute en statement non nommé, planifiée avec ses valeurs (sélectivité des intervalles, parallélisme) ; les statements d'une command (lock, projection par ids, effets) sont préparés et gardent leur plan
+- Plans : une view s'exécute en statement non nommé, planifiée avec ses valeurs (sélectivité des intervalles, parallélisme) ; les statements d'une command (lock, projection par ids, effets) sont préparés et gardent leur plan (`set local plan_cache_mode = force_generic_plan` en tête du premier batch de la command)
+- Une projection se lit par ses clés : `id = any(array(select …))` ou `left join` sur sa clé ; jamais en `join` interne ni en `in (select …)` depuis une autre relation (elle serait calculée en entier). Une view de prédicat réutilisable porte sur une seule relation
 - Ordre des joins = ordre écrit (`join_collapse_limit = 1`, `from_collapse_limit = 1`) : le root d'abord, ses lookups ensuite ; le planner ne cherche pas d'ordre, la planification d'une projection de 16 relations reste sous la milliseconde
 - Les réglages dont le model dépend sont posés sur la database par `sor migrate` (`alter database … set`) : timezone, `jit = off`, limites de collapse, seuils de scan parallèle (`min_parallel_table_scan_size`, `min_parallel_index_scan_size`) ; compose ne porte que les ressources (mémoire, workers)
 
@@ -227,6 +228,7 @@ returning tbl, row_id, root_table, root_id
 - Chaque instance a une connexion `LISTEN` et diffuse aux streams SSE (`GET /api/live`) ; un stream reçoit une clé si la table n'a pas d'anchor ou si `a` ∩ son reach ≠ ∅
 - Le client relance ses views dont les roots contiennent `t` (debounce 50 ms) ; reconnexion = tout relancer ; le serveur ne garde aucun état d'abonnement
 - Progress d'un run : update de sa row `run` hors transaction du run, même canal
+- `e` identifie l'invocation qui a commité : un job (run, reaction) a son propre id, distinct de celui de la command qui l'a enfilé ; le client qui a lancé un run reçoit donc son progress
 
 ## 10. Jobs, reactions, runs
 
@@ -506,6 +508,11 @@ type Screen struct {
     Component string            // écran fait main
 }
 ```
+
+- `Link` : une clé qui est un param de la view enfant le renseigne ; sinon c'est un filtre d'égalité sur cette colonne de la view
+- Une table déclarée avec `Group(g)` donne un écran généré : id = nom de la table, view liste, Table, et un enfant par table child (`Link {fk: "id"}`)
+- Label d'un écran : `s.<id>`, à défaut le label de sa table
+- Une view ne répète pas en texte ce qu'une colonne `ref` affiche déjà (pas de `user_name` à côté de `user_id`)
 
 | # | Écran | Déclaration |
 |---|---|---|
