@@ -1,0 +1,41 @@
+{
+  "interactiveLogin": true,
+  "tokenCallbacks": [
+    {
+      "issuerId": "default",
+      "tokenExpiry": 28800,
+      "requestMappings": [
+        {
+          "requestParam": "client_id",
+          "match": "agent-user",
+          "claims": { "sub": "agent-user", "act_for": "user", "aud": ["sor"] }
+        },
+        {
+          "requestParam": "client_id",
+          "match": "agent-manager",
+          "claims": { "sub": "agent-manager", "act_for": "manager", "aud": ["sor"] }
+        },
+        {
+          "requestParam": "client_id",
+          "match": "agent-auto",
+          "claims": { "sub": "agent-auto", "aud": ["sor"] }
+        },
+        {
+          "requestParam": "client_id",
+          "match": "cli-admin",
+          "claims": { "sub": "admin", "aud": ["sor"] }
+        },
+        {
+          "requestParam": "client_id",
+          "match": "sor",
+          "claims": { "aud": ["sor"] }
+        },
+        {
+          "requestParam": "client_id",
+          "match": "*",
+          "claims": { "sub": "${clientId}", "aud": ["sor"] }
+        }
+      ]
+    }
+  ]
+}

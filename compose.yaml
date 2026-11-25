@@ -1,0 +1,99 @@
+name: sor
+
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: sor
+      POSTGRES_PASSWORD: sor
+      POSTGRES_DB: sor
+    command: >
+      postgres -c jit=off -c timezone=Europe/Zurich -c max_parallel_workers_per_gather=4
+      -c max_parallel_workers=8 -c max_worker_processes=8 -c plan_cache_mode=force_custom_plan
+      -c shared_buffers=1GB -c work_mem=64MB -c random_page_cost=1.1 -c effective_cache_size=4GB
+    shm_size: 1g
+    volumes:
+      - db:/var/lib/postgresql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "sor", "-d", "sor"]
+      interval: 2s
+      retries: 30
+
+  s3:
+    image: chrislusf/seaweedfs:4.55
+    command: server -dir=/data -s3 -s3.config=/etc/seaweedfs/s3.json -volume.max=20 -master.volumeSizeLimitMB=256
+    volumes:
+      - ./deploy/s3.json:/etc/seaweedfs/s3.json:ro
+      - s3:/data
+    ports:
+      - "8333:8333"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8333/healthz"]
+      interval: 2s
+      retries: 30
+
+  idp:
+    image: ghcr.io/navikt/mock-oauth2-server:7.0.2
+    environment:
+      JSON_CONFIG_PATH: /config/idp.json
+    volumes:
+      - ./deploy/idp.json:/config/idp.json:ro
+    ports:
+      - "8090:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/isalive"]
+      interval: 2s
+      retries: 30
+
+  acct:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
+      target: fakeacct
+    environment:
+      ACCT_SECRET: acct-dev-secret
+    ports:
+      - "8070:8070"
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8070"]
+      interval: 2s
+      retries: 30
+
+  app:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
+      target: app
+    command: ["sor", "up"]
+    environment:
+      DATABASE_URL: postgres://sor:sor@db:5432/sor
+      OIDC_ISSUER: http://localhost:8090/default
+      OIDC_DIAL: idp:8080
+      OIDC_CLIENT_ID: sor
+      PUBLIC_URL: http://localhost:8080
+      LISTEN_ADDR: :8080
+      S3_ENDPOINT: http://s3:8333
+      S3_PUBLIC_ENDPOINT: http://localhost:8333
+      S3_BUCKET: sor
+      S3_ACCESS_KEY: sor
+      S3_SECRET_KEY: sor-dev-secret
+      ACCT_URL: http://acct:8070
+      SECRET_accounting: acct-dev-secret
+      SOR_SEED: demo
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      s3:
+        condition: service_healthy
+      idp:
+        condition: service_healthy
+      acct:
+        condition: service_healthy
+
+volumes:
+  db:
+  s3:

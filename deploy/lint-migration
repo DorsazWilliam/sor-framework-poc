@@ -1,0 +1,16 @@
+#!/bin/sh
+# Lints the pending migration: pgschema plans the concatenated module schemas against
+# the compose db (plan DB "sorplan" on the same server), then squawk lints the SQL plan.
+# Usage: deploy/lint-migration   (from anywhere; the stack is up with `docker compose up`)
+# Env: SOR_NETWORK = compose network of the db (default sor_default), PGPASSWORD (default sor).
+# Needs docker and npx; exits non-zero when planning fails or squawk reports a violation.
+set -eu
+cd "$(dirname "$0")/.."
+src=$(pwd -W 2>/dev/null || pwd)
+plan=$(MSYS_NO_PATHCONV=1 docker run --rm --network "${SOR_NETWORK:-sor_default}" -v "$src:/src:ro" -w /src \
+  -e PGPASSWORD="${PGPASSWORD:-sor}" -e PGSCHEMA_PLAN_PASSWORD="${PGPASSWORD:-sor}" \
+  --entrypoint sh pgplex/pgschema:2.0.0 -c '
+    cat kernel/schema.sql modules/base/schema.sql modules/time/schema.sql modules/billing/schema.sql modules/accounting/schema.sql > /tmp/schema.sql &&
+    pgschema plan --host db --db sor --user sor --plan-host db --plan-db sorplan --plan-user sor \
+      --file /tmp/schema.sql --output-sql stdout --no-color')
+printf '%s\n' "$plan" | npx --yes squawk-cli@2.74.0 --pg-version=18.0

@@ -1,0 +1,9 @@
+{
+  "identities": [
+    {
+      "name": "sor",
+      "credentials": [{ "accessKey": "sor", "secretKey": "sor-dev-secret" }],
+      "actions": ["Admin", "Read", "Write", "List", "Tagging"]
+    }
+  ]
+}
