@@ -166,6 +166,16 @@ func TestWrap(t *testing.T) {
 	if rows := view(t, k, alice, "entry.lookup", `{}`); len(rows) != 2 || rows[0]["label"] != "a1" {
 		t.Fatalf("lookup: %v", rows)
 	}
+	// A filter by action: the rows where its conditions are true; an action whose conditions are not columns of the view is unknown.
+	call(t, k, boss, "entry.validate", `{"ids":[1]}`)
+	if rows := view(t, k, boss, "entry_grid", `{"filter":[{"action":"validatable"}]}`); len(rows) != 2 || rows[0]["id"].(float64) != 2 {
+		t.Fatalf("action filter: %v", rows)
+	}
+	for _, a := range []string{"editable", "nope"} {
+		if _, err := k.View(context.Background(), boss, "entry_grid", []byte(`{"filter":[{"action":"`+a+`"}]}`)); err.(*kernel.Problem).Code != "invalid" {
+			t.Fatalf("action %s: %v", a, err)
+		}
+	}
 	_, err := k.View(context.Background(), alice, "entry_grid", []byte(`{"sort":[{"col":"nope"}]}`))
 	if pr, ok := err.(*kernel.Problem); !ok || pr.Code != "invalid" {
 		t.Fatalf("bad sort: %v", err)

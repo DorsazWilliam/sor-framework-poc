@@ -59,7 +59,8 @@ type View struct {
 	Description string      `json:"description,omitempty"`
 
 	sql     string
-	params  []string // by $n
+	params  []string            // by $n
+	actions map[string][]string // actions of its roots whose conditions are columns of the view
 	history bool
 	in, out *huma.Schema
 }

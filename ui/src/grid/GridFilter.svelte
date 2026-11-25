@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Col, Filter, Op } from "../api/contract";
+  import type { Col, ColFilter as Filter, Op } from "../api/contract";
   import Select from "../ds/Select.svelte";
   import Combobox from "../ds/Combobox.svelte";
   import { parseDateText, parseDuration, parseNumber, parseTime } from "../ds/format";

@@ -235,7 +235,7 @@ await scenario(
     return s;
   },
   async () => {
-    toValidate = (await view(admin, "activity_to_validate", { params: { date_from: daysAgo(90), date_to: iso(today) }, filter: [{ col: "not_invoiced", op: "eq", value: true }], limit: 100 })).map((r) => r.id as number);
+    toValidate = (await view(admin, "activity_team", { params: { date_from: daysAgo(90), date_to: iso(today) }, filter: [{ action: "validatable" }, { col: "not_invoiced", op: "eq", value: true }], limit: 100 })).map((r) => r.id as number);
     if (toValidate.length < 100) throw new Error(`only ${toValidate.length} activities to validate`);
   },
 );

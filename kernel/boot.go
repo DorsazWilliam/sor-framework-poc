@@ -380,6 +380,19 @@ func (b *booter) view(ctx context.Context, v *View, notNull []bool, t *Table) {
 		}
 	}
 	slices.Sort(v.Roots)
+	// the actions of the roots whose rows the view lists (it carries some of their conditions), when it carries all
+	// their conditions: a filter by action expands to them
+	v.actions = map[string][]string{}
+	isCol := func(c string) bool { return slices.ContainsFunc(v.Columns, func(x Col) bool { return x.Name == c }) }
+	for _, r := range v.Roots {
+		if t := b.tables[r]; slices.ContainsFunc(t.Conditions, isCol) {
+			for a, conds := range t.Actions {
+				if !slices.ContainsFunc(conds, func(c string) bool { return !isCol(c) }) {
+					v.actions[a] = append(v.actions[a], conds...)
+				}
+			}
+		}
+	}
 	b.views[v.Name] = v
 	b.Meta.Views = append(b.Meta.Views, v)
 }

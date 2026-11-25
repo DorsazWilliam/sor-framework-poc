@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack, type Snippet } from "svelte";
-  import type { Col, Filter, Row, Sort } from "../api/contract";
+  import type { Col, ColFilter, Filter, Row, Sort } from "../api/contract";
   import { GROUP, ROW, type Source } from "./source.svelte";
   import GridFilter from "./GridFilter.svelte";
   import Badge from "../ds/Badge.svelte";
@@ -170,8 +170,8 @@
     sort = next ? [...rest, next] : rest;
   }
 
-  function setFilter(c: Col, f: Filter | null) {
-    filter = [...filter.filter((x) => x.col !== c.name), ...(f ? [f] : [])];
+  function setFilter(c: Col, f: ColFilter | null) {
+    filter = [...filter.filter((x) => !("col" in x) || x.col !== c.name), ...(f ? [f] : [])];
   }
 
   function titleIfTruncated(e: MouseEvent) {
@@ -249,7 +249,7 @@
         <div class="cell check"></div>
         {#each columns as c (c.name)}
           <div class="cell fcell" style:width="{w(c)}px">
-            <GridFilter col={c} filter={filter.find((f) => f.col === c.name)} onchange={(f) => setFilter(c, f)} />
+            <GridFilter col={c} filter={filter.find((f): f is ColFilter => "col" in f && f.col === c.name)} onchange={(f) => setFilter(c, f)} />
           </div>
         {/each}
       </div>

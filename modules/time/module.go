@@ -45,10 +45,11 @@ var Module = kernel.Module{Name: "time", Schema: schema, Register: func(r *kerne
 	r.Screen(kernel.Screen{ID: "entry", Group: "time", Component: "entry", Views: []string{"timesheet", "timesheet_day"},
 		Defaults: map[string]string{"user_id": "$self", "date_from": "$today", "date_to": "$today"}, Table: "activity",
 		Commands: []string{"activity.create", "activity.update", "activity.delete"}, Children: []kernel.Screen{expenses, classes}})
-	r.Screen(kernel.Screen{ID: "validation", Group: "time", Views: []string{"activity_to_validate"},
+	r.Screen(kernel.Screen{ID: "validation", Group: "time", Views: []string{"activity_team"},
 		Defaults: map[string]string{"date_from": "$days(-90)", "date_to": "$today"}, Table: "activity",
 		Commands: []string{"activity.validate"},
-		Wrap:     &kernel.Wrap{Sort: []kernel.Sort{{Col: "date", Dir: "desc"}, {Col: "id", Dir: "desc"}}, Agg: activityTotals},
+		Wrap: &kernel.Wrap{Filter: []kernel.Filter{{Action: "validatable"}}, Sort: []kernel.Sort{{Col: "date", Dir: "desc"}, {Col: "id", Dir: "desc"}},
+			Agg: activityTotals},
 		Children: []kernel.Screen{expenses, classes}})
 	r.Screen(kernel.Screen{ID: "activities", Group: "time", Views: []string{"activity_grid"},
 		Defaults: map[string]string{"date_from": "$month_start", "date_to": "$today"}, Table: "activity",

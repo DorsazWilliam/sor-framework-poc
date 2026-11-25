@@ -68083,7 +68083,7 @@
       "insert_into_table": null
     },
     {
-      "text": "select e.id, e.person_id, p.name as person, e.day, e.worked_min, e.validated, e.not_locked\nfrom entry_p e\njoin person p on p.id = e.person_id\nwhere e.person_id = any($1::bigint[])\n  and e.day \u003e= coalesce($2::date, '-infinity'::date)",
+      "text": "select e.id, e.person_id, p.name as person, e.day, e.worked_min, e.validated, e.not_locked, e.not_validated\nfrom entry_p e\njoin person p on p.id = e.person_id\nwhere e.person_id = any($1::bigint[])\n  and e.day \u003e= coalesce($2::date, '-infinity'::date)",
       "name": "EntryGrid",
       "cmd": ":many",
       "columns": [
@@ -68266,6 +68266,32 @@
           "is_sqlc_slice": false,
           "embed_table": null,
           "original_name": "not_locked",
+          "unsigned": false,
+          "array_dims": 0
+        },
+        {
+          "name": "not_validated",
+          "not_null": false,
+          "is_array": false,
+          "comment": "",
+          "length": -1,
+          "is_named_param": false,
+          "is_func_call": false,
+          "scope": "",
+          "table": {
+            "catalog": "",
+            "schema": "",
+            "name": "entry_p"
+          },
+          "table_alias": "",
+          "type": {
+            "catalog": "",
+            "schema": "",
+            "name": "bool"
+          },
+          "is_sqlc_slice": false,
+          "embed_table": null,
+          "original_name": "not_validated",
           "unsigned": false,
           "array_dims": 0
         }

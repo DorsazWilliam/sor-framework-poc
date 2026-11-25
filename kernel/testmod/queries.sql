@@ -12,7 +12,7 @@ where p.subject = any(@subjects::text[]);
 -- Entries with the name of their person.
 -- @anchor person_id user
 -- @needs entry
-select e.id, e.person_id, p.name as person, e.day, e.worked_min, e.validated, e.not_locked
+select e.id, e.person_id, p.name as person, e.day, e.worked_min, e.validated, e.not_locked, e.not_validated
 from entry_p e
 join person p on p.id = e.person_id
 where e.person_id = any(@reach::bigint[])

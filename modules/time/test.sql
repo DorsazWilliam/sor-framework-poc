@@ -132,8 +132,8 @@ select pg_temp.eq('not invoiced', (pg_temp.p('r2')).not_invoiced, true);
 select pg_temp.eq('not validated', (pg_temp.p('r2')).not_validated and not (pg_temp.p('r2')).is_validated, true);
 execute activityvalidate(pg_temp.uid('boss'), array[pg_temp.aid('r2'), pg_temp.aid('v1')]);
 select pg_temp.eq('validated', (pg_temp.p('r2')).is_validated and not (pg_temp.p('r2')).not_validated, true);
-create temp table tv as execute activitytovalidate('2026-03-01', '2026-03-31', array[pg_temp.uid('bob')]);
-select pg_temp.eq('to validate list', (select string_agg(description, ',' order by description) from tv), 's1,s3');
+create temp table tv as execute activityteam('2026-03-01', '2026-03-31', array[pg_temp.uid('bob')]);
+select pg_temp.eq('validatable in the team list', (select string_agg(description, ',' order by description) from tv where to_validate and not_validated), 's1,s3');
 execute activityunvalidate(array[pg_temp.aid('r2')]);
 select pg_temp.eq('unvalidated', (pg_temp.p('r2')).not_validated, true);
 

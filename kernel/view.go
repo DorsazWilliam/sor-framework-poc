@@ -142,6 +142,16 @@ func (v *View) wrap(w Wrap, args []any, label func(table string) string) (string
 	var where []string
 	ops := map[string]string{"eq": "=", "ne": "<>", "lt": "<", "le": "<=", "gt": ">", "ge": ">="}
 	for _, f := range w.Filter {
+		if f.Action != "" {
+			conds, ok := v.actions[f.Action]
+			if !ok {
+				return "", nil, problem(422, "invalid", "no action "+f.Action+" of the roots of the view")
+			}
+			for _, c := range conds {
+				where = append(where, "v."+ident(c))
+			}
+			continue
+		}
 		c, ok := cols[f.Col]
 		if !ok {
 			return "", nil, problem(422, "invalid", "unknown column "+f.Col)

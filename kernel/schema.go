@@ -79,8 +79,11 @@ func (b *booter) viewSchemas(v *View) {
 	one, zero, max := 1.0, 0.0, float64(maxLimit)
 	v.in = object(map[string]*huma.Schema{
 		"params": object(params, nil),
-		"filter": {Type: huma.TypeArray, Items: object(map[string]*huma.Schema{
-			"col": col, "op": enumOf("eq", "ne", "lt", "le", "gt", "ge", "in", "contains", "null", "notnull"), "value": {}}, []string{"col", "op"})},
+		"filter": {Type: huma.TypeArray, Items: &huma.Schema{OneOf: []*huma.Schema{
+			object(map[string]*huma.Schema{"col": col, "op": enumOf("eq", "ne", "lt", "le", "gt", "ge", "in", "contains", "null", "notnull"), "value": {}},
+				[]string{"col", "op"}),
+			object(map[string]*huma.Schema{"action": {Type: huma.TypeString}}, []string{"action"}),
+		}}},
 		"sort":   {Type: huma.TypeArray, Items: object(map[string]*huma.Schema{"col": {Type: huma.TypeString}, "dir": enumOf("asc", "desc")}, []string{"col"})},
 		"group":  {Type: huma.TypeArray, Items: col},
 		"agg":    {Type: huma.TypeArray, Items: object(map[string]*huma.Schema{"col": col, "fn": enumOf("sum", "count", "min", "max", "avg")}, []string{"fn"})},
@@ -126,6 +129,9 @@ func precompute(s *huma.Schema) {
 	s.PrecomputeMessages()
 	for _, p := range s.Properties {
 		precompute(p)
+	}
+	for _, o := range s.OneOf {
+		precompute(o)
 	}
 	precompute(s.Items)
 }

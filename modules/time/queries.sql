@@ -36,13 +36,13 @@ select a.*
 from activity_p a
 where a.date between @date_from and @date_to and a.user_id = any(@reach::bigint[]);
 
--- name: ActivityToValidate :many
--- Activities of the team over a period that need a validation and are not validated. Unordered: the wrap sorts.
+-- name: ActivityTeam :many
+-- Activities of the team over a period; the validation list filters them by the action validatable. Unordered: the wrap sorts.
 -- @anchor user_id team
 -- @needs validation
 select a.*
 from activity_p a
-where a.date between @date_from and @date_to and a.to_validate and a.not_validated and a.user_id = any(@reach::bigint[]);
+where a.date between @date_from and @date_to and a.user_id = any(@reach::bigint[]);
 
 -- name: ActivityClass :many
 -- Split of an activity by hour class, plus the part outside any class.

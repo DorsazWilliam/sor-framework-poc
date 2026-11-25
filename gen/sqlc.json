@@ -77066,8 +77066,8 @@
       "insert_into_table": null
     },
     {
-      "text": "select a.id, a.user_id, a.date, a.start_tod, a.duration_min, a.folder_id, a.task_id, a.description, a.validated_by, a.validated_at, a.invoice_id, a.project_id, a.day_type, a.kind, a.billed_min, a.rate, a.amount, a.counted_min, a.to_validate, a.not_locked, a.not_invoiced, a.not_validated, a.is_validated, a.entry_open, a.task_allowed\nfrom activity_p a\nwhere a.date between $1 and $2 and a.to_validate and a.not_validated and a.user_id = any($3::bigint[])",
-      "name": "ActivityToValidate",
+      "text": "select a.id, a.user_id, a.date, a.start_tod, a.duration_min, a.folder_id, a.task_id, a.description, a.validated_by, a.validated_at, a.invoice_id, a.project_id, a.day_type, a.kind, a.billed_min, a.rate, a.amount, a.counted_min, a.to_validate, a.not_locked, a.not_invoiced, a.not_validated, a.is_validated, a.entry_open, a.task_allowed\nfrom activity_p a\nwhere a.date between $1 and $2 and a.user_id = any($3::bigint[])",
+      "name": "ActivityTeam",
       "cmd": ":many",
       "columns": [
         {
@@ -77807,7 +77807,7 @@
         }
       ],
       "comments": [
-        " Activities of the team over a period that need a validation and are not validated. Unordered: the wrap sorts.",
+        " Activities of the team over a period; the validation list filters them by the action validatable. Unordered: the wrap sorts.",
         " @anchor user_id team",
         " @needs validation"
       ],

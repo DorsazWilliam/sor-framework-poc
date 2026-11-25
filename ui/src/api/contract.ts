@@ -34,7 +34,9 @@ export type Command = {
 };
 
 export type Op = "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
-export type Filter = { col: string; op: Op; value?: unknown };
+// A filter on a column, or by an action: the rows where its conditions are true (SPEC §7).
+export type ColFilter = { col: string; op: Op; value?: unknown };
+export type Filter = ColFilter | { action: string };
 export type Sort = { col: string; dir: "asc" | "desc" };
 export type Agg = { col: string; fn: "sum" | "count" | "min" | "max" | "avg" };
 

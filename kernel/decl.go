@@ -100,10 +100,12 @@ type Wrap struct {
 	Offset int      `json:"offset,omitempty"`
 }
 
+// Filter is a condition on a column, or an action: the rows where every condition of the action is true.
 type Filter struct {
-	Col   string `json:"col"`
-	Op    string `json:"op"`
-	Value any    `json:"value,omitempty"`
+	Col    string `json:"col,omitempty"`
+	Op     string `json:"op,omitempty"`
+	Value  any    `json:"value,omitempty"`
+	Action string `json:"action,omitempty"`
 }
 
 type Sort struct {
