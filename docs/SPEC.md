@@ -261,14 +261,50 @@ returning tbl, row_id, root_table, root_id
 
 Opérations Huma construites à la main (`huma.Schema` depuis les types Postgres), handler brut, validation `huma.Validate`, erreurs RFC 9457. En-tête `Server-Timing: db;dur=<ms>;desc="<n> rt", app;dur=<ms>` sur chaque réponse ; une ligne slog par request (name, principal, ms, rt).
 
-### Meta
+### Contrat JSON
 
-```json
-{"tables":   [{"name","root","child_of","anchor","columns":[{"name","type","format","nullable","ref","enum","guarded","description"}],
-               "actions":{"editable":["not_locked",…]}, "read","write","label"}],
- "views":    [{"name","params":[…],"columns":[…],"roots":[…],"needs","description"}],
- "commands": [{"name","table","rootless","input":[…],"when","ensure","needs","run","description"}],
- "screens":  [...], "enums": {...}, "functions": [...]}
+Le serveur et l'UI s'accordent sur ces formes, exactement.
+
+```ts
+// GET /api/me
+type Me = { id: number; name: string; kind: string; lang: "fr"|"de"|"en";
+            functions: string[]; reach: Record<string, number[]>; for?: { id: number; name: string } }
+
+// GET /api/meta
+type Col = { name: string;
+             type: string;      // nom du type Postgres : int8, int4, int2, numeric, text, bool, date, timestamptz, jsonb, int4range, _int4, ou le nom d'un enum
+             format: "" | "min" | "tod" | "pct" | "coef" | "money";
+             nullable: boolean;
+             ref?: string;      // table référencée (colonne FK, résolue par nom)
+             enum?: string;     // nom de l'enum
+             description?: string }
+type Table = { name: string; root: string /* elle-même si root */; child_fk?: string; under?: string;
+               anchor?: { column: string; reach: string }; read: string; write: string; label: string; crud: boolean;
+               columns: (Col & { guarded: boolean; has_default: boolean })[];
+               conditions: string[]; actions: Record<string, string[]>; description?: string }
+type View = { name: string; params: Col[]; columns: Col[]; roots: string[]; needs: string;
+              anchor?: { column: string; reach: string }; description?: string }
+type Command = { name: string; table: string; kind: "create" | "update" | "delete" | "custom" | "run";
+                 rootless: boolean; input: Col[] /* hors ids */; when?: string; ensure?: string;
+                 reach?: string; needs: string; description?: string }
+type Wrap = { filter?: { col: string; op: string; value?: unknown }[]; sort?: { col: string; dir: "asc" | "desc" }[];
+              group?: string[]; agg?: { col: string; fn: string }[]; limit?: number; offset?: number }
+type Screen = { id: string; group: string; views: string[]; defaults: Record<string, string>; table?: string;
+                commands: string[]; wrap?: Wrap; children: Screen[]; link?: Record<string, string>; component?: string }
+type Meta = { tables: Table[]; views: View[]; commands: Command[]; screens: Screen[];
+              enums: Record<string, string[]>; functions: string[]; groups: string[] }
+
+// POST /api/v/{view}       body: { params?: Record<string, unknown> } & Wrap
+//   200: tableau JSON des rows, tel que produit par Postgres ; avec group/agg : colonnes de group + "<fn>_<col>" ("count" pour count)
+// POST /api/c/{command}    body: create {…colonnes} | update {ids, …colonnes} | delete {ids} | custom {ids, …input} | rootless {…input} | run {…params}
+//   200: { changed: { table: string; ids: number[] }[]; ids: number[] /* roots de la command, créés compris */; run?: number }
+// erreurs: application/problem+json { status, title, code, needs?, action?, rejected?: { id: number; conditions: string[]; row: object }[], constraint?, errors? }
+// GET /api/live            SSE, data: { t: string; ids?: number[]; c: string; e: string }
+// GET /api/labels/{lang}   { [key: string]: string }
+// POST /api/files/presign  { hash, size, type } → { exists: boolean; url?: string; headers?: Record<string, string> }
+// POST /api/files          { hash, name, type } → { id: number }
+// POST /api/file           { view, params, id, column } → { url, name, type }
+// view history             params { root_table, root_id } → { at, command, principal, for, tbl, row_id, changes }[]
 ```
 
 ### MCP
