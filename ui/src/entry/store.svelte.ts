@@ -2,7 +2,7 @@ import { SvelteMap } from "svelte/reactivity";
 import type { Row } from "../api/contract";
 import type { Item } from "../ds/types";
 import { api, ApiError } from "../api/client";
-import { all } from "../app/lookups.svelte";
+import { all, lookup } from "../app/lookups.svelte";
 import { command, session } from "../app/session.svelte";
 import { call, report } from "../screen/commands";
 import { isoDate } from "../ds/format";
@@ -26,20 +26,21 @@ export function addDays(iso: string, n: number) {
 }
 export const mondayOf = (iso: string) => addDays(iso, -((new Date(`${iso}T12:00`).getDay() + 6) % 7));
 
-// Folder and task lookups, loaded once and filtered in memory; allowed tasks cached per folder.
-const picks = { folders: [] as Item[], tasks: new Map<number, Row>(), loading: null as Promise<void> | null };
+// The folder lookup is loaded once and filtered in memory (folders open to entry); the tasks allowed
+// in a folder are fetched once per folder. A task's billing comes from those rows and the timesheet's.
+const picks = { folders: [] as Item[], loading: null as Promise<void> | null };
 const allowed = new SvelteMap<number, Item[]>();
+const billings = new SvelteMap<number, unknown>();
 const asking = new Set<number>();
 
 export function loadPicks() {
-  return (picks.loading ??= Promise.all([all("folder"), all("task")]).then(([f, tk]) => {
-    picks.folders = f.map((r) => ({ value: String(r.id), label: String(r.label) }));
-    picks.tasks = new Map(tk.map((r) => [r.id as number, r]));
+  return (picks.loading ??= all("folder").then((f) => {
+    picks.folders = f.filter((r) => r.entry_open !== false).map((r) => ({ value: String(r.id), label: String(r.label) }));
   }));
 }
 export const folderItems = () => picks.folders;
-export const taskLabel = (id: number | null) => (id == null ? "" : String(picks.tasks.get(id)?.label ?? ""));
-export const billing = (task: number | null) => (task == null ? undefined : picks.tasks.get(task)?.billing);
+export const taskLabel = (id: number | null) => (id == null ? "" : (lookup("task", id) ?? ""));
+export const billing = (task: number | null) => (task == null ? undefined : billings.get(task));
 
 export function allowedTasks(folder: number | null): Item[] {
   if (folder == null) return [];
@@ -48,7 +49,10 @@ export function allowedTasks(folder: number | null): Item[] {
     asking.add(folder);
     api
       .view("folder_task_allowed", { params: { folder_id: folder }, limit: 5000 })
-      .then((rows) => allowed.set(folder, rows.map((r) => ({ value: String(r.task_id), label: taskLabel(r.task_id as number) }))))
+      .then((rows) => {
+        for (const r of rows) billings.set(r.id as number, r.billing);
+        allowed.set(folder, rows.map((r) => ({ value: String(r.id), label: String(r.name) })));
+      })
       .finally(() => asking.delete(folder));
   }
   return items ?? [];
@@ -121,6 +125,7 @@ export class Entry {
       loadPicks(),
     ]);
     if (gen !== this.#gen) return;
+    for (const r of rows) billings.set(r.task_id as number, r.billing);
     this.#merge(rows, key !== this.#shown);
     this.days = days;
     this.#shown = key;

@@ -49,8 +49,7 @@ const dayTotal = () => page.locator(".totals span").first().innerText();
 const pressed = () => page.locator(".strip .day[aria-pressed=true]").getAttribute("data-date");
 const [folder] = await api("folder.lookup", { filter: [{ col: "id", op: "eq", value: 12 }] });
 const [project, folderName] = String(folder.label).split(" / ");
-const allowedTask: number = (await api("folder_task_allowed", { params: { folder_id: 12 } }))[0].task_id;
-const [task] = await api("task.lookup", { filter: [{ col: "id", op: "eq", value: allowedTask }] });
+const [task] = await api("folder_task_allowed", { params: { folder_id: 12 } });
 const timings: number[] = [];
 const requests: number[] = [];
 const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
@@ -66,8 +65,8 @@ async function typeLine(start: string, duration: string, description: string) {
   await page.locator(".popover .option").first().waitFor();
   await kb.press("Tab");
   await page.waitForFunction(() => document.activeElement?.closest("[data-col]")?.getAttribute("data-col") === "task_id");
-  await kb.type(String(task.label).slice(0, 4));
-  await page.locator(".popover .option", { hasText: String(task.label) }).first().waitFor();
+  await kb.type(String(task.name).slice(0, 4));
+  await page.locator(".popover .option", { hasText: String(task.name) }).first().waitFor();
   await kb.press("Tab");
   if ((await focused()).col === "billed_min") await kb.press("Tab");
   await kb.type(description);
@@ -134,8 +133,8 @@ async function typeLineRefused() {
   await kb.type(`${project.split(" ")[1].slice(0, 4)} ${folderName}`);
   await page.locator(".popover .option").first().waitFor();
   await kb.press("Tab");
-  await kb.type(String(task.label).slice(0, 4));
-  await page.locator(".popover .option", { hasText: String(task.label) }).first().waitFor();
+  await kb.type(String(task.name).slice(0, 4));
+  await page.locator(".popover .option", { hasText: String(task.name) }).first().waitFor();
   await kb.press("Tab");
   await kb.press("Enter");
 }

@@ -116,14 +116,14 @@ function V(name: string, params: string, columns: Col[] | string, roots: string,
 }
 for (const t of tables) {
   V(t.name, "", listCols(t.name), t.root, t.read);
-  const extra = { folder: " project_id", task: " billing:task_billing" }[t.name] ?? "";
+  const extra = t.name === "folder" ? " project_id entry_open" : "";
   V(`${t.name}.lookup`, "", `id label${extra}`, t.name === "folder" ? "folder project" : t.root, t.read);
 }
-V("folder_task_allowed", "folder_id", "task_id", "folder");
+V("folder_task_allowed", "folder_id", "id name kind:task_kind billing:task_billing requires_validation counts_hours", "folder task");
 const actCols = "id date user_id project_id folder_id task_id start_tod duration_min billed_min counted_min rate amount description validated_by invoice_id to_validate not_locked not_invoiced not_validated is_validated entry_open task_allowed";
 V("activity_grid", "date_from date_to", actCols, "activity folder project task user");
 V("activity_to_validate", "date_from date_to", actCols, "activity folder project task user", "validation");
-V("timesheet", "user_id date_from date_to", actCols, "activity folder project task");
+V("timesheet", "user_id date_from date_to", `${actCols} billing:task_billing`, "activity folder project task");
 V("timesheet_day", "user_id date_from date_to", "date due_min done_min holiday:text locked", "activity work_period public_holiday company");
 V("expense_by_activity", "activity_id", "id expense_type_id quantity amount mode:expense_mode user_amount billed_amount receipt_file_id ocr_amount", "activity expense_type");
 V("activity_class", "activity_id", "hour_class_id class_min amount", "activity hour_class");

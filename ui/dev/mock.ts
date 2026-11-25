@@ -168,8 +168,10 @@ function viewRows(fx: Fx, name: string, p: Row): Row[] {
   switch (name) {
     case "activity_grid": return acts();
     case "activity_to_validate": return acts().filter((a) => a.to_validate && a.not_validated && a.user_id !== 1);
-    case "timesheet": return acts().filter((a) => a.user_id === p.user_id).sort((x, y) => x.date === y.date ? (x.start_tod as number) - (y.start_tod as number) : x.date! < y.date! ? -1 : 1);
-    case "folder_task_allowed": return [...allowedTasks(fx, p.folder_id as number)].map((task_id) => ({ task_id }));
+    case "timesheet": return acts().filter((a) => a.user_id === p.user_id).sort((x, y) => x.date === y.date ? (x.start_tod as number) - (y.start_tod as number) : x.date! < y.date! ? -1 : 1)
+      .map((a) => ({ ...a, billing: get(fx, "task", a.task_id)!.billing }));
+    case "folder_task_allowed": return db.task.filter((t) => !t.archived && allowedTasks(fx, p.folder_id as number).has(t.id))
+      .map(({ id, name, kind, billing, requires_validation, counts_hours }) => ({ id, name, kind, billing, requires_validation, counts_hours }));
     case "invoice_activity": {
       const v = get(fx, "invoice", p.invoice_id);
       return v ? invoiceActs(fx, v) : [];
@@ -225,8 +227,10 @@ function viewRows(fx: Fx, name: string, p: Row): Row[] {
   if (name.endsWith(".lookup")) {
     const t = name.slice(0, -7);
     const tbl = fx.meta.tables.find((x) => x.name === t)!;
-    if (t === "folder") return db.folder.map((r) => ({ id: r.id, label: `${get(fx, "project", r.project_id)?.name} / ${r.name}`, project_id: r.project_id }));
-    if (t === "task") return db.task.map((r) => ({ id: r.id, label: r.name, billing: r.billing }));
+    if (t === "folder") return db.folder.map((r) => {
+      const pr = get(fx, "project", r.project_id)!;
+      return { id: r.id, label: `${pr.name} / ${r.name}`, project_id: r.project_id, entry_open: !r.entry_closed && !pr.entry_closed && !pr.archived };
+    });
     return db[t].map((r) => ({ id: r.id, label: String(r[tbl.label] ?? r.id) }));
   }
   return (db[name] ?? []).map((r) => project(fx, name, r));
