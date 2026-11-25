@@ -26,14 +26,12 @@ create index invoice_project on invoice (project_id, date_from);
 alter table activity add constraint activity_invoice_id_fkey foreign key (invoice_id) references invoice;
 
 create view billable_activity as
-select f.project_id, a.id as activity_id, a.date
-from folder f
-join activity a on a.folder_id = f.id
-join task t on t.id = a.task_id
-where a.invoice_id is null and t.billing <> 'never';
-comment on view billable_activity is 'Activities an invoice can take: not invoiced, their task billed (not never); with the project of their folder.';
-comment on column billable_activity.project_id is 'Project of the folder.';
+select a.id as activity_id, a.folder_id, a.date
+from activity a
+where a.invoice_id is null and a.task_id = any(array(select t.id from task t where t.billing <> 'never'));
+comment on view billable_activity is 'Activities an invoice can take: not invoiced, their task billed (not never). One relation, so that a join drives it by its keys.';
 comment on column billable_activity.activity_id is 'Activity.';
+comment on column billable_activity.folder_id is 'Folder of the activity.';
 comment on column billable_activity.date is 'Date of the activity.';
 
 create view invoice_line as
@@ -44,7 +42,8 @@ where i.invoiced_at is not null
 union all
 select i.id, b.activity_id
 from invoice i
-join billable_activity b on b.project_id = i.project_id and b.date between i.date_from and i.date_to
+join folder f on f.project_id = i.project_id
+join billable_activity b on b.folder_id = f.id and b.date between i.date_from and i.date_to
 where i.invoiced_at is null;
 comment on view invoice_line is 'Activities of an invoice: attached ones once invoiced; while draft, the billable activities of its project and period.';
 comment on column invoice_line.invoice_id is 'Invoice.';
@@ -70,17 +69,6 @@ comment on column delivery_state.last_at is 'Instant of the last attempt.';
 comment on column delivery_state.last_status is 'HTTP status of the last attempt.';
 comment on column delivery_state.last_detail is 'Detail of the last attempt.';
 
--- Its plan does not depend on the argument: generic, so that it is not planned again at every call.
-create function invoice_totals(invoice_id bigint, out activity_count bigint, out billed_min bigint,
-                               out services_amount numeric, out expenses_amount numeric)
-language sql stable set plan_cache_mode = force_generic_plan as $$
-  select count(*), coalesce(sum(a.billed_min), 0), coalesce(sum(a.amount), 0),
-         coalesce(sum((select sum(e.billed_amount) from expense_p e where e.activity_id = a.id)), 0)
-  from invoice_line l
-  join activity_p a on a.id = l.activity_id
-  where l.invoice_id = invoice_totals.invoice_id $$;
-comment on function invoice_totals(bigint) is 'Number, billed duration, amount and expenses billed of the activities of an invoice.';
-
 create view invoice_p as
 select q.id, q.project_id, q.date_from, q.date_to, q.invoiced_at, q.invoiced_by, q.pdf_file_id, q.account_id,
        (case when q.invoiced_at is null then 'draft' else 'invoiced' end)::invoice_state as state,
@@ -96,7 +84,12 @@ from (
            (select s.state from delivery_state s where s.root_table = 'invoice' and s.root_id = i.id order by s.delivery_id desc limit 1) as last_export
     from invoice i
     left join project p on p.id = i.project_id
-    left join lateral invoice_totals(i.id) t on true
+    left join lateral (
+        select count(*) as activity_count, coalesce(sum(a.billed_min), 0) as billed_min, coalesce(sum(a.amount), 0) as services_amount,
+               coalesce(sum((select sum(e.billed_amount) from expense_p e where e.activity_id = a.id)), 0) as expenses_amount
+        from activity_p a
+        where a.id = any(array(select l.activity_id from invoice_line l where l.invoice_id = i.id))
+    ) t on true
 ) q;
 comment on view invoice_p is 'Projection of invoice: client, state, totals of its activities and expenses, export state and conditions.';
 comment on column invoice_p.account_id is 'Client: the account of the project.';
@@ -124,21 +117,19 @@ select i.id as invoice_id,
            'lines', (select coalesce(jsonb_agg(jsonb_build_object('date', x.date, 'user', u.name, 'task', t.name, 'folder', f.name,
                                                                   'description', x.description, 'minutes', x.billed_min, 'rate', x.rate, 'amount', x.amount)
                                                order by x.date, x.start_tod, x.id), '[]')
-                     from invoice_line l
-                     join activity_p x on x.id = l.activity_id
+                     from activity_p x
                      join "user" u on u.id = x.user_id
                      join task t on t.id = x.task_id
                      join folder f on f.id = x.folder_id
-                     where l.invoice_id = i.id),
+                     where x.id = any(array(select l.activity_id from invoice_line l where l.invoice_id = i.id))),
            'expenses', (select coalesce(jsonb_agg(jsonb_build_object('date', x.date, 'user', u.name, 'type', et.name, 'quantity', e.quantity,
                                                                      'amount', e.billed_amount)
                                                   order by x.date, e.id), '[]')
-                        from invoice_line l
-                        join activity x on x.id = l.activity_id
-                        join expense_p e on e.activity_id = x.id
+                        from expense_p e
+                        join activity x on x.id = e.activity_id
                         join expense_type et on et.id = e.expense_type_id
                         join "user" u on u.id = x.user_id
-                        where l.invoice_id = i.id and e.billed_amount <> 0),
+                        where e.activity_id = any(array(select l.activity_id from invoice_line l where l.invoice_id = i.id)) and e.billed_amount <> 0),
            'totals', jsonb_build_object('minutes', i.billed_min, 'services', i.services_amount, 'expenses', i.expenses_amount,
                                         'total', i.total_amount)
        ) as document

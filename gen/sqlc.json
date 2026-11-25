@@ -7234,10 +7234,10 @@
             },
             "columns": [
               {
-                "name": "project_id",
+                "name": "activity_id",
                 "not_null": true,
                 "is_array": false,
-                "comment": "Project of the folder.",
+                "comment": "Activity.",
                 "length": -1,
                 "is_named_param": false,
                 "is_func_call": false,
@@ -7260,10 +7260,10 @@
                 "array_dims": 0
               },
               {
-                "name": "activity_id",
+                "name": "folder_id",
                 "not_null": true,
                 "is_array": false,
-                "comment": "Activity.",
+                "comment": "Folder of the activity.",
                 "length": -1,
                 "is_named_param": false,
                 "is_func_call": false,
@@ -7312,7 +7312,7 @@
                 "array_dims": 0
               }
             ],
-            "comment": "Activities an invoice can take: not invoiced, their task billed (not never); with the project of their folder."
+            "comment": "Activities an invoice can take: not invoiced, their task billed (not never). One relation, so that a join drives it by its keys."
           },
           {
             "rel": {
@@ -7889,7 +7889,7 @@
               },
               {
                 "name": "activity_count",
-                "not_null": false,
+                "not_null": true,
                 "is_array": false,
                 "comment": "Number of activities.",
                 "length": -1,
@@ -7905,7 +7905,7 @@
                 "type": {
                   "catalog": "",
                   "schema": "",
-                  "name": "int8"
+                  "name": "bigint"
                 },
                 "is_sqlc_slice": false,
                 "embed_table": null,
@@ -7931,7 +7931,7 @@
                 "type": {
                   "catalog": "",
                   "schema": "",
-                  "name": "int8"
+                  "name": "any"
                 },
                 "is_sqlc_slice": false,
                 "embed_table": null,
@@ -7957,7 +7957,7 @@
                 "type": {
                   "catalog": "",
                   "schema": "",
-                  "name": "numeric"
+                  "name": "any"
                 },
                 "is_sqlc_slice": false,
                 "embed_table": null,
@@ -7983,7 +7983,7 @@
                 "type": {
                   "catalog": "",
                   "schema": "",
-                  "name": "numeric"
+                  "name": "any"
                 },
                 "is_sqlc_slice": false,
                 "embed_table": null,
@@ -79741,7 +79741,7 @@
       "insert_into_table": null
     },
     {
-      "text": "select a.id, a.user_id, a.date, a.start_tod, a.duration_min, a.folder_id, a.task_id, a.description, a.validated_by, a.validated_at, a.invoice_id, a.frozen_rate, a.frozen_billed_min, a.frozen_amount, a.project_id, a.day_type, a.kind, a.billed_min, a.rate, a.amount, a.counted_min, a.to_validate, a.not_locked, a.not_invoiced, a.not_validated, a.is_validated, a.entry_open, a.task_allowed, u.name as user_name, f.name as folder_name, t.name as task_name\nfrom invoice_line l\njoin activity_p a on a.id = l.activity_id\nleft join \"user\" u on u.id = a.user_id\nleft join folder f on f.id = a.folder_id\nleft join task t on t.id = a.task_id\nwhere l.invoice_id = $1\norder by a.date, a.start_tod, a.id",
+      "text": "select a.id, a.user_id, a.date, a.start_tod, a.duration_min, a.folder_id, a.task_id, a.description, a.validated_by, a.validated_at, a.invoice_id, a.frozen_rate, a.frozen_billed_min, a.frozen_amount, a.project_id, a.day_type, a.kind, a.billed_min, a.rate, a.amount, a.counted_min, a.to_validate, a.not_locked, a.not_invoiced, a.not_validated, a.is_validated, a.entry_open, a.task_allowed, u.name as user_name, f.name as folder_name, t.name as task_name\nfrom activity_p a\nleft join \"user\" u on u.id = a.user_id\nleft join folder f on f.id = a.folder_id\nleft join task t on t.id = a.task_id\nwhere a.id = any(array(select l.activity_id from invoice_line l where l.invoice_id = $1))\norder by a.date, a.start_tod, a.id",
       "name": "InvoiceActivity",
       "cmd": ":many",
       "columns": [
@@ -80689,7 +80689,7 @@
       "insert_into_table": null
     },
     {
-      "text": "select b.project_id, $1::date as date_from, $2::date as date_to\nfrom billable_activity b\nwhere b.date between $1::date and $2::date\n  and not exists (select from invoice i\n                  where i.project_id = b.project_id and i.invoiced_at is null\n                    and i.date_from \u003c= $2::date and i.date_to \u003e= $1::date)\ngroup by b.project_id\norder by b.project_id",
+      "text": "select f.project_id, $1::date as date_from, $2::date as date_to\nfrom billable_activity b\njoin folder f on f.id = b.folder_id\nwhere b.date between $1::date and $2::date\n  and not exists (select from invoice i\n                  where i.project_id = f.project_id and i.invoiced_at is null\n                    and i.date_from \u003c= $2::date and i.date_to \u003e= $1::date)\ngroup by f.project_id\norder by f.project_id",
       "name": "InvoiceRunCandidates",
       "cmd": ":many",
       "columns": [
@@ -80705,13 +80705,13 @@
           "table": {
             "catalog": "",
             "schema": "",
-            "name": "billable_activity"
+            "name": "folder"
           },
           "table_alias": "",
           "type": {
             "catalog": "",
-            "schema": "",
-            "name": "pg_catalog.int8"
+            "schema": "pg_catalog",
+            "name": "int8"
           },
           "is_sqlc_slice": false,
           "embed_table": null,
@@ -81518,7 +81518,7 @@
       "insert_into_table": null
     },
     {
-      "text": "select a.id from activity a\nwhere a.id in (select l.activity_id from invoice_line l where l.invoice_id = any($1::bigint[]))\norder by a.id\nfor update",
+      "text": "select a.id from activity a\nwhere a.id = any(array(select l.activity_id from invoice_line l where l.invoice_id = any($1::bigint[])))\norder by a.id\nfor update",
       "name": "InvoiceLockActivities",
       "cmd": ":exec",
       "columns": [
@@ -81659,7 +81659,7 @@
       "insert_into_table": null
     },
     {
-      "text": "update expense e set (frozen_user_amount, frozen_billed_amount) =\n    (select x.user_amount, x.billed_amount from expense_p x where x.id = e.id)\nwhere e.activity_id in (select a.id from activity a where a.invoice_id = any($1::bigint[]))",
+      "text": "update expense e set (frozen_user_amount, frozen_billed_amount) =\n    (select x.user_amount, x.billed_amount from expense_p x where x.id = e.id)\nwhere e.activity_id = any(array(select a.id from activity a where a.invoice_id = any($1::bigint[])))",
       "name": "InvoiceFreezeExpenses",
       "cmd": ":exec",
       "columns": [],
@@ -81764,7 +81764,7 @@
       "insert_into_table": null
     },
     {
-      "text": "update expense set frozen_user_amount = null, frozen_billed_amount = null\nwhere activity_id in (select a.id from activity a where a.invoice_id = any($1::bigint[]))",
+      "text": "update expense set frozen_user_amount = null, frozen_billed_amount = null\nwhere activity_id = any(array(select a.id from activity a where a.invoice_id = any($1::bigint[])))",
       "name": "InvoiceReleaseExpenses",
       "cmd": ":exec",
       "columns": [],

@@ -3,12 +3,11 @@
 -- @anchor none
 -- @needs invoice
 select a.*, u.name as user_name, f.name as folder_name, t.name as task_name
-from invoice_line l
-join activity_p a on a.id = l.activity_id
+from activity_p a
 left join "user" u on u.id = a.user_id
 left join folder f on f.id = a.folder_id
 left join task t on t.id = a.task_id
-where l.invoice_id = @invoice_id
+where a.id = any(array(select l.activity_id from invoice_line l where l.invoice_id = @invoice_id))
 order by a.date, a.start_tod, a.id;
 
 -- name: InvoiceDocument :one
@@ -23,14 +22,15 @@ where d.invoice_id = @invoice_id;
 -- Projects with billable activities over a period and no draft invoice overlapping it: the invoices a run creates.
 -- @anchor none
 -- @needs invoice
-select b.project_id, @date_from::date as date_from, @date_to::date as date_to
+select f.project_id, @date_from::date as date_from, @date_to::date as date_to
 from billable_activity b
+join folder f on f.id = b.folder_id
 where b.date between @date_from::date and @date_to::date
   and not exists (select from invoice i
-                  where i.project_id = b.project_id and i.invoiced_at is null
+                  where i.project_id = f.project_id and i.invoiced_at is null
                     and i.date_from <= @date_to::date and i.date_to >= @date_from::date)
-group by b.project_id
-order by b.project_id;
+group by f.project_id
+order by f.project_id;
 
 -- name: Profitability :many
 -- Per folder and its project, over the activities of a period: durations, services, expenses billed and reimbursed,
@@ -69,7 +69,7 @@ join folder f on f.id = r.folder_id;
 -- name: InvoiceLockActivities :exec
 -- Locks the activities of invoices, by id, before they are attached or released.
 select a.id from activity a
-where a.id in (select l.activity_id from invoice_line l where l.invoice_id = any(@ids::bigint[]))
+where a.id = any(array(select l.activity_id from invoice_line l where l.invoice_id = any(@ids::bigint[])))
 order by a.id
 for update;
 
@@ -89,7 +89,7 @@ where a.invoice_id = any(@ids::bigint[]);
 -- Freezes the amounts of the expenses of the activities attached to invoices, read in their projection.
 update expense e set (frozen_user_amount, frozen_billed_amount) =
     (select x.user_amount, x.billed_amount from expense_p x where x.id = e.id)
-where e.activity_id in (select a.id from activity a where a.invoice_id = any(@ids::bigint[]));
+where e.activity_id = any(array(select a.id from activity a where a.invoice_id = any(@ids::bigint[])));
 
 -- name: InvoiceMarkInvoiced :exec
 -- Marks invoices invoiced by the principal, now.
@@ -98,7 +98,7 @@ update invoice set invoiced_at = sor_now(), invoiced_by = @self where id = any(@
 -- name: InvoiceReleaseExpenses :exec
 -- Clears the frozen amounts of the expenses of the activities of invoices.
 update expense set frozen_user_amount = null, frozen_billed_amount = null
-where activity_id in (select a.id from activity a where a.invoice_id = any(@ids::bigint[]));
+where activity_id = any(array(select a.id from activity a where a.invoice_id = any(@ids::bigint[])));
 
 -- name: InvoiceReleaseActivities :exec
 -- Detaches the activities of invoices and clears their frozen values.

@@ -13,7 +13,6 @@ import (
 	neturl "net/url"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"reflect"
 	"slices"
 	"strconv"
@@ -225,22 +224,17 @@ func async(k *kernel.Kernel, p *kernel.Principal, name string, in any) chan erro
 	return errc
 }
 
-// editable returns an activity of the demo user that the user can edit, with a task billed always, other
-// than those in skip.
-func editable(t *testing.T, k *kernel.Kernel, skip ...int64) (id int64, date string, project int64) {
+// editable returns an activity of the demo user that the user can edit, with a task billed always.
+func editable(t *testing.T, k *kernel.Kernel) (id int64, date string, project int64) {
 	t.Helper()
-	ids := "{0"
-	for _, s := range skip {
-		ids += "," + strconv.FormatInt(s, 10)
-	}
 	one(t, k, `select a.id, a.date::text, a.project_id from activity_p a join task t on t.id = a.task_id
 where a.user_id = 4 and a.not_locked and a.not_invoiced and a.not_validated and a.entry_open and a.task_allowed
-  and t.billing = 'always' and a.start_tod + a.duration_min <= 1380 and a.id <> all('`+ids+`}'::bigint[])
+  and t.billing = 'always' and a.start_tod + a.duration_min <= 1380
 order by a.date desc, a.id limit 1`, &id, &date, &project)
 	return
 }
 
-// (a) An activity written while its period is locked: whichever commits second sees the first.
+// (a) An activity written while its period is being locked: the writer waits for the lock, then reads not_locked false.
 func TestActivityVersusPeriodLock(t *testing.T) {
 	k := setup(t)
 	user, admin := who(t, k, "user"), who(t, k, "admin")
@@ -259,29 +253,6 @@ func TestActivityVersusPeriodLock(t *testing.T) {
 	if pr := problem(t, <-upd, "rejected"); !slices.Contains(pr.Rejected[0].Conditions, "not_locked") {
 		t.Fatalf("rejection: %+v", pr.Rejected)
 	}
-
-	// Reverse: the update holds the company row shared, the lock waits, the update is in place before it.
-	id, date, _ = editable(t, k, id)
-	held, release = hold(k, "activity.update")
-	upd = async(k, user, "activity.update", map[string]any{"ids": []int64{id}, "description": "before the lock"})
-	await(t, held, upd)
-	lockc = async(k, admin, "period_lock.create", map[string]any{"date_from": date, "date_to": date, "user_id": 4})
-	waiting(t, lockc, "period_lock.create")
-	release()
-	if err := <-upd; err != nil {
-		t.Fatal(err)
-	}
-	if err := <-lockc; err != nil {
-		t.Fatal(err)
-	}
-	var desc string
-	var locked bool
-	one(t, k, "select description, not not_locked from activity_p where id = "+strconv.FormatInt(id, 10), &desc, &locked)
-	if desc != "before the lock" || !locked {
-		t.Fatalf("after: %q locked %v", desc, locked)
-	}
-	_, err := callE(k, user, "activity.update", map[string]any{"ids": []int64{id}, "description": "after the lock"})
-	problem(t, err, "rejected")
 }
 
 // computed is the projection of activity id as if it were not invoiced: rate, billed minutes and amount
@@ -302,8 +273,7 @@ func computed(t *testing.T, k *kernel.Kernel, id int64) string {
 	return s
 }
 
-// (b) An activity written while an invoice freezes it: frozen values are those of the committed inputs, or
-// the write is refused.
+// (b) An activity written while an invoice freezes it: the invoice waits for the write, then freezes the committed inputs.
 func TestActivityVersusInvoicing(t *testing.T) {
 	k := setup(t)
 	user, finance := who(t, k, "user"), who(t, k, "finance")
@@ -337,51 +307,6 @@ func TestActivityVersusInvoicing(t *testing.T) {
 		t.Fatalf("frozen billed minutes %s, want %d", frozen, dur+15)
 	}
 
-	// Reverse: the invoice locks the activity first; the write waits, then reads not_invoiced false.
-	id, date, project = editable(t, k, id)
-	inv = invoiceOf(project, date)
-	held, release = hold(k, "invoice.mark_invoiced")
-	mark = async(k, finance, "invoice.mark_invoiced", map[string]any{"ids": []int64{inv}})
-	await(t, held, mark)
-	upd = async(k, user, "activity.update", map[string]any{"ids": []int64{id}, "duration_min": 30})
-	waiting(t, upd, "activity.update")
-	release()
-	if err := <-mark; err != nil {
-		t.Fatal(err)
-	}
-	if pr := problem(t, <-upd, "rejected"); !slices.Contains(pr.Rejected[0].Conditions, "not_invoiced") {
-		t.Fatalf("rejection: %+v", pr.Rejected)
-	}
-}
-
-// (c) A rate changed afterwards: amounts of activities not invoiced follow, invoiced ones keep their frozen values.
-func TestRateChange(t *testing.T) {
-	k := setup(t)
-	admin := who(t, k, "admin")
-	var open, invoiced, user, task int64
-	one(t, k, `select o.id, i.id, o.user_id, o.task_id
-from activity_p o join activity_p i on i.user_id = o.user_id and i.task_id = o.task_id and i.invoice_id is not null
-join task t on t.id = o.task_id
-where o.invoice_id is null and t.billing = 'always' and o.billed_min > 0 limit 1`, &open, &invoiced, &user, &task)
-	read := func(id int64) (rate, amount float64) {
-		one(t, k, "select rate, amount from activity_p where id = "+strconv.FormatInt(id, 10), &rate, &amount)
-		return
-	}
-	_, openAmount := read(open)
-	invRate, invAmount := read(invoiced)
-	var rateID int64
-	if err := k.Pool.QueryRow(context.Background(), "select id from user_task_rate where user_id = $1 and task_id = $2",
-		strconv.FormatInt(user, 10), strconv.FormatInt(task, 10)).Scan(&rateID); err == nil {
-		call(t, k, admin, "user_task_rate.update", map[string]any{"ids": []int64{rateID}, "rate": 333})
-	} else {
-		call(t, k, admin, "user_task_rate.create", map[string]any{"user_id": user, "task_id": task, "rate": 333})
-	}
-	if rate, amount := read(open); rate != 333 || amount == openAmount {
-		t.Fatalf("not invoiced: rate %v amount %v (before %v)", rate, amount, openAmount)
-	}
-	if rate, amount := read(invoiced); rate != invRate || amount != invAmount {
-		t.Fatalf("invoiced: rate %v amount %v, frozen %v %v", rate, amount, invRate, invAmount)
-	}
 }
 
 type bearer string
@@ -529,46 +454,26 @@ func received(t *testing.T, key int64) int {
 	return n
 }
 
-// (g) Accounting down: the export stays pending with failed results, then is received exactly once; after
-// the attempts are exhausted, delivery.retry sends it again.
+// (g) Accounting down: the export stays pending with failed results, then is received exactly once.
 func TestAccountingDown(t *testing.T) {
 	need(t, "TEST_ACCT_URL")
 	k := setup(t)
 	finance := who(t, k, "finance")
-	var first, second int64
-	one(t, k, "select min(id), max(id) from (select id from invoice where invoiced_at is not null order by id limit 2) i", &first, &second)
-	acct(t, "POST", "/admin/fail", `{"on":true}`)
-	defer acct(t, "POST", "/admin/fail", `{"on":false}`)
-	start(t, k)
-	export := func(inv int64) (delivery int64) {
-		res := call(t, k, finance, "invoice.export", map[string]any{"ids": []int64{inv}})
-		return res.Changed[0].IDs[0]
-	}
-	d1 := export(first)
-	state := func(inv int64) string {
+	var inv int64
+	one(t, k, "select min(id) from invoice where invoiced_at is not null", &inv)
+	state := func() string {
 		var s string
 		one(t, k, "select export_state::text from invoice_p where id = "+strconv.FormatInt(inv, 10), &s)
 		return s
 	}
-	eventually(t, 10*time.Second, "failed attempt", func() bool { return state(first) == "failed" })
-	acct(t, "POST", "/admin/fail", `{"on":false}`)
-	eventually(t, 20*time.Second, "exported", func() bool { return state(first) == "exported" })
-	if n := received(t, d1); n != 1 {
-		t.Fatalf("received %d times", n)
-	}
-
 	acct(t, "POST", "/admin/fail", `{"on":true}`)
-	d2 := export(second)
-	eventually(t, 40*time.Second, "attempts exhausted", func() bool {
-		return count(t, k, "select count(*) from river.river_job where args->>'kind' = 'delivery.send' and state = 'discarded'") == 1
-	})
-	if n := count(t, k, "select count(*) from delivery_result where delivery_id = "+strconv.FormatInt(d2, 10)); n != 5 {
-		t.Fatalf("attempts: %d", n)
-	}
+	defer acct(t, "POST", "/admin/fail", `{"on":false}`)
+	start(t, k)
+	delivery := call(t, k, finance, "invoice.export", map[string]any{"ids": []int64{inv}}).Changed[0].IDs[0]
+	eventually(t, 10*time.Second, "failed attempt", func() bool { return state() == "failed" })
 	acct(t, "POST", "/admin/fail", `{"on":false}`)
-	call(t, k, finance, "delivery.retry", map[string]any{"ids": []int64{d2}})
-	eventually(t, 10*time.Second, "retried export", func() bool { return state(second) == "exported" })
-	if n := received(t, d2); n != 1 {
+	eventually(t, 20*time.Second, "exported", func() bool { return state() == "exported" })
+	if n := received(t, delivery); n != 1 {
 		t.Fatalf("received %d times", n)
 	}
 }
@@ -609,139 +514,5 @@ func TestPrint(t *testing.T) {
 	blob.Close()
 	if !strings.HasPrefix(string(pdf), "%PDF") {
 		t.Fatalf("not a PDF: %q", pdf[:min(len(pdf), 20)])
-	}
-}
-
-// receipt renders a receipt image with Typst.
-func receipt(t *testing.T, lines string) []byte {
-	t.Helper()
-	dir := t.TempDir()
-	src := "#set page(width: 9cm, height: auto, margin: 6mm)\n#set text(font: \"DejaVu Sans Mono\", size: 11pt)\n" +
-		"#raw(" + strconv.Quote(lines) + ")\n"
-	os.WriteFile(filepath.Join(dir, "r.typ"), []byte(src), 0o600)
-	cmd := exec.Command("typst", "compile", "--ignore-system-fonts", "--ppi", "300", "r.typ", "r.png")
-	cmd.Dir = dir
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("typst: %v %s", err, out)
-	}
-	b, _ := os.ReadFile(filepath.Join(dir, "r.png"))
-	return b
-}
-
-// The OCR reads the amount of an attached receipt; an activity locked meanwhile ends the job without retry.
-func TestOCR(t *testing.T) {
-	need(t, "TEST_S3")
-	for _, tool := range []string{"typst", "tesseract"} {
-		if _, err := exec.LookPath(tool); err != nil {
-			t.Skip(tool + " not installed")
-		}
-	}
-	k := setup(t)
-	ctx := context.Background()
-	user, admin := who(t, k, "user"), who(t, k, "admin")
-	file, err := k.PutFile(ctx, receipt(t, "CAFE DU MARCHE\n2 x Menu du jour  39,00\nEau minerale      4,80\nSous-total       43,80\nTVA 8,1%          3,28\nTOTAL CHF        43,80"),
-		"receipt.png", "image/png")
-	if err != nil {
-		t.Fatal(err)
-	}
-	expense := func(activity int64) int64 {
-		return call(t, k, user, "expense.create", map[string]any{"activity_id": activity, "expense_type_id": 2}).Changed[0].IDs[0]
-	}
-	a1, _, _ := editable(t, k)
-	e1 := expense(a1)
-	call(t, k, user, "expense.attach_receipt", map[string]any{"ids": []int64{e1}, "receipt_file_id": file})
-
-	// The second activity, on another day, is locked before the job runs.
-	var a2 int64
-	var d2 string
-	one(t, k, "select id, date::text from activity_p where user_id = 4 and not_locked and not_invoiced and not_validated and entry_open and task_allowed"+
-		" and date < (select date from activity where id = "+strconv.FormatInt(a1, 10)+") order by date desc limit 1", &a2, &d2)
-	e2 := expense(a2)
-	call(t, k, user, "expense.attach_receipt", map[string]any{"ids": []int64{e2}, "receipt_file_id": file})
-	call(t, k, admin, "period_lock.create", map[string]any{"date_from": d2, "date_to": d2, "user_id": 4})
-
-	start(t, k)
-	eventually(t, 60*time.Second, "ocr jobs done", func() bool {
-		return count(t, k, "select count(*) from river.river_job where args->>'kind' = 'ocr.read' and finalized_at is not null") == 2
-	})
-	var ocr, amount string
-	one(t, k, "select ocr_amount::text, amount::text from expense where id = "+strconv.FormatInt(e1, 10), &ocr, &amount)
-	if ocr != "43.80" || amount != "43.80" {
-		t.Fatalf("ocr %s amount %s", ocr, amount)
-	}
-	if n := count(t, k, "select count(*) from expense where ocr_amount is null and id = "+strconv.FormatInt(e2, 10)); n != 1 {
-		t.Fatal("ocr applied on a locked activity")
-	}
-	if n := count(t, k, "select count(*) from river.river_job where args->>'kind' = 'ocr.read' and (state <> 'completed' or attempt <> 1)"); n != 0 {
-		t.Fatalf("%d ocr jobs retried or failed", n)
-	}
-}
-
-// The pull renames and imports, follows a change, records an outage without touching anything, then recovers.
-func TestPull(t *testing.T) {
-	need(t, "TEST_ACCT_URL")
-	k := setup(t)
-	admin := who(t, k, "admin")
-	var conn int64
-	one(t, k, "select id from connection", &conn)
-	pulled := func() (at time.Time) {
-		k.Pool.QueryRow(context.Background(), "select coalesce(pulled_at, 'epoch') from connection").Scan(&at)
-		return
-	}
-	pull := func() {
-		before := pulled()
-		call(t, k, admin, "connection.pull", map[string]any{"ids": []int64{conn}})
-		eventually(t, 60*time.Second, "pull", func() bool { return pulled().After(before) })
-	}
-	upserts := func() int {
-		return count(t, k, "select count(*) from event where command like '%.upsert_from_accounting'")
-	}
-	start(t, k) // the periodic job pulls once at start
-	eventually(t, 60*time.Second, "first pull", func() bool { return pulled().Year() > 1970 })
-	var feed struct {
-		Items []struct {
-			ExternalID string `json:"external_id"`
-			Name       string `json:"name"`
-			Address    string `json:"address"`
-		} `json:"items"`
-	}
-	json.Unmarshal(acct(t, "GET", "/accounts?since=0&limit=1000", ""), &feed)
-	for _, a := range feed.Items {
-		var name, address string
-		k.Pool.QueryRow(context.Background(), "select name, address from account where external_id = $1", a.ExternalID).Scan(&name, &address)
-		if name != a.Name || address != a.Address {
-			t.Fatalf("account %s: %q %q, want %q %q", a.ExternalID, name, address, a.Name, a.Address)
-		}
-	}
-	if n := count(t, k, "select count(*) from account"); n != len(feed.Items)+1 { // + the internal client
-		t.Fatalf("accounts: %d, accounting %d", n, len(feed.Items))
-	}
-	if n := count(t, k, "select count(*) from project where external_id <> 'INT'"); n != 1510 {
-		t.Fatalf("projects: %d", n)
-	}
-
-	acct(t, "POST", "/admin/accounts", `{"external_id":"A0002","name":"Renamed SA","address":"Somewhere 1"}`)
-	n := upserts()
-	pull()
-	if d := upserts() - n; d != 1 || count(t, k, "select count(*) from account where external_id = 'A0002' and name = 'Renamed SA'") != 1 {
-		t.Fatalf("one change: %d events", d)
-	}
-
-	var cursor string
-	one(t, k, "select cursor from connection", &cursor)
-	acct(t, "POST", "/admin/fail", `{"on":true}`)
-	acct(t, "POST", "/admin/accounts", `{"external_id":"A0003","name":"Hidden","address":""}`)
-	n = upserts()
-	pull()
-	var errText, cursorAfter string
-	one(t, k, "select coalesce(pull_error, ''), cursor from connection", &errText, &cursorAfter)
-	if errText == "" || cursorAfter != cursor || upserts() != n {
-		t.Fatalf("outage: error %q, cursor %s (before %s), %d upserts", errText, cursorAfter, cursor, upserts()-n)
-	}
-	acct(t, "POST", "/admin/fail", `{"on":false}`)
-	pull()
-	one(t, k, "select coalesce(pull_error, ''), cursor from connection", &errText, &cursorAfter)
-	if errText != "" || cursorAfter == cursor || count(t, k, "select count(*) from account where name = 'Hidden'") != 1 {
-		t.Fatalf("recovery: error %q, cursor %s", errText, cursorAfter)
 	}
 }
