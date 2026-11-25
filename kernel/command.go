@@ -114,6 +114,8 @@ func (x *call) exec(ctx context.Context, open string) (*Result, error) {
 	// Round trip 2: begin, locks, projection of the roots.
 	b := &pgx.Batch{}
 	b.Queue(open)
+	// the statements of a command are prepared and keep their generic plan: their shape does not depend on the values
+	b.Queue("set local plan_cache_mode = force_generic_plan")
 	if root != nil && root.Under != "" {
 		b.Queue("select id from " + ident(root.Under) + " order by id for share")
 	}
