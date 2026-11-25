@@ -60,7 +60,7 @@ Ordre des schemas (sqlc et pgschema) : kernel, base, time, billing, accounting.
 - snake_case, singulier ; identifiants toujours quotés par le kernel (`"user"`)
 - Toute table : `id bigint generated always as identity primary key` ; unicité composite par contrainte `unique`
 - Une colonne FK porte le même nom partout où elle cible la même table (`user_id`, `manager_id`, `validated_by` → `user`) ; le kernel résout « colonne → table référencée » par nom, depuis le catalog ; un nom ambigu échoue au check
-- Le dernier mot du nom d'une colonne = son format : `min` durée en minutes (h:mm), `tod` minute du jour (HH:MM), `pct`, `coef`, `at` instant ; `amount`, `rate`, `cost`, `price` = montant (2 décimales) ; le type `date` = date. Une colonne calculée suit la même règle : c'est son nom qui la formate
+- Le dernier mot du nom d'une colonne = son format : `min` durée en minutes (h:mm), `tod` minute du jour (HH:MM), `pct`, `coef` ; `amount`, `rate`, `cost`, `price` = montant (2 décimales) ; dates et instants par leur type. Une colonne calculée suit la même règle : c'est son nom qui la formate
 - `archived boolean not null default false` sur les données de base ; archiver = update
 - Description anglaise de chaque table, colonne et view par `comment on` ; de chaque query par ses lignes de commentaire
 - Enum Postgres pour toute liste fermée
@@ -89,7 +89,7 @@ create function sor_append_only() returns trigger ...  -- raise, errcode 23514
 | `run` | name, input jsonb, owner_id, principal_id, for_id, state (queued, running, done, cancelled, failed), total, done, rejected jsonb, error, cancel_requested, created_at, finished_at | root ; anchor owner_id, reach `self` |
 | `saved_view` | owner_id, screen, name, state jsonb ; unique (owner_id, screen, name) | root ; anchor owner_id, reach `self` |
 | `connection` | kind, name, endpoint, secret_name, subject, cursor, pulled_at, pull_error | root ; `subject` = le principal sous lequel elle agit |
-| `delivery` | connection_id, path, root_table, root_id, payload jsonb, principal_id, created_at | root, append_only ; envoyée à `endpoint` + `path` |
+| `delivery` | connection_id, path, content_type, body, root_table, root_id, principal_id, created_at | root, append_only ; `body` envoyé à `endpoint` + `path` avec son `content_type` |
 | `delivery_result` | delivery_id, at, ok, status, detail | child de delivery, append_only |
 
 `principal_id`, `for_id` : tampons de log, ids de la table des principals du module base (`user`), sans FK. `owner_id` : l'identité effective (`@self`) à qui la row appartient. Une row qui désigne une identité sous laquelle agir porte son `subject`.
@@ -386,9 +386,9 @@ Module time :
 
 | Table | Colonnes | Déclaration |
 |---|---|---|
-| `activity` | user_id, date, start_tod, duration_min (> 0, start + durée ≤ 1440), billed_min, folder_id, task_id, description, validated_by, validated_at | root ; Under company ; anchor user_id/user ; Write activity ; Guarded validated_* |
+| `activity` | user_id, date, start_tod, duration_min (> 0, start + durée ≤ 1440), billed_min, folder_id, task_id, description ; tampons : validated_by, validated_at ; invoice_id, frozen_rate, frozen_billed_min, frozen_amount | root ; Under company ; anchor user_id/user ; Write activity ; Guarded : les tampons |
 | `expense_type` | name, by_quantity, unit_price, billing_unit_price, mode (both, user_only, billing_only), archived | root ; Write master_data |
-| `expense` | activity_id, expense_type_id, quantity, amount, mode (null = celui du type), receipt_file_id, ocr_amount | child de activity ; Write expense ; Guarded receipt_file_id, ocr_amount |
+| `expense` | activity_id, expense_type_id, quantity, amount, mode (null = celui du type), receipt_file_id, ocr_amount ; tampons : frozen_user_amount, frozen_billed_amount | child de activity ; Write expense ; Guarded receipt_file_id, ocr_amount, tampons |
 | `period_lock` | company_id (défaut 1), date_from, date_to, user_id (null = tous) | child de company ; Write period_lock |
 
 Module billing :
@@ -396,18 +396,15 @@ Module billing :
 | Table | Colonnes | Déclaration |
 |---|---|---|
 | `invoice` | project_id, date_from, date_to, invoiced_at, invoiced_by, pdf_file_id | root ; Write invoice ; Guarded invoiced_*, pdf_file_id |
-| `invoice_line` | invoice_id, activity_id unique, rate, billed_min, amount | child de invoice ; NoCRUD |
-| `invoice_expense` | invoice_id, expense_id unique, user_amount, billed_amount | child de invoice ; NoCRUD |
 
 Sémantique :
 
 - `day_type` d'une date : 8 si férié journée entière, sinon son jour ISO (1..7)
 - Une classe d'heures = des créneaux (day_type, minutes du jour) ; l'exclusion garantit qu'une minute appartient à une classe au plus
 - Tarif du folder = sa propre colonne ; estimé dépassé = somme des durées réelles du folder > `estimated_min`
-- Facturer = écrire les lignes de l'invoice : une `invoice_line` par activity avec le tarif, la durée facturée et le montant lus dans `activity_p` à cet instant ; une `invoice_expense` par frais. Revenir en cours = les supprimer. L'activity et l'expense ne portent que des inputs ; « facturée » et les valeurs figées se lisent par la ligne
-- Une activity est sur une invoice au plus : contrainte unique
+- Tampon : ce qu'une décision pose sur la row, en colonnes gardées écrites par sa seule command. Valider pose `validated_by`, `validated_at`. Facturer pose `invoice_id` et les valeurs observées à cet instant (`frozen_*`, lues dans la projection) ; revenir en cours les efface ; check `(invoice_id is null) = (frozen_amount is null)`
 - Le compte d'une invoice = celui de son project
-- Une invoice prend les activities facturables : sans ligne, dans la période, dont la task n'est pas « jamais » ; une activity jamais facturable n'est rattachée à aucune invoice
+- Une invoice prend les activities facturables : sans `invoice_id`, dans la période, dont la task n'est pas « jamais » ; une activity jamais facturable n'est rattachée à aucune invoice
 
 ## 16. Domaine : projections
 
@@ -416,11 +413,10 @@ Sémantique :
 | Colonne | Définition |
 |---|---|
 | project_id | du folder |
-| invoice_id | de sa ligne de facture (`left join invoice_line` sur `activity_id`) |
 | day_type, kind | de la date ; de la task |
-| billed_min | celui de la ligne, sinon : always → durée ; sometimes → `billed_min` saisi, à défaut durée ; never → 0 |
-| rate | celui de la ligne, sinon : user × task, sinon folder, sinon project, sinon task, sinon 0 |
-| amount | celui de la ligne, sinon `rate × billed_min / 60 × (minutes pondérées par rate_coef) / durée`, arrondi à 2 |
+| billed_min | figé, sinon : always → durée ; sometimes → `billed_min` saisi, à défaut durée ; never → 0 |
+| rate | figé, sinon : user × task, sinon folder, sinon project, sinon task, sinon 0 |
+| amount | figé, sinon `rate × billed_min / 60 × (minutes pondérées par rate_coef) / durée`, arrondi à 2 |
 | counted_min | 0 si la task ne compte pas d'heures ; sinon durée + Σ chevauchement × (hours_coef − 1), arrondi à la minute (entier) |
 | to_validate | la task le demande, ou la durée touche un créneau d'une classe qui le demande, ou l'estimé du folder est dépassé |
 | conditions | `not_locked`, `not_invoiced`, `not_validated`, `is_validated`, `entry_open` (folder et project ouverts, project non archivé), `task_allowed` |
@@ -434,14 +430,14 @@ Formulation d'une projection agrégée en masse (`activity_p` : 600k rows par qu
 - `task_allowed` : `left join folder_task` sur sa clé unique
 - Estimé dépassé : `left join folder_spent` (une row par folder, son total)
 - `cost_rate_span` : auto-jointure + `min`, pas de window function
-- Index de `activity` : `(user_id, date) include (start_tod, duration_min, task_id)`, `(date, id)`, `(folder_id) include (duration_min)`
+- Index de `activity` : `(user_id, date) include (start_tod, duration_min, task_id)`, `(date, id)`, `(folder_id) include (duration_min)`, `(invoice_id) where invoice_id is not null`
 
 Une projection lue par pages (`invoice_p`, l'état d'une delivery) calcule par root : sous-requêtes et agrégats corrélés y sont à leur place.
 
 - `activity_class` (view) : une row par activity et par classe touchée, plus la part hors classe ; elle lit `activity_p` (tarif, durée facturée, span, day_type) et n'y ajoute que le chevauchement par créneau : aucune formule n'est réécrite
 - `activity_cost` : coût par activity = `counted_min × hourly_cost / 60` du `cost_rate` en vigueur à la date
-- `expense_p` : mode effectif ; `user_amount` (celui de sa ligne de facture, sinon 0 si billing_only, quantité × unit_price, ou amount) ; `billed_amount` (celui de sa ligne, sinon 0 si user_only, quantité × billing_unit_price, ou amount)
-- `invoice_p` : account_id, `state` (draft, invoiced), activity_count, services_amount, expenses_amount, total_amount — en draft sur les activities facturables du project dans la période, facturée sur ses lignes ; `export_state` (none, created, exported, failed) ; conditions `is_draft`, `is_invoiced`, `has_activities`, `not_exported`
+- `expense_p` : mode effectif ; `user_amount` (figé, sinon 0 si billing_only, quantité × unit_price, ou amount) ; `billed_amount` (figé, sinon 0 si user_only, quantité × billing_unit_price, ou amount)
+- `invoice_p` : account_id, `state` (draft, invoiced), activity_count, services_amount, expenses_amount, total_amount — en draft sur les activities facturables du project dans la période, facturée sur ses activities rattachées ; `export_state` (none, created, exported, failed) ; conditions `is_draft`, `is_invoiced`, `has_activities`, `not_exported`
 
 Actions :
 
@@ -465,11 +461,11 @@ Actions :
 | `activity.unvalidate` | When unvalidatable ; Needs validation ; Reach team | remet à null |
 | `expense.attach_receipt` | On expense ; When + Ensure editable ; Needs expense | receipt_file_id ; reaction → `ocr.read` |
 | `expense.apply_ocr` | On expense ; When editable ; Needs ocr | ocr_amount ; amount s'il est vide |
-| `invoice.mark_invoiced` | When invoiceable ; Ensure billed ; Needs invoice_state | 1. lock des activities candidates par id ; 2. une `invoice_line` par activity lockée (`@locked`), valeurs lues dans `activity_p` ; 3. une `invoice_expense` par frais de ces activities ; 4. invoiced_at/by |
-| `invoice.back_to_draft` | When revertible ; Needs invoice_state | supprime `invoice_expense` et `invoice_line`, efface invoiced_at/by |
+| `invoice.mark_invoiced` | When invoiceable ; Ensure billed ; Needs invoice_state | 1. lock des activities candidates par id ; 2. tampon des activities lockées (`@locked`) : `invoice_id` et `frozen_*` lus dans `activity_p`, en un statement ; 3. tampon de leurs expenses ; 4. invoiced_at/by |
+| `invoice.back_to_draft` | When revertible ; Needs invoice_state | efface les tampons des expenses et des activities, puis invoiced_at/by |
 | `invoice.print` | Needs invoice | aucun ; reaction → `invoice.render` |
 | `invoice.attach_pdf` | Needs invoice | pdf_file_id |
-| `invoice.export` | When exportable ; Needs invoice | insère la `delivery` (payload = document de l'invoice) |
+| `invoice.export` | When exportable ; Needs invoice | insère la `delivery` : un fichier CSV construit en SQL depuis les lignes de l'invoice |
 | `invoice.run` | Run ; candidats `invoice_run_candidates(date_from, date_to)` ; par root `invoice.create` ; Needs invoice | |
 | `delivery.retry` | Needs invoice | aucun ; reaction → `delivery.send` |
 | `delivery.result` | interne (principal de la connection) | insère `delivery_result` |
@@ -486,7 +482,7 @@ Montant OCR : plus grand montant des lignes « total / montant / summe / betrag 
 
 | View | Params | Anchor | Needs | Contenu |
 |---|---|---|---|---|
-| `timesheet` | user_id, date_from, date_to | user_id / user | | activities (projection + labels), ordre date, start |
+| `timesheet` | user_id, date_from, date_to | user_id / user | | activities (projection) |
 | `timesheet_day` | user_id, date_from, date_to | user_id / user | | par jour : due_min, done_min, férié, verrouillé |
 | `folder_task_allowed` | folder_id | none | | tasks permises |
 | `activity_grid` | date_from, date_to | user_id / user | | activities + labels |
@@ -530,6 +526,8 @@ type Screen struct {
 - Une table déclarée avec `Group(g)` donne un écran généré : id = nom de la table, view liste, Table, et un enfant par table child (`Link {fk: "id"}`)
 - Label d'un écran : `s.<id>`, à défaut le label de sa table
 - Une view ne répète pas en texte ce qu'une colonne `ref` affiche déjà (pas de `user_name` à côté de `user_id`)
+- Un écran enfant n'affiche pas les colonnes de son `Link` ; le wrap par défaut d'un écran ne garde que les colonnes de la view retenue
+- `ref` d'une colonne : toute FK, simple ou composite, dont elle est la colonne qui cible l'`id` de la table référencée
 
 | # | Écran | Déclaration |
 |---|---|---|
@@ -657,7 +655,7 @@ Un budget dépassé = défaut de conception : retour à la spec.
 |---|---|
 | Activity écrite pendant qu'une période se verrouille | activity `under company` (`for share`), period_lock child de company (`for update`) : l'une attend l'autre, puis lit la projection à jour → `not_locked` fausse → Rejection |
 | Activity écrite pendant qu'une invoice la fige | l'effet de `mark_invoiced` locke les activities par id ; il attend l'écriture en cours et fige la row à jour ; l'écriture suivante lit `not_invoiced` fausse |
-| Tarif modifié après coup | `rate` et `amount` calculés pour le non facturé, lus dans la ligne de facture pour le facturé |
+| Tarif modifié après coup | `rate` et `amount` calculés pour le non facturé, `frozen_*` pour le facturé |
 | Répartition par classe et « à valider » calculés | `activity_p`, `activity_class`, `day_profile` ; rien de stocké |
 | Soldes en view, reports et fériés | `balance` |
 | Refus avec les conditions fausses, UI et MCP | Rejection = conditions + row ; même corps en HTTP et en `structuredContent` |

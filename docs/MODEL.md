@@ -20,7 +20,7 @@ Cible : n'importe quelle web app ; optimisé pour les systems of record : donné
 - `schema.sql` par module = source of truth de la structure ; migrations par diff déclaratif (pgschema), vérifiées par squawk
 - Les tables sont la vérité ; une row change par une command
 - Stocké : les inputs, ce qu'un humain, un système ou le temps a décidé ou observé. Calculé : tout le reste, dans la projection
-- Une décision qui fige des valeurs calculées (facturer) les écrit en rows qui lui appartiennent (lignes de facture), jamais en colonnes sur la row calculée
+- Tampon : ce qu'une décision pose sur une row (qui, quand, les valeurs observées à cet instant), en colonnes écrites par sa seule command ; valider et facturer en posent un. Une valeur que la projection d'un root lit pour décider vit sur la row de ce root
 - Table `append_only` : update et delete refusés par la DB ; pour les registres (paiements, mouvements de stock, deliveries)
 - La DB porte les invariants structurels : FK, unique, CHECK sur une row, NOT NULL, exclusion
 - Custom field : colonne typée dans la table `<table>_x`, en 1:1 avec sa table
@@ -160,6 +160,7 @@ cmd/sor/      binaire : serve, migrate, check, call, view, meta
 - Custom fields en colonnes `_x` : à valider en pratique ; repli jsonb validé
 - Extensions : WASM, ou Go compilé par tenant
 - Idempotence d'une command rejouée par un client hors ligne (CASES S7)
+- Migration : le diff déclaratif a échoué sur des views empilées (les projections) ; piste : recréer views et fonctions, sans données, à chaque migration, et ne laisser au diff que les tables
 
 ## Journal
 
@@ -189,7 +190,6 @@ cmd/sor/      binaire : serve, migrate, check, call, view, meta
   - Live et surfaces : diff serveur → clés d'invalidation et relance client ; code généré → registry donnée, types pris dans Postgres
   - Reaction : event → command devient command → job inséré au commit ; reach nommés ; donnée sensible en table séparée
 - 2026-11-25 : revue du code contre le model ([DECISIONS.md](./DECISIONS.md) D34 à D39)
-  - Valeurs figées en colonnes sur la row calculée → rows de la décision (lignes de facture)
-    - 1er ordre : une table ne mêle plus inputs et instantané ; « facturée » = une ligne existe
-    - 2e ordre : l'unicité de la ligne porte l'invariant « une activity, une invoice »
+  - Valeurs figées : essai de les sortir en rows de la décision (lignes de facture), retiré après mesure ; nommé à la place le concept de tampon
+    - 1er ordre : le prédicat « non facturée » reste sur une relation ; la projection d'un module ne lit pas un module en aval
   - Capability ouverte par défaut → explicite ; liste de travail = view filtrée par une action ; reaction sur insertion

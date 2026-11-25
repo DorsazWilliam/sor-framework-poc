@@ -86,7 +86,8 @@ Journal des choix ouverts tranchés pour ce POC. Chaque entrée : la décision, 
 
 ### D12. Valeurs figées = colonnes de l'activity et de l'expense
 
-- Remplacé par D34 : les valeurs figées sont des lignes de facture, pas des colonnes de l'activity
+- `frozen_*` et `invoice_id` posés à la facturation, effacés au retour en cours ; la projection lit `coalesce(figé, calculé)`
+- Confirmé après l'essai de D34 : ce sont des tampons, comme `validated_by`
 - 1er ordre : un changement de tarif suit sur le non facturé, rien ne bouge sur le facturé
 
 ### D13. `period_lock` ne gate que la saisie
@@ -209,18 +210,19 @@ Suite, mesurée après application :
 
 Une relecture indépendante du code (2026-11-25) a confirmé le cœur : un seul chemin de command pour humain, agent, job et run ; un seul wrap ; aucun nom du domaine dans le kernel. Elle a montré des coutures là où un concept avait été ajouté sans être décidé. Décisions :
 
-### D34. Facturer = écrire des lignes
+### D34. Lignes de facture : essayé, retiré
 
-- Constat : `frozen_*` sur activity et expense mêlaient inputs et instantané d'une décision ; colonnes gardées, check, `coalesce` partout
-- Décision : `invoice_line` et `invoice_expense`, tables child de l'invoice ; l'activity et l'expense ne portent que des inputs
-- 1er ordre : « facturée » = une ligne existe ; une activity sur une seule invoice = contrainte unique ; revenir en cours = supprimer les lignes ; les totaux d'une invoice facturée se lisent dans ses lignes
-- 2e ordre : l'historique d'une invoice montre ses lignes ; l'activity n'est pas modifiée par la facturation
-- Écart avec SLICE (« stocké sur l'activity : facture ») : la facture d'une activity se lit par sa ligne
+- Idée (suggérée par la revue) : sortir `invoice_id` et `frozen_*` de l'activity vers des tables `invoice_line` / `invoice_expense`, pour que l'activity ne porte que des inputs
+- Construit, mesuré, retiré le même jour :
+  - « non facturée » n'était plus une colonne : le prédicat devenait une anti-jointure sur deux relations ; `invoice_p` d'un draft passait à ~100 ms par invoice, la liste de 25 ms à 1.2 s, le run de facturation s'arrêtait à 648 invoices sur 1 122
+  - la projection de l'activity (module time) lisait une table du module billing : dépendance entre modules inversée
+  - plus de code, pas moins
+- Ce que ça apprend au model : une valeur que la projection d'un root doit lire pour décider appartient à la row de ce root. Une décision pose son **tampon** sur la row (colonnes gardées, écrites par sa seule command) : `validated_by` pour valider, `invoice_id` et les valeurs observées pour facturer. C'est ce que disait SLICE (« stocké : validée par, validée le ; facture »)
 
 ### D35. Le statement de lock rend `@locked`
 
 - Les ids rendus par le `select … for update` d'un effet sont le param `@locked` des statements suivants : ils n'agissent que sur ce qui est locké. Une row apparue entre-temps reste hors de l'effet (elle sera candidate la prochaine fois)
-- Remplace le rattachement en deux temps de D26
+- 1er ordre : le tampon de facturation s'écrit en un statement sur les rows lockées ; le check redevient `(invoice_id is null) = (frozen_amount is null)` ; remplace le rattachement en deux temps de D26
 
 ### D36. Rien n'est ouvert par défaut
 
@@ -241,6 +243,17 @@ Une relecture indépendante du code (2026-11-25) a confirmé le cœur : un seul 
 - Un seul résolveur de reach ; `owner_id` = identité effective pour `run` comme pour `saved_view`
 - `Me` et `Meta` sont dans OpenAPI : le contrat TypeScript est généré, plus recopié ; `ids` est un champ de la command ; l'icône d'un écran est déclarée avec lui, l'UI ne connaît aucun nom du domaine hors de l'écran de saisie
 - Supprimé : options, hooks et branches que seuls les tests utilisaient
+
+### D40. Une delivery porte un contenu quelconque
+
+- Constat : `payload jsonb` câblait le JSON ; le cas réel est un fichier de type CSV déposé chez la comptabilité
+- Décision : `content_type` + `body` ; l'effet de `invoice.export` construit le CSV en SQL, dans la transaction de la command
+- Hors slice : un contenu binaire ou volumineux (PDF par SFTP) = une delivery qui référence un `file`
+
+### D41. Migration des views : point ouvert
+
+- Constat : pgschema 2.0 a échoué trois fois à migrer en place un changement de view ou de fonction dont d'autres views dépendent (ordre de ses instructions) ; une base neuve s'applique sans erreur
+- Piste, non construite : views et fonctions ne contiennent pas de données ; `sor migrate` les recrée toutes et ne laisse à l'outil que le diff des tables
 
 ### D39. Registres du kernel
 
