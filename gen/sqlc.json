@@ -5192,6 +5192,110 @@
                 "original_name": "",
                 "unsigned": false,
                 "array_dims": 0
+              },
+              {
+                "name": "invoice_id",
+                "not_null": false,
+                "is_array": false,
+                "comment": "Invoice the activity is billed on; stamped when the invoice is marked invoiced.",
+                "length": -1,
+                "is_named_param": false,
+                "is_func_call": false,
+                "scope": "",
+                "table": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "activity"
+                },
+                "table_alias": "",
+                "type": {
+                  "catalog": "",
+                  "schema": "pg_catalog",
+                  "name": "int8"
+                },
+                "is_sqlc_slice": false,
+                "embed_table": null,
+                "original_name": "",
+                "unsigned": false,
+                "array_dims": 0
+              },
+              {
+                "name": "frozen_rate",
+                "not_null": false,
+                "is_array": false,
+                "comment": "Rate of its projection when invoiced.",
+                "length": -1,
+                "is_named_param": false,
+                "is_func_call": false,
+                "scope": "",
+                "table": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "activity"
+                },
+                "table_alias": "",
+                "type": {
+                  "catalog": "",
+                  "schema": "pg_catalog",
+                  "name": "numeric"
+                },
+                "is_sqlc_slice": false,
+                "embed_table": null,
+                "original_name": "",
+                "unsigned": false,
+                "array_dims": 0
+              },
+              {
+                "name": "frozen_billed_min",
+                "not_null": false,
+                "is_array": false,
+                "comment": "Billed duration of its projection when invoiced.",
+                "length": -1,
+                "is_named_param": false,
+                "is_func_call": false,
+                "scope": "",
+                "table": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "activity"
+                },
+                "table_alias": "",
+                "type": {
+                  "catalog": "",
+                  "schema": "pg_catalog",
+                  "name": "int2"
+                },
+                "is_sqlc_slice": false,
+                "embed_table": null,
+                "original_name": "",
+                "unsigned": false,
+                "array_dims": 0
+              },
+              {
+                "name": "frozen_amount",
+                "not_null": false,
+                "is_array": false,
+                "comment": "Amount of its projection when invoiced.",
+                "length": -1,
+                "is_named_param": false,
+                "is_func_call": false,
+                "scope": "",
+                "table": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "activity"
+                },
+                "table_alias": "",
+                "type": {
+                  "catalog": "",
+                  "schema": "pg_catalog",
+                  "name": "numeric"
+                },
+                "is_sqlc_slice": false,
+                "embed_table": null,
+                "original_name": "",
+                "unsigned": false,
+                "array_dims": 0
               }
             ],
             "comment": "Time spent by a user on a task in a folder, on a date."
@@ -5602,6 +5706,58 @@
                 "original_name": "",
                 "unsigned": false,
                 "array_dims": 0
+              },
+              {
+                "name": "frozen_user_amount",
+                "not_null": false,
+                "is_array": false,
+                "comment": "Amount reimbursed to the user of its projection when invoiced.",
+                "length": -1,
+                "is_named_param": false,
+                "is_func_call": false,
+                "scope": "",
+                "table": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "expense"
+                },
+                "table_alias": "",
+                "type": {
+                  "catalog": "",
+                  "schema": "pg_catalog",
+                  "name": "numeric"
+                },
+                "is_sqlc_slice": false,
+                "embed_table": null,
+                "original_name": "",
+                "unsigned": false,
+                "array_dims": 0
+              },
+              {
+                "name": "frozen_billed_amount",
+                "not_null": false,
+                "is_array": false,
+                "comment": "Amount billed of its projection when invoiced.",
+                "length": -1,
+                "is_named_param": false,
+                "is_func_call": false,
+                "scope": "",
+                "table": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "expense"
+                },
+                "table_alias": "",
+                "type": {
+                  "catalog": "",
+                  "schema": "pg_catalog",
+                  "name": "numeric"
+                },
+                "is_sqlc_slice": false,
+                "embed_table": null,
+                "original_name": "",
+                "unsigned": false,
+                "array_dims": 0
               }
             ],
             "comment": "An expense line of an activity."
@@ -5900,654 +6056,6 @@
             "rel": {
               "catalog": "",
               "schema": "",
-              "name": "invoice"
-            },
-            "columns": [
-              {
-                "name": "id",
-                "not_null": true,
-                "is_array": false,
-                "comment": "",
-                "length": -1,
-                "is_named_param": false,
-                "is_func_call": false,
-                "scope": "",
-                "table": {
-                  "catalog": "",
-                  "schema": "",
-                  "name": "invoice"
-                },
-                "table_alias": "",
-                "type": {
-                  "catalog": "",
-                  "schema": "pg_catalog",
-                  "name": "int8"
-                },
-                "is_sqlc_slice": false,
-                "embed_table": null,
-                "original_name": "",
-                "unsigned": false,
-                "array_dims": 0
-              },
-              {
-                "name": "project_id",
-                "not_null": true,
-                "is_array": false,
-                "comment": "Project invoiced; the client is the account of the project.",
-                "length": -1,
-                "is_named_param": false,
-                "is_func_call": false,
-                "scope": "",
-                "table": {
-                  "catalog": "",
-                  "schema": "",
-                  "name": "invoice"
-                },
-                "table_alias": "",
-                "type": {
-                  "catalog": "",
-                  "schema": "pg_catalog",
-                  "name": "int8"
-                },
-                "is_sqlc_slice": false,
-                "embed_table": null,
-                "original_name": "",
-                "unsigned": false,
-                "array_dims": 0
-              },
-              {
-                "name": "date_from",
-                "not_null": true,
-                "is_array": false,
-                "comment": "First day of the period.",
-                "length": -1,
-                "is_named_param": false,
-                "is_func_call": false,
-                "scope": "",
-                "table": {
-                  "catalog": "",
-                  "schema": "",
-                  "name": "invoice"
-                },
-                "table_alias": "",
-                "type": {
-                  "catalog": "",
-                  "schema": "",
-                  "name": "date"
-                },
-                "is_sqlc_slice": false,
-                "embed_table": null,
-                "original_name": "",
-                "unsigned": false,
-                "array_dims": 0
-              },
-              {
-                "name": "date_to",
-                "not_null": true,
-                "is_array": false,
-                "comment": "Last day of the period.",
-                "length": -1,
-                "is_named_param": false,
-                "is_func_call": false,
-                "scope": "",
-                "table": {
-                  "catalog": "",
-                  "schema": "",
-                  "name": "invoice"
-                },
-                "table_alias": "",
-                "type": {
-                  "catalog": "",
-                  "schema": "",
-                  "name": "date"
-                },
-                "is_sqlc_slice": false,
-                "embed_table": null,
-                "original_name": "",
-                "unsigned": false,
-                "array_dims": 0
-              },
-              {
-                "name": "invoiced_at",
-                "not_null": false,
-                "is_array": false,
-                "comment": "When the invoice was marked invoiced.",
-                "length": -1,
-                "is_named_param": false,
-                "is_func_call": false,
-                "scope": "",
-                "table": {
-                  "catalog": "",
-                  "schema": "",
-                  "name": "invoice"
-                },
-                "table_alias": "",
-                "type": {
-                  "catalog": "",
-                  "schema": "",
-                  "name": "timestamptz"
-                },
-                "is_sqlc_slice": false,
-                "embed_table": null,
-                "original_name": "",
-                "unsigned": false,
-                "array_dims": 0
-              },
-              {
-                "name": "invoiced_by",
-                "not_null": false,
-                "is_array": false,
-                "comment": "Who marked the invoice invoiced.",
-                "length": -1,
-                "is_named_param": false,
-                "is_func_call": false,
-                "scope": "",
-                "table": {
-                  "catalog": "",
-                  "schema": "",
-                  "name": "invoice"
-                },
-                "table_alias": "",
-                "type": {
-                  "catalog": "",
-                  "schema": "pg_catalog",
-                  "name": "int8"
-                },
-                "is_sqlc_slice": false,
-                "embed_table": null,
-                "original_name": "",
-                "unsigned": false,
-                "array_dims": 0
-              },
-              {
-                "name": "pdf_file_id",
-                "not_null": false,
-                "is_array": false,
-                "comment": "Last PDF rendered.",
-                "length": -1,
-                "is_named_param": false,
-                "is_func_call": false,
-                "scope": "",
-                "table": {
-                  "catalog": "",
-                  "schema": "",
-                  "name": "invoice"
-                },
-                "table_alias": "",
-                "type": {
-                  "catalog": "",
-                  "schema": "pg_catalog",
-                  "name": "int8"
-                },
-                "is_sqlc_slice": false,
-                "embed_table": null,
-                "original_name": "",
-                "unsigned": false,
-                "array_dims": 0
-              }
-            ],
-            "comment": "An invoice of a project over a period."
-          },
-          {
-            "rel": {
-              "catalog": "",
-              "schema": "",
-              "name": "invoice_line"
-            },
-            "columns": [
-              {
-                "name": "id",
-                "not_null": true,
-                "is_array": false,
-                "comment": "",
-                "length": -1,
-                "is_named_param": false,
-                "is_func_call": false,
-                "scope": "",
-                "table": {
-                  "catalog": "",
-                  "schema": "",
-                  "name": "invoice_line"
-                },
-                "table_alias": "",
-                "type": {
-                  "catalog": "",
-                  "schema": "pg_catalog",
-                  "name": "int8"
-                },
-                "is_sqlc_slice": false,
-                "embed_table": null,
-                "original_name": "",
-                "unsigned": false,
-                "array_dims": 0
-              },
-              {
-                "name": "invoice_id",
-                "not_null": true,
-                "is_array": false,
-                "comment": "Invoice.",
-                "length": -1,
-                "is_named_param": false,
-                "is_func_call": false,
-                "scope": "",
-                "table": {
-                  "catalog": "",
-                  "schema": "",
-                  "name": "invoice_line"
-                },
-                "table_alias": "",
-                "type": {
-                  "catalog": "",
-                  "schema": "pg_catalog",
-                  "name": "int8"
-                },
-                "is_sqlc_slice": false,
-                "embed_table": null,
-                "original_name": "",
-                "unsigned": false,
-                "array_dims": 0
-              },
-              {
-                "name": "activity_id",
-                "not_null": true,
-                "is_array": false,
-                "comment": "Activity billed; on one invoice at most.",
-                "length": -1,
-                "is_named_param": false,
-                "is_func_call": false,
-                "scope": "",
-                "table": {
-                  "catalog": "",
-                  "schema": "",
-                  "name": "invoice_line"
-                },
-                "table_alias": "",
-                "type": {
-                  "catalog": "",
-                  "schema": "pg_catalog",
-                  "name": "int8"
-                },
-                "is_sqlc_slice": false,
-                "embed_table": null,
-                "original_name": "",
-                "unsigned": false,
-                "array_dims": 0
-              },
-              {
-                "name": "rate",
-                "not_null": true,
-                "is_array": false,
-                "comment": "Hourly rate billed.",
-                "length": -1,
-                "is_named_param": false,
-                "is_func_call": false,
-                "scope": "",
-                "table": {
-                  "catalog": "",
-                  "schema": "",
-                  "name": "invoice_line"
-                },
-                "table_alias": "",
-                "type": {
-                  "catalog": "",
-                  "schema": "pg_catalog",
-                  "name": "numeric"
-                },
-                "is_sqlc_slice": false,
-                "embed_table": null,
-                "original_name": "",
-                "unsigned": false,
-                "array_dims": 0
-              },
-              {
-                "name": "billed_min",
-                "not_null": true,
-                "is_array": false,
-                "comment": "Duration billed.",
-                "length": -1,
-                "is_named_param": false,
-                "is_func_call": false,
-                "scope": "",
-                "table": {
-                  "catalog": "",
-                  "schema": "",
-                  "name": "invoice_line"
-                },
-                "table_alias": "",
-                "type": {
-                  "catalog": "",
-                  "schema": "pg_catalog",
-                  "name": "int4"
-                },
-                "is_sqlc_slice": false,
-                "embed_table": null,
-                "original_name": "",
-                "unsigned": false,
-                "array_dims": 0
-              },
-              {
-                "name": "amount",
-                "not_null": true,
-                "is_array": false,
-                "comment": "Amount billed.",
-                "length": -1,
-                "is_named_param": false,
-                "is_func_call": false,
-                "scope": "",
-                "table": {
-                  "catalog": "",
-                  "schema": "",
-                  "name": "invoice_line"
-                },
-                "table_alias": "",
-                "type": {
-                  "catalog": "",
-                  "schema": "pg_catalog",
-                  "name": "numeric"
-                },
-                "is_sqlc_slice": false,
-                "embed_table": null,
-                "original_name": "",
-                "unsigned": false,
-                "array_dims": 0
-              }
-            ],
-            "comment": "An activity billed on an invoice, with the values of its projection when the invoice was marked invoiced."
-          },
-          {
-            "rel": {
-              "catalog": "",
-              "schema": "",
-              "name": "invoice_expense"
-            },
-            "columns": [
-              {
-                "name": "id",
-                "not_null": true,
-                "is_array": false,
-                "comment": "",
-                "length": -1,
-                "is_named_param": false,
-                "is_func_call": false,
-                "scope": "",
-                "table": {
-                  "catalog": "",
-                  "schema": "",
-                  "name": "invoice_expense"
-                },
-                "table_alias": "",
-                "type": {
-                  "catalog": "",
-                  "schema": "pg_catalog",
-                  "name": "int8"
-                },
-                "is_sqlc_slice": false,
-                "embed_table": null,
-                "original_name": "",
-                "unsigned": false,
-                "array_dims": 0
-              },
-              {
-                "name": "invoice_id",
-                "not_null": true,
-                "is_array": false,
-                "comment": "Invoice.",
-                "length": -1,
-                "is_named_param": false,
-                "is_func_call": false,
-                "scope": "",
-                "table": {
-                  "catalog": "",
-                  "schema": "",
-                  "name": "invoice_expense"
-                },
-                "table_alias": "",
-                "type": {
-                  "catalog": "",
-                  "schema": "pg_catalog",
-                  "name": "int8"
-                },
-                "is_sqlc_slice": false,
-                "embed_table": null,
-                "original_name": "",
-                "unsigned": false,
-                "array_dims": 0
-              },
-              {
-                "name": "expense_id",
-                "not_null": true,
-                "is_array": false,
-                "comment": "Expense billed; on one invoice at most.",
-                "length": -1,
-                "is_named_param": false,
-                "is_func_call": false,
-                "scope": "",
-                "table": {
-                  "catalog": "",
-                  "schema": "",
-                  "name": "invoice_expense"
-                },
-                "table_alias": "",
-                "type": {
-                  "catalog": "",
-                  "schema": "pg_catalog",
-                  "name": "int8"
-                },
-                "is_sqlc_slice": false,
-                "embed_table": null,
-                "original_name": "",
-                "unsigned": false,
-                "array_dims": 0
-              },
-              {
-                "name": "user_amount",
-                "not_null": true,
-                "is_array": false,
-                "comment": "Amount reimbursed to the user.",
-                "length": -1,
-                "is_named_param": false,
-                "is_func_call": false,
-                "scope": "",
-                "table": {
-                  "catalog": "",
-                  "schema": "",
-                  "name": "invoice_expense"
-                },
-                "table_alias": "",
-                "type": {
-                  "catalog": "",
-                  "schema": "pg_catalog",
-                  "name": "numeric"
-                },
-                "is_sqlc_slice": false,
-                "embed_table": null,
-                "original_name": "",
-                "unsigned": false,
-                "array_dims": 0
-              },
-              {
-                "name": "billed_amount",
-                "not_null": true,
-                "is_array": false,
-                "comment": "Amount billed.",
-                "length": -1,
-                "is_named_param": false,
-                "is_func_call": false,
-                "scope": "",
-                "table": {
-                  "catalog": "",
-                  "schema": "",
-                  "name": "invoice_expense"
-                },
-                "table_alias": "",
-                "type": {
-                  "catalog": "",
-                  "schema": "pg_catalog",
-                  "name": "numeric"
-                },
-                "is_sqlc_slice": false,
-                "embed_table": null,
-                "original_name": "",
-                "unsigned": false,
-                "array_dims": 0
-              }
-            ],
-            "comment": "An expense billed on an invoice, with the amounts of its projection when the invoice was marked invoiced."
-          },
-          {
-            "rel": {
-              "catalog": "",
-              "schema": "",
-              "name": "billable_activity"
-            },
-            "columns": [
-              {
-                "name": "activity_id",
-                "not_null": true,
-                "is_array": false,
-                "comment": "Activity.",
-                "length": -1,
-                "is_named_param": false,
-                "is_func_call": false,
-                "scope": "",
-                "table": {
-                  "catalog": "",
-                  "schema": "",
-                  "name": "billable_activity"
-                },
-                "table_alias": "",
-                "type": {
-                  "catalog": "",
-                  "schema": "",
-                  "name": "pg_catalog.int8"
-                },
-                "is_sqlc_slice": false,
-                "embed_table": null,
-                "original_name": "",
-                "unsigned": false,
-                "array_dims": 0
-              },
-              {
-                "name": "folder_id",
-                "not_null": true,
-                "is_array": false,
-                "comment": "Folder of the activity.",
-                "length": -1,
-                "is_named_param": false,
-                "is_func_call": false,
-                "scope": "",
-                "table": {
-                  "catalog": "",
-                  "schema": "",
-                  "name": "billable_activity"
-                },
-                "table_alias": "",
-                "type": {
-                  "catalog": "",
-                  "schema": "",
-                  "name": "pg_catalog.int8"
-                },
-                "is_sqlc_slice": false,
-                "embed_table": null,
-                "original_name": "",
-                "unsigned": false,
-                "array_dims": 0
-              },
-              {
-                "name": "date",
-                "not_null": true,
-                "is_array": false,
-                "comment": "Date of the activity.",
-                "length": -1,
-                "is_named_param": false,
-                "is_func_call": false,
-                "scope": "",
-                "table": {
-                  "catalog": "",
-                  "schema": "",
-                  "name": "billable_activity"
-                },
-                "table_alias": "",
-                "type": {
-                  "catalog": "",
-                  "schema": "",
-                  "name": "date"
-                },
-                "is_sqlc_slice": false,
-                "embed_table": null,
-                "original_name": "",
-                "unsigned": false,
-                "array_dims": 0
-              }
-            ],
-            "comment": "Activities an invoice can take: on no invoice line, their task billed (not never)."
-          },
-          {
-            "rel": {
-              "catalog": "",
-              "schema": "",
-              "name": "invoice_item"
-            },
-            "columns": [
-              {
-                "name": "invoice_id",
-                "not_null": true,
-                "is_array": false,
-                "comment": "Invoice.",
-                "length": -1,
-                "is_named_param": false,
-                "is_func_call": false,
-                "scope": "",
-                "table": {
-                  "catalog": "",
-                  "schema": "",
-                  "name": "invoice_item"
-                },
-                "table_alias": "",
-                "type": {
-                  "catalog": "",
-                  "schema": "",
-                  "name": "pg_catalog.int8"
-                },
-                "is_sqlc_slice": false,
-                "embed_table": null,
-                "original_name": "",
-                "unsigned": false,
-                "array_dims": 0
-              },
-              {
-                "name": "activity_id",
-                "not_null": true,
-                "is_array": false,
-                "comment": "Activity.",
-                "length": -1,
-                "is_named_param": false,
-                "is_func_call": false,
-                "scope": "",
-                "table": {
-                  "catalog": "",
-                  "schema": "",
-                  "name": "invoice_item"
-                },
-                "table_alias": "",
-                "type": {
-                  "catalog": "",
-                  "schema": "",
-                  "name": "pg_catalog.int8"
-                },
-                "is_sqlc_slice": false,
-                "embed_table": null,
-                "original_name": "",
-                "unsigned": false,
-                "array_dims": 0
-              }
-            ],
-            "comment": "Activities of an invoice: its lines once invoiced; while draft, the billable activities of its project and period."
-          },
-          {
-            "rel": {
-              "catalog": "",
-              "schema": "",
               "name": "activity_p"
             },
             "columns": [
@@ -6815,7 +6323,7 @@
                 "name": "invoice_id",
                 "not_null": false,
                 "is_array": false,
-                "comment": "Invoice of its invoice line.",
+                "comment": "",
                 "length": -1,
                 "is_named_param": false,
                 "is_func_call": false,
@@ -6943,9 +6451,9 @@
               },
               {
                 "name": "billed_min",
-                "not_null": true,
+                "not_null": false,
                 "is_array": false,
-                "comment": "Billed duration: that of its invoice line, else the real duration (always), the entered one or the real one (sometimes), 0 (never).",
+                "comment": "Billed duration: frozen, else the real duration (always), the entered one or the real one (sometimes), 0 (never).",
                 "length": -1,
                 "is_named_param": false,
                 "is_func_call": false,
@@ -6959,7 +6467,7 @@
                 "type": {
                   "catalog": "",
                   "schema": "",
-                  "name": "pg_catalog.int4"
+                  "name": "pg_catalog.int2"
                 },
                 "is_sqlc_slice": false,
                 "embed_table": null,
@@ -6971,7 +6479,7 @@
                 "name": "rate",
                 "not_null": true,
                 "is_array": false,
-                "comment": "Hourly rate: that of its invoice line, else user and task, folder, project, task, 0.",
+                "comment": "Hourly rate: frozen, else user and task, folder, project, task, 0.",
                 "length": -1,
                 "is_named_param": false,
                 "is_func_call": false,
@@ -6997,7 +6505,7 @@
                 "name": "amount",
                 "not_null": false,
                 "is_array": false,
-                "comment": "Amount: that of its invoice line, else rate times billed hours, weighted by the rate coefficients of the hour classes touched.",
+                "comment": "Amount: frozen, else rate times billed hours, weighted by the rate coefficients of the hour classes touched.",
                 "length": -1,
                 "is_named_param": false,
                 "is_func_call": false,
@@ -7101,7 +6609,7 @@
                 "name": "not_invoiced",
                 "not_null": false,
                 "is_array": false,
-                "comment": "On no invoice line.",
+                "comment": "Not stamped with an invoice.",
                 "length": -1,
                 "is_named_param": false,
                 "is_func_call": false,
@@ -7228,7 +6736,7 @@
                 "array_dims": 0
               }
             ],
-            "comment": "Projection of activity: rates, amounts, counted minutes and conditions, computed; the values of its invoice line once invoiced."
+            "comment": "Projection of activity: rates, amounts, counted minutes and conditions, computed; frozen values once invoiced."
           },
           {
             "rel": {
@@ -7667,7 +7175,7 @@
                 "name": "user_amount",
                 "not_null": false,
                 "is_array": false,
-                "comment": "Amount reimbursed to the user: that of its invoice line, else 0 (billing only), quantity times unit price, or the amount.",
+                "comment": "Amount reimbursed to the user: frozen, else 0 (billing only), quantity times unit price, or the amount.",
                 "length": -1,
                 "is_named_param": false,
                 "is_func_call": false,
@@ -7693,7 +7201,7 @@
                 "name": "billed_amount",
                 "not_null": false,
                 "is_array": false,
-                "comment": "Amount billed: that of its invoice line, else 0 (user only), quantity times billing unit price, or the amount.",
+                "comment": "Amount billed: frozen, else 0 (user only), quantity times billing unit price, or the amount.",
                 "length": -1,
                 "is_named_param": false,
                 "is_func_call": false,
@@ -7716,7 +7224,349 @@
                 "array_dims": 0
               }
             ],
-            "comment": "Projection of expense: effective mode and amounts reimbursed and billed; the amounts of its invoice line once invoiced."
+            "comment": "Projection of expense: effective mode and amounts reimbursed and billed; frozen values once invoiced."
+          },
+          {
+            "rel": {
+              "catalog": "",
+              "schema": "",
+              "name": "invoice"
+            },
+            "columns": [
+              {
+                "name": "id",
+                "not_null": true,
+                "is_array": false,
+                "comment": "",
+                "length": -1,
+                "is_named_param": false,
+                "is_func_call": false,
+                "scope": "",
+                "table": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "invoice"
+                },
+                "table_alias": "",
+                "type": {
+                  "catalog": "",
+                  "schema": "pg_catalog",
+                  "name": "int8"
+                },
+                "is_sqlc_slice": false,
+                "embed_table": null,
+                "original_name": "",
+                "unsigned": false,
+                "array_dims": 0
+              },
+              {
+                "name": "project_id",
+                "not_null": true,
+                "is_array": false,
+                "comment": "Project invoiced; the client is the account of the project.",
+                "length": -1,
+                "is_named_param": false,
+                "is_func_call": false,
+                "scope": "",
+                "table": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "invoice"
+                },
+                "table_alias": "",
+                "type": {
+                  "catalog": "",
+                  "schema": "pg_catalog",
+                  "name": "int8"
+                },
+                "is_sqlc_slice": false,
+                "embed_table": null,
+                "original_name": "",
+                "unsigned": false,
+                "array_dims": 0
+              },
+              {
+                "name": "date_from",
+                "not_null": true,
+                "is_array": false,
+                "comment": "First day of the period.",
+                "length": -1,
+                "is_named_param": false,
+                "is_func_call": false,
+                "scope": "",
+                "table": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "invoice"
+                },
+                "table_alias": "",
+                "type": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "date"
+                },
+                "is_sqlc_slice": false,
+                "embed_table": null,
+                "original_name": "",
+                "unsigned": false,
+                "array_dims": 0
+              },
+              {
+                "name": "date_to",
+                "not_null": true,
+                "is_array": false,
+                "comment": "Last day of the period.",
+                "length": -1,
+                "is_named_param": false,
+                "is_func_call": false,
+                "scope": "",
+                "table": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "invoice"
+                },
+                "table_alias": "",
+                "type": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "date"
+                },
+                "is_sqlc_slice": false,
+                "embed_table": null,
+                "original_name": "",
+                "unsigned": false,
+                "array_dims": 0
+              },
+              {
+                "name": "invoiced_at",
+                "not_null": false,
+                "is_array": false,
+                "comment": "When the invoice was marked invoiced.",
+                "length": -1,
+                "is_named_param": false,
+                "is_func_call": false,
+                "scope": "",
+                "table": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "invoice"
+                },
+                "table_alias": "",
+                "type": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "timestamptz"
+                },
+                "is_sqlc_slice": false,
+                "embed_table": null,
+                "original_name": "",
+                "unsigned": false,
+                "array_dims": 0
+              },
+              {
+                "name": "invoiced_by",
+                "not_null": false,
+                "is_array": false,
+                "comment": "Who marked the invoice invoiced.",
+                "length": -1,
+                "is_named_param": false,
+                "is_func_call": false,
+                "scope": "",
+                "table": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "invoice"
+                },
+                "table_alias": "",
+                "type": {
+                  "catalog": "",
+                  "schema": "pg_catalog",
+                  "name": "int8"
+                },
+                "is_sqlc_slice": false,
+                "embed_table": null,
+                "original_name": "",
+                "unsigned": false,
+                "array_dims": 0
+              },
+              {
+                "name": "pdf_file_id",
+                "not_null": false,
+                "is_array": false,
+                "comment": "Last PDF rendered.",
+                "length": -1,
+                "is_named_param": false,
+                "is_func_call": false,
+                "scope": "",
+                "table": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "invoice"
+                },
+                "table_alias": "",
+                "type": {
+                  "catalog": "",
+                  "schema": "pg_catalog",
+                  "name": "int8"
+                },
+                "is_sqlc_slice": false,
+                "embed_table": null,
+                "original_name": "",
+                "unsigned": false,
+                "array_dims": 0
+              }
+            ],
+            "comment": "An invoice of a project over a period."
+          },
+          {
+            "rel": {
+              "catalog": "",
+              "schema": "",
+              "name": "billable_activity"
+            },
+            "columns": [
+              {
+                "name": "activity_id",
+                "not_null": true,
+                "is_array": false,
+                "comment": "Activity.",
+                "length": -1,
+                "is_named_param": false,
+                "is_func_call": false,
+                "scope": "",
+                "table": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "billable_activity"
+                },
+                "table_alias": "",
+                "type": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "pg_catalog.int8"
+                },
+                "is_sqlc_slice": false,
+                "embed_table": null,
+                "original_name": "",
+                "unsigned": false,
+                "array_dims": 0
+              },
+              {
+                "name": "folder_id",
+                "not_null": true,
+                "is_array": false,
+                "comment": "Folder of the activity.",
+                "length": -1,
+                "is_named_param": false,
+                "is_func_call": false,
+                "scope": "",
+                "table": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "billable_activity"
+                },
+                "table_alias": "",
+                "type": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "pg_catalog.int8"
+                },
+                "is_sqlc_slice": false,
+                "embed_table": null,
+                "original_name": "",
+                "unsigned": false,
+                "array_dims": 0
+              },
+              {
+                "name": "date",
+                "not_null": true,
+                "is_array": false,
+                "comment": "Date of the activity.",
+                "length": -1,
+                "is_named_param": false,
+                "is_func_call": false,
+                "scope": "",
+                "table": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "billable_activity"
+                },
+                "table_alias": "",
+                "type": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "date"
+                },
+                "is_sqlc_slice": false,
+                "embed_table": null,
+                "original_name": "",
+                "unsigned": false,
+                "array_dims": 0
+              }
+            ],
+            "comment": "Activities an invoice can take: not invoiced, their task billed (not never). One relation, so that a join drives it by its keys."
+          },
+          {
+            "rel": {
+              "catalog": "",
+              "schema": "",
+              "name": "invoice_item"
+            },
+            "columns": [
+              {
+                "name": "invoice_id",
+                "not_null": false,
+                "is_array": false,
+                "comment": "Invoice.",
+                "length": -1,
+                "is_named_param": false,
+                "is_func_call": false,
+                "scope": "",
+                "table": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "invoice_item"
+                },
+                "table_alias": "",
+                "type": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "pg_catalog.int8"
+                },
+                "is_sqlc_slice": false,
+                "embed_table": null,
+                "original_name": "",
+                "unsigned": false,
+                "array_dims": 0
+              },
+              {
+                "name": "activity_id",
+                "not_null": true,
+                "is_array": false,
+                "comment": "Activity.",
+                "length": -1,
+                "is_named_param": false,
+                "is_func_call": false,
+                "scope": "",
+                "table": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "invoice_item"
+                },
+                "table_alias": "",
+                "type": {
+                  "catalog": "",
+                  "schema": "",
+                  "name": "pg_catalog.int8"
+                },
+                "is_sqlc_slice": false,
+                "embed_table": null,
+                "original_name": "",
+                "unsigned": false,
+                "array_dims": 0
+              }
+            ],
+            "comment": "Activities of an invoice: those stamped with it once invoiced; while draft, the billable activities of its project and period."
           },
           {
             "rel": {
@@ -8233,7 +8083,7 @@
                 "name": "activity_count",
                 "not_null": true,
                 "is_array": false,
-                "comment": "Number of activities.",
+                "comment": "Number of activities: stamped with it once invoiced (their frozen values summed), candidates while draft.",
                 "length": -1,
                 "is_named_param": false,
                 "is_func_call": false,
@@ -9518,7 +9368,7 @@
                 "array_dims": 0
               }
             ],
-            "comment": "The export of an invoice to the accounting system, as CSV (separator ;, decimal point, ISO dates): a header, then a line per activity line and per expense line of the invoice."
+            "comment": "The export of an invoice to the accounting system, as CSV (separator ;, decimal point, ISO dates): a header, then a line per activity of the invoice and per expense of them."
           }
         ],
         "enums": [
@@ -9603,7 +9453,7 @@
               "draft",
               "invoiced"
             ],
-            "comment": "State of an invoice: draft (its activities are candidates) or invoiced (its lines written)."
+            "comment": "State of an invoice: draft (its activities are candidates) or invoiced (its activities and their expenses stamped)."
           },
           {
             "name": "export_state",
@@ -76045,7 +75895,7 @@
         },
         {
           "name": "billed_min",
-          "not_null": true,
+          "not_null": false,
           "is_array": false,
           "comment": "",
           "length": -1,
@@ -76061,7 +75911,7 @@
           "type": {
             "catalog": "",
             "schema": "",
-            "name": "pg_catalog.int4"
+            "name": "pg_catalog.int2"
           },
           "is_sqlc_slice": false,
           "embed_table": null,
@@ -77127,7 +76977,7 @@
         },
         {
           "name": "billed_min",
-          "not_null": true,
+          "not_null": false,
           "is_array": false,
           "comment": "",
           "length": -1,
@@ -77143,7 +76993,7 @@
           "type": {
             "catalog": "",
             "schema": "",
-            "name": "pg_catalog.int4"
+            "name": "pg_catalog.int2"
           },
           "is_sqlc_slice": false,
           "embed_table": null,
@@ -77902,7 +77752,7 @@
         },
         {
           "name": "billed_min",
-          "not_null": true,
+          "not_null": false,
           "is_array": false,
           "comment": "",
           "length": -1,
@@ -77918,7 +77768,7 @@
           "type": {
             "catalog": "",
             "schema": "",
-            "name": "pg_catalog.int4"
+            "name": "pg_catalog.int2"
           },
           "is_sqlc_slice": false,
           "embed_table": null,
@@ -80010,7 +79860,7 @@
         },
         {
           "name": "billed_min",
-          "not_null": true,
+          "not_null": false,
           "is_array": false,
           "comment": "",
           "length": -1,
@@ -80026,7 +79876,7 @@
           "type": {
             "catalog": "",
             "schema": "",
-            "name": "pg_catalog.int4"
+            "name": "pg_catalog.int2"
           },
           "is_sqlc_slice": false,
           "embed_table": null,
@@ -80300,7 +80150,7 @@
           "number": 1,
           "column": {
             "name": "invoice_id",
-            "not_null": true,
+            "not_null": false,
             "is_array": false,
             "comment": "",
             "length": -1,
@@ -80863,7 +80713,7 @@
       ],
       "comments": [
         " Per folder and its project, over the activities of a period: durations, services, expenses billed and reimbursed,",
-        " realized (services and expenses billed), invoiced, balance (realized minus invoiced). Invoiced activities use the values of their invoice line.",
+        " realized (services and expenses billed), invoiced, balance (realized minus invoiced). Invoiced activities use their frozen values.",
         " @anchor none",
         " @needs invoice"
       ],
@@ -81320,14 +81170,14 @@
         }
       ],
       "comments": [
-        " Locks the candidate activities of draft invoices, by id: the following statements write the lines of these only."
+        " Locks the candidate activities of draft invoices, by id: the following statements stamp these only."
       ],
       "filename": "queries.sql",
       "insert_into_table": null
     },
     {
-      "text": "insert into invoice_line (invoice_id, activity_id, rate, billed_min, amount)\nselect i.id, p.id, p.rate, p.billed_min, p.amount\nfrom activity_p p\njoin invoice i on i.project_id = p.project_id and p.date between i.date_from and i.date_to and i.id = any($1::bigint[])\nwhere p.id = any($2::bigint[])",
-      "name": "InvoiceWriteLines",
+      "text": "update activity a set invoice_id = i.id,\n       (frozen_rate, frozen_billed_min, frozen_amount) = (select p.rate, p.billed_min, p.amount from activity_p p where p.id = a.id)\nfrom invoice i\njoin folder f on f.project_id = i.project_id\nwhere i.id = any($1::bigint[]) and a.folder_id = f.id and a.date between i.date_from and i.date_to and a.id = any($2::bigint[])",
+      "name": "InvoiceStampActivities",
       "cmd": ":exec",
       "columns": [],
       "params": [
@@ -81383,18 +81233,14 @@
         }
       ],
       "comments": [
-        " Writes a line per locked activity on its invoice, with rate, billed duration and amount read in its projection."
+        " Stamps each locked activity with its invoice and the rate, billed duration and amount of its projection."
       ],
       "filename": "queries.sql",
-      "insert_into_table": {
-        "catalog": "",
-        "schema": "",
-        "name": "invoice_line"
-      }
+      "insert_into_table": null
     },
     {
-      "text": "insert into invoice_expense (invoice_id, expense_id, user_amount, billed_amount)\nselect l.invoice_id, x.id, x.user_amount, x.billed_amount\nfrom expense_p x\njoin invoice_line l on l.activity_id = x.activity_id\nwhere x.activity_id = any($1::bigint[])",
-      "name": "InvoiceWriteExpenses",
+      "text": "update expense e set (frozen_user_amount, frozen_billed_amount) = (select x.user_amount, x.billed_amount from expense_p x where x.id = e.id)\nwhere e.activity_id = any($1::bigint[])",
+      "name": "InvoiceStampExpenses",
       "cmd": ":exec",
       "columns": [],
       "params": [
@@ -81425,14 +81271,10 @@
         }
       ],
       "comments": [
-        " Writes a line per expense of the locked activities on the invoice of its activity, with the amounts read in its projection."
+        " Stamps the expenses of the locked activities with the amounts of their projection."
       ],
       "filename": "queries.sql",
-      "insert_into_table": {
-        "catalog": "",
-        "schema": "",
-        "name": "invoice_expense"
-      }
+      "insert_into_table": null
     },
     {
       "text": "update invoice set invoiced_at = sor_now(), invoiced_by = $1 where id = any($2::bigint[])",
@@ -81502,8 +81344,8 @@
       "insert_into_table": null
     },
     {
-      "text": "delete from invoice_expense where invoice_id = any($1::bigint[])",
-      "name": "InvoiceDeleteExpenses",
+      "text": "update expense set frozen_user_amount = null, frozen_billed_amount = null\nwhere activity_id = any(array(select a.id from activity a where a.invoice_id = any($1::bigint[])))",
+      "name": "InvoiceClearExpenses",
       "cmd": ":exec",
       "columns": [],
       "params": [
@@ -81534,14 +81376,14 @@
         }
       ],
       "comments": [
-        " Deletes the expense lines of invoices."
+        " Clears the stamps of the expenses of the activities of invoices."
       ],
       "filename": "queries.sql",
       "insert_into_table": null
     },
     {
-      "text": "delete from invoice_line where invoice_id = any($1::bigint[])",
-      "name": "InvoiceDeleteLines",
+      "text": "update activity set invoice_id = null, frozen_rate = null, frozen_billed_min = null, frozen_amount = null\nwhere invoice_id = any($1::bigint[])",
+      "name": "InvoiceClearActivities",
       "cmd": ":exec",
       "columns": [],
       "params": [
@@ -81572,7 +81414,7 @@
         }
       ],
       "comments": [
-        " Deletes the activity lines of invoices."
+        " Clears the stamps of the activities of invoices."
       ],
       "filename": "queries.sql",
       "insert_into_table": null

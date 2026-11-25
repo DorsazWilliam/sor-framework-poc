@@ -31,7 +31,7 @@ order by f.project_id;
 
 -- name: Profitability :many
 -- Per folder and its project, over the activities of a period: durations, services, expenses billed and reimbursed,
--- realized (services and expenses billed), invoiced, balance (realized minus invoiced). Invoiced activities use the values of their invoice line.
+-- realized (services and expenses billed), invoiced, balance (realized minus invoiced). Invoiced activities use their frozen values.
 -- @anchor none
 -- @needs invoice
 select f.project_id, r.*
@@ -64,39 +64,38 @@ from (
 join folder f on f.id = r.folder_id;
 
 -- name: InvoiceLockActivities :exec
--- Locks the candidate activities of draft invoices, by id: the following statements write the lines of these only.
+-- Locks the candidate activities of draft invoices, by id: the following statements stamp these only.
 select a.id from activity a
 where a.id = any(array(select l.activity_id from invoice_item l where l.invoice_id = any(@ids::bigint[])))
 order by a.id
 for update;
 
--- name: InvoiceWriteLines :exec
--- Writes a line per locked activity on its invoice, with rate, billed duration and amount read in its projection.
-insert into invoice_line (invoice_id, activity_id, rate, billed_min, amount)
-select i.id, p.id, p.rate, p.billed_min, p.amount
-from activity_p p
-join invoice i on i.project_id = p.project_id and p.date between i.date_from and i.date_to and i.id = any(@ids::bigint[])
-where p.id = any(@locked::bigint[]);
+-- name: InvoiceStampActivities :exec
+-- Stamps each locked activity with its invoice and the rate, billed duration and amount of its projection.
+update activity a set invoice_id = i.id,
+       (frozen_rate, frozen_billed_min, frozen_amount) = (select p.rate, p.billed_min, p.amount from activity_p p where p.id = a.id)
+from invoice i
+join folder f on f.project_id = i.project_id
+where i.id = any(@ids::bigint[]) and a.folder_id = f.id and a.date between i.date_from and i.date_to and a.id = any(@locked::bigint[]);
 
--- name: InvoiceWriteExpenses :exec
--- Writes a line per expense of the locked activities on the invoice of its activity, with the amounts read in its projection.
-insert into invoice_expense (invoice_id, expense_id, user_amount, billed_amount)
-select l.invoice_id, x.id, x.user_amount, x.billed_amount
-from expense_p x
-join invoice_line l on l.activity_id = x.activity_id
-where x.activity_id = any(@locked::bigint[]);
+-- name: InvoiceStampExpenses :exec
+-- Stamps the expenses of the locked activities with the amounts of their projection.
+update expense e set (frozen_user_amount, frozen_billed_amount) = (select x.user_amount, x.billed_amount from expense_p x where x.id = e.id)
+where e.activity_id = any(@locked::bigint[]);
 
 -- name: InvoiceMarkInvoiced :exec
 -- Marks invoices invoiced by the principal, now.
 update invoice set invoiced_at = sor_now(), invoiced_by = @self where id = any(@ids::bigint[]);
 
--- name: InvoiceDeleteExpenses :exec
--- Deletes the expense lines of invoices.
-delete from invoice_expense where invoice_id = any(@ids::bigint[]);
+-- name: InvoiceClearExpenses :exec
+-- Clears the stamps of the expenses of the activities of invoices.
+update expense set frozen_user_amount = null, frozen_billed_amount = null
+where activity_id = any(array(select a.id from activity a where a.invoice_id = any(@ids::bigint[])));
 
--- name: InvoiceDeleteLines :exec
--- Deletes the activity lines of invoices.
-delete from invoice_line where invoice_id = any(@ids::bigint[]);
+-- name: InvoiceClearActivities :exec
+-- Clears the stamps of the activities of invoices.
+update activity set invoice_id = null, frozen_rate = null, frozen_billed_min = null, frozen_amount = null
+where invoice_id = any(@ids::bigint[]);
 
 -- name: InvoiceBackToDraft :exec
 -- Returns invoices to draft.

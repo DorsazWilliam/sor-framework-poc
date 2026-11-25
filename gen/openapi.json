@@ -3413,7 +3413,7 @@
     },
     "/api/c/invoice.back_to_draft": {
       "post": {
-        "description": "Deletes the expense lines of invoices. Deletes the activity lines of invoices. Returns invoices to draft.",
+        "description": "Clears the stamps of the expenses of the activities of invoices. Clears the stamps of the activities of invoices. Returns invoices to draft.",
         "operationId": "command_invoice.back_to_draft",
         "requestBody": {
           "content": {
@@ -3644,7 +3644,7 @@
     },
     "/api/c/invoice.mark_invoiced": {
       "post": {
-        "description": "Locks the candidate activities of draft invoices, by id: the following statements write the lines of these only. Writes a line per locked activity on its invoice, with rate, billed duration and amount read in its projection. Writes a line per expense of the locked activities on the invoice of its activity, with the amounts read in its projection. Marks invoices invoiced by the principal, now.",
+        "description": "Locks the candidate activities of draft invoices, by id: the following statements stamp these only. Stamps each locked activity with its invoice and the rate, billed duration and amount of its projection. Stamps the expenses of the locked activities with the amounts of their projection. Marks invoices invoiced by the principal, now.",
         "operationId": "command_invoice.mark_invoiced",
         "requestBody": {
           "content": {
@@ -6885,7 +6885,6 @@
                     "additionalProperties": false,
                     "properties": {
                       "attempts": {
-                        "description": "Number of attempts.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -6902,19 +6901,16 @@
                         "type": "integer"
                       },
                       "last_at": {
-                        "description": "Instant of the last attempt.",
                         "format": "date-time",
                         "type": "string"
                       },
                       "last_detail": {
-                        "description": "Detail of the last attempt.",
                         "type": [
                           "string",
                           "null"
                         ]
                       },
                       "last_status": {
-                        "description": "HTTP status of the last attempt.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -6922,7 +6918,6 @@
                         ]
                       },
                       "state": {
-                        "description": "Exported once accepted; failed if the last attempt failed; created before any attempt.",
                         "enum": [
                           "none",
                           "created",
@@ -7190,14 +7185,12 @@
                     "additionalProperties": false,
                     "properties": {
                       "amount": {
-                        "description": "Amount: that of its invoice line, else rate times billed hours, weighted by the rate coefficients of the hour classes touched.",
                         "type": [
                           "number",
                           "null"
                         ]
                       },
                       "billed_min": {
-                        "description": "Billed duration: that of its invoice line, else the real duration (always), the entered one or the real one (sometimes), 0 (never).",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -7205,7 +7198,6 @@
                         ]
                       },
                       "counted_min": {
-                        "description": "Minutes counted in the hours done: 0 for a task not counting hours, else weighted by the hours coefficients of the hour classes touched.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -7217,7 +7209,6 @@
                         "type": "string"
                       },
                       "day_type": {
-                        "description": "ISO weekday 1 to 7, or 8 on a full public holiday.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -7232,7 +7223,6 @@
                         "type": "integer"
                       },
                       "entry_open": {
-                        "description": "The folder and its project accept activities.",
                         "type": [
                           "boolean",
                           "null"
@@ -7247,7 +7237,6 @@
                         "type": "integer"
                       },
                       "invoice_id": {
-                        "description": "Invoice of its invoice line.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -7255,14 +7244,12 @@
                         ]
                       },
                       "is_validated": {
-                        "description": "Validated.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "kind": {
-                        "description": "Kind of the task.",
                         "enum": [
                           "service",
                           "absence",
@@ -7274,28 +7261,24 @@
                         ]
                       },
                       "not_invoiced": {
-                        "description": "On no invoice line.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "not_locked": {
-                        "description": "The date is in no locked period of the user or of all.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "not_validated": {
-                        "description": "Not validated.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "project_id": {
-                        "description": "Project of the folder.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -7303,14 +7286,12 @@
                         ]
                       },
                       "rate": {
-                        "description": "Hourly rate: that of its invoice line, else user and task, folder, project, task, 0.",
                         "type": [
                           "number",
                           "null"
                         ]
                       },
                       "span_tod": {
-                        "description": "Minutes of the day worked: from the start, for the duration.",
                         "type": [
                           "string",
                           "null"
@@ -7321,7 +7302,6 @@
                         "type": "integer"
                       },
                       "task_allowed": {
-                        "description": "The task is allowed in the folder.",
                         "type": [
                           "boolean",
                           "null"
@@ -7332,7 +7312,6 @@
                         "type": "integer"
                       },
                       "to_validate": {
-                        "description": "Needs a manager validation: the task, an hour class touched, or the folder estimate exceeded.",
                         "type": [
                           "boolean",
                           "null"
@@ -7772,26 +7751,22 @@
                     "additionalProperties": false,
                     "properties": {
                       "activity_id": {
-                        "description": "Activity.",
                         "format": "int64",
                         "type": "integer"
                       },
                       "amount": {
-                        "description": "Share of the amount, weighted by the rate coefficient.",
                         "type": [
                           "number",
                           "null"
                         ]
                       },
                       "counted_min": {
-                        "description": "Minutes counted, weighted by the hours coefficient.",
                         "type": [
                           "number",
                           "null"
                         ]
                       },
                       "duration_min": {
-                        "description": "Real minutes in the class.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -7799,7 +7774,6 @@
                         ]
                       },
                       "hour_class_id": {
-                        "description": "Hour class; empty = outside any class.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -8080,19 +8054,19 @@
                     "additionalProperties": false,
                     "properties": {
                       "amount": {
-                        "description": "Amount: that of its invoice line, else rate times billed hours, weighted by the rate coefficients of the hour classes touched.",
                         "type": [
                           "number",
                           "null"
                         ]
                       },
                       "billed_min": {
-                        "description": "Billed duration: that of its invoice line, else the real duration (always), the entered one or the real one (sometimes), 0 (never).",
                         "format": "int64",
-                        "type": "integer"
+                        "type": [
+                          "integer",
+                          "null"
+                        ]
                       },
                       "counted_min": {
-                        "description": "Minutes counted in the hours done: 0 for a task not counting hours, else weighted by the hours coefficients of the hour classes touched.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -8101,7 +8075,6 @@
                         "type": "string"
                       },
                       "day_type": {
-                        "description": "ISO weekday 1 to 7, or 8 on a full public holiday.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -8113,7 +8086,6 @@
                         "type": "integer"
                       },
                       "entry_open": {
-                        "description": "The folder and its project accept activities.",
                         "type": [
                           "boolean",
                           "null"
@@ -8128,7 +8100,6 @@
                         "type": "integer"
                       },
                       "invoice_id": {
-                        "description": "Invoice of its invoice line.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -8136,14 +8107,12 @@
                         ]
                       },
                       "is_validated": {
-                        "description": "Validated.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "kind": {
-                        "description": "Kind of the task.",
                         "enum": [
                           "service",
                           "absence",
@@ -8155,28 +8124,24 @@
                         ]
                       },
                       "not_invoiced": {
-                        "description": "On no invoice line.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "not_locked": {
-                        "description": "The date is in no locked period of the user or of all.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "not_validated": {
-                        "description": "Not validated.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "project_id": {
-                        "description": "Project of the folder.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -8184,11 +8149,9 @@
                         ]
                       },
                       "rate": {
-                        "description": "Hourly rate: that of its invoice line, else user and task, folder, project, task, 0.",
                         "type": "number"
                       },
                       "span_tod": {
-                        "description": "Minutes of the day worked: from the start, for the duration.",
                         "type": "string"
                       },
                       "start_tod": {
@@ -8196,7 +8159,6 @@
                         "type": "integer"
                       },
                       "task_allowed": {
-                        "description": "The task is allowed in the folder.",
                         "type": [
                           "boolean",
                           "null"
@@ -8207,7 +8169,6 @@
                         "type": "integer"
                       },
                       "to_validate": {
-                        "description": "Needs a manager validation: the task, an hour class touched, or the folder estimate exceeded.",
                         "type": [
                           "boolean",
                           "null"
@@ -8524,19 +8485,19 @@
                     "additionalProperties": false,
                     "properties": {
                       "amount": {
-                        "description": "Amount: that of its invoice line, else rate times billed hours, weighted by the rate coefficients of the hour classes touched.",
                         "type": [
                           "number",
                           "null"
                         ]
                       },
                       "billed_min": {
-                        "description": "Billed duration: that of its invoice line, else the real duration (always), the entered one or the real one (sometimes), 0 (never).",
                         "format": "int64",
-                        "type": "integer"
+                        "type": [
+                          "integer",
+                          "null"
+                        ]
                       },
                       "counted_min": {
-                        "description": "Minutes counted in the hours done: 0 for a task not counting hours, else weighted by the hours coefficients of the hour classes touched.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -8545,7 +8506,6 @@
                         "type": "string"
                       },
                       "day_type": {
-                        "description": "ISO weekday 1 to 7, or 8 on a full public holiday.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -8557,7 +8517,6 @@
                         "type": "integer"
                       },
                       "entry_open": {
-                        "description": "The folder and its project accept activities.",
                         "type": [
                           "boolean",
                           "null"
@@ -8572,7 +8531,6 @@
                         "type": "integer"
                       },
                       "invoice_id": {
-                        "description": "Invoice of its invoice line.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -8580,14 +8538,12 @@
                         ]
                       },
                       "is_validated": {
-                        "description": "Validated.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "kind": {
-                        "description": "Kind of the task.",
                         "enum": [
                           "service",
                           "absence",
@@ -8599,28 +8555,24 @@
                         ]
                       },
                       "not_invoiced": {
-                        "description": "On no invoice line.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "not_locked": {
-                        "description": "The date is in no locked period of the user or of all.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "not_validated": {
-                        "description": "Not validated.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "project_id": {
-                        "description": "Project of the folder.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -8628,11 +8580,9 @@
                         ]
                       },
                       "rate": {
-                        "description": "Hourly rate: that of its invoice line, else user and task, folder, project, task, 0.",
                         "type": "number"
                       },
                       "span_tod": {
-                        "description": "Minutes of the day worked: from the start, for the duration.",
                         "type": "string"
                       },
                       "start_tod": {
@@ -8640,7 +8590,6 @@
                         "type": "integer"
                       },
                       "task_allowed": {
-                        "description": "The task is allowed in the folder.",
                         "type": [
                           "boolean",
                           "null"
@@ -8651,7 +8600,6 @@
                         "type": "integer"
                       },
                       "to_validate": {
-                        "description": "Needs a manager validation: the task, an hour class touched, or the folder estimate exceeded.",
                         "type": [
                           "boolean",
                           "null"
@@ -10019,7 +9967,6 @@
                     "additionalProperties": false,
                     "properties": {
                       "attempts": {
-                        "description": "Number of attempts.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -10032,19 +9979,16 @@
                         "type": "integer"
                       },
                       "last_at": {
-                        "description": "Instant of the last attempt.",
                         "format": "date-time",
                         "type": "string"
                       },
                       "last_detail": {
-                        "description": "Detail of the last attempt.",
                         "type": [
                           "string",
                           "null"
                         ]
                       },
                       "last_status": {
-                        "description": "HTTP status of the last attempt.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -10059,7 +10003,6 @@
                         "type": "string"
                       },
                       "state": {
-                        "description": "Exported once accepted; failed if the last attempt failed; created before any attempt.",
                         "enum": [
                           "none",
                           "created",
@@ -11547,14 +11490,12 @@
                         ]
                       },
                       "billed_amount": {
-                        "description": "Amount billed: that of its invoice line, else 0 (user only), quantity times billing unit price, or the amount.",
                         "type": [
                           "number",
                           "null"
                         ]
                       },
                       "effective_mode": {
-                        "description": "Mode of the expense, else of its type.",
                         "enum": [
                           "both",
                           "user_only",
@@ -11604,14 +11545,12 @@
                         ]
                       },
                       "user_amount": {
-                        "description": "Amount reimbursed to the user: that of its invoice line, else 0 (billing only), quantity times unit price, or the amount.",
                         "type": [
                           "number",
                           "null"
                         ]
                       },
                       "user_id": {
-                        "description": "User of the activity.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -12050,7 +11989,6 @@
                         ]
                       },
                       "billed_amount": {
-                        "description": "Amount billed: that of its invoice line, else 0 (user only), quantity times billing unit price, or the amount.",
                         "type": [
                           "number",
                           "null"
@@ -12064,7 +12002,6 @@
                         ]
                       },
                       "effective_mode": {
-                        "description": "Mode of the expense, else of its type.",
                         "enum": [
                           "both",
                           "user_only",
@@ -12111,14 +12048,12 @@
                         ]
                       },
                       "user_amount": {
-                        "description": "Amount reimbursed to the user: that of its invoice line, else 0 (billing only), quantity times unit price, or the amount.",
                         "type": [
                           "number",
                           "null"
                         ]
                       },
                       "user_id": {
-                        "description": "User of the activity.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -13398,7 +13333,6 @@
                         "type": "boolean"
                       },
                       "entry_open": {
-                        "description": "Activities can be entered: the folder is open and so is its project.",
                         "type": [
                           "boolean",
                           "null"
@@ -13628,7 +13562,6 @@
                     "additionalProperties": false,
                     "properties": {
                       "entry_open": {
-                        "description": "Activities can be entered: the folder is open and so is its project.",
                         "type": [
                           "boolean",
                           "null"
@@ -15554,7 +15487,6 @@
                     "additionalProperties": false,
                     "properties": {
                       "account_id": {
-                        "description": "Client: the account of the project.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -15562,7 +15494,6 @@
                         ]
                       },
                       "activity_count": {
-                        "description": "Number of activities.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -15570,7 +15501,6 @@
                         ]
                       },
                       "billed_min": {
-                        "description": "Billed duration of its activities.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -15586,14 +15516,12 @@
                         "type": "string"
                       },
                       "expenses_amount": {
-                        "description": "Amount billed of the expenses of its activities.",
                         "type": [
                           "number",
                           "null"
                         ]
                       },
                       "export_state": {
-                        "description": "State of the last export to the accounting system.",
                         "enum": [
                           "none",
                           "created",
@@ -15606,7 +15534,6 @@
                         ]
                       },
                       "has_activities": {
-                        "description": "Has at least one activity.",
                         "type": [
                           "boolean",
                           "null"
@@ -15631,21 +15558,18 @@
                         ]
                       },
                       "is_draft": {
-                        "description": "Draft.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "is_invoiced": {
-                        "description": "Invoiced.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "not_exported": {
-                        "description": "Never sent to the accounting system.",
                         "type": [
                           "boolean",
                           "null"
@@ -15663,14 +15587,12 @@
                         "type": "integer"
                       },
                       "services_amount": {
-                        "description": "Amount of its activities.",
                         "type": [
                           "number",
                           "null"
                         ]
                       },
                       "state": {
-                        "description": "Draft or invoiced.",
                         "enum": [
                           "draft",
                           "invoiced"
@@ -15681,7 +15603,6 @@
                         ]
                       },
                       "total_amount": {
-                        "description": "Services plus expenses.",
                         "type": [
                           "number",
                           "null"
@@ -16155,19 +16076,19 @@
                     "additionalProperties": false,
                     "properties": {
                       "amount": {
-                        "description": "Amount: that of its invoice line, else rate times billed hours, weighted by the rate coefficients of the hour classes touched.",
                         "type": [
                           "number",
                           "null"
                         ]
                       },
                       "billed_min": {
-                        "description": "Billed duration: that of its invoice line, else the real duration (always), the entered one or the real one (sometimes), 0 (never).",
                         "format": "int64",
-                        "type": "integer"
+                        "type": [
+                          "integer",
+                          "null"
+                        ]
                       },
                       "counted_min": {
-                        "description": "Minutes counted in the hours done: 0 for a task not counting hours, else weighted by the hours coefficients of the hour classes touched.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -16176,7 +16097,6 @@
                         "type": "string"
                       },
                       "day_type": {
-                        "description": "ISO weekday 1 to 7, or 8 on a full public holiday.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -16188,7 +16108,6 @@
                         "type": "integer"
                       },
                       "entry_open": {
-                        "description": "The folder and its project accept activities.",
                         "type": [
                           "boolean",
                           "null"
@@ -16203,7 +16122,6 @@
                         "type": "integer"
                       },
                       "invoice_id": {
-                        "description": "Invoice of its invoice line.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -16211,14 +16129,12 @@
                         ]
                       },
                       "is_validated": {
-                        "description": "Validated.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "kind": {
-                        "description": "Kind of the task.",
                         "enum": [
                           "service",
                           "absence",
@@ -16230,28 +16146,24 @@
                         ]
                       },
                       "not_invoiced": {
-                        "description": "On no invoice line.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "not_locked": {
-                        "description": "The date is in no locked period of the user or of all.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "not_validated": {
-                        "description": "Not validated.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "project_id": {
-                        "description": "Project of the folder.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -16259,11 +16171,9 @@
                         ]
                       },
                       "rate": {
-                        "description": "Hourly rate: that of its invoice line, else user and task, folder, project, task, 0.",
                         "type": "number"
                       },
                       "span_tod": {
-                        "description": "Minutes of the day worked: from the start, for the duration.",
                         "type": "string"
                       },
                       "start_tod": {
@@ -16271,7 +16181,6 @@
                         "type": "integer"
                       },
                       "task_allowed": {
-                        "description": "The task is allowed in the folder.",
                         "type": [
                           "boolean",
                           "null"
@@ -16282,7 +16191,6 @@
                         "type": "integer"
                       },
                       "to_validate": {
-                        "description": "Needs a manager validation: the task, an hour class touched, or the folder estimate exceeded.",
                         "type": [
                           "boolean",
                           "null"
@@ -16519,11 +16427,8 @@
                   "items": {
                     "additionalProperties": false,
                     "properties": {
-                      "document": {
-                        "description": "The document."
-                      },
+                      "document": {},
                       "invoice_id": {
-                        "description": "Invoice.",
                         "format": "int64",
                         "type": "integer"
                       }
@@ -16552,821 +16457,6 @@
           }
         },
         "summary": "invoice_document",
-        "tags": [
-          "views"
-        ]
-      }
-    },
-    "/api/v/invoice_expense": {
-      "post": {
-        "description": "An expense billed on an invoice, with the amounts of its projection when the invoice was marked invoiced.",
-        "operationId": "view_invoice_expense",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "additionalProperties": false,
-                "properties": {
-                  "agg": {
-                    "items": {
-                      "additionalProperties": false,
-                      "properties": {
-                        "col": {
-                          "enum": [
-                            "id",
-                            "invoice_id",
-                            "expense_id",
-                            "user_amount",
-                            "billed_amount"
-                          ],
-                          "type": "string"
-                        },
-                        "fn": {
-                          "enum": [
-                            "sum",
-                            "count",
-                            "min",
-                            "max",
-                            "avg"
-                          ],
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "fn"
-                      ],
-                      "type": "object"
-                    },
-                    "type": "array"
-                  },
-                  "filter": {
-                    "items": {
-                      "oneOf": [
-                        {
-                          "additionalProperties": false,
-                          "properties": {
-                            "col": {
-                              "enum": [
-                                "id",
-                                "invoice_id",
-                                "expense_id",
-                                "user_amount",
-                                "billed_amount"
-                              ],
-                              "type": "string"
-                            },
-                            "op": {
-                              "enum": [
-                                "eq",
-                                "ne",
-                                "lt",
-                                "le",
-                                "gt",
-                                "ge",
-                                "in",
-                                "contains",
-                                "null",
-                                "notnull"
-                              ],
-                              "type": "string"
-                            },
-                            "value": {}
-                          },
-                          "required": [
-                            "col",
-                            "op"
-                          ],
-                          "type": "object"
-                        },
-                        {
-                          "additionalProperties": false,
-                          "properties": {
-                            "action": {
-                              "type": "string"
-                            }
-                          },
-                          "required": [
-                            "action"
-                          ],
-                          "type": "object"
-                        }
-                      ]
-                    },
-                    "type": "array"
-                  },
-                  "group": {
-                    "items": {
-                      "enum": [
-                        "id",
-                        "invoice_id",
-                        "expense_id",
-                        "user_amount",
-                        "billed_amount"
-                      ],
-                      "type": "string"
-                    },
-                    "type": "array"
-                  },
-                  "limit": {
-                    "maximum": 5000,
-                    "minimum": 1,
-                    "type": "integer"
-                  },
-                  "offset": {
-                    "minimum": 0,
-                    "type": "integer"
-                  },
-                  "params": {
-                    "additionalProperties": false,
-                    "type": "object"
-                  },
-                  "sort": {
-                    "items": {
-                      "additionalProperties": false,
-                      "properties": {
-                        "col": {
-                          "type": "string"
-                        },
-                        "dir": {
-                          "enum": [
-                            "asc",
-                            "desc"
-                          ],
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "col"
-                      ],
-                      "type": "object"
-                    },
-                    "type": "array"
-                  }
-                },
-                "type": "object"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "additionalProperties": false,
-                    "properties": {
-                      "billed_amount": {
-                        "description": "Amount billed.",
-                        "type": "number"
-                      },
-                      "expense_id": {
-                        "description": "Expense billed; on one invoice at most.",
-                        "format": "int64",
-                        "type": "integer"
-                      },
-                      "id": {
-                        "format": "int64",
-                        "type": "integer"
-                      },
-                      "invoice_id": {
-                        "description": "Invoice.",
-                        "format": "int64",
-                        "type": "integer"
-                      },
-                      "user_amount": {
-                        "description": "Amount reimbursed to the user.",
-                        "type": "number"
-                      }
-                    },
-                    "required": [
-                      "id",
-                      "invoice_id",
-                      "expense_id",
-                      "user_amount",
-                      "billed_amount"
-                    ],
-                    "type": "object"
-                  },
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Rows"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Error"
-          }
-        },
-        "summary": "invoice_expense",
-        "tags": [
-          "views"
-        ]
-      }
-    },
-    "/api/v/invoice_expense.lookup": {
-      "post": {
-        "operationId": "view_invoice_expense.lookup",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "additionalProperties": false,
-                "properties": {
-                  "agg": {
-                    "items": {
-                      "additionalProperties": false,
-                      "properties": {
-                        "col": {
-                          "enum": [
-                            "id",
-                            "label"
-                          ],
-                          "type": "string"
-                        },
-                        "fn": {
-                          "enum": [
-                            "sum",
-                            "count",
-                            "min",
-                            "max",
-                            "avg"
-                          ],
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "fn"
-                      ],
-                      "type": "object"
-                    },
-                    "type": "array"
-                  },
-                  "filter": {
-                    "items": {
-                      "oneOf": [
-                        {
-                          "additionalProperties": false,
-                          "properties": {
-                            "col": {
-                              "enum": [
-                                "id",
-                                "label"
-                              ],
-                              "type": "string"
-                            },
-                            "op": {
-                              "enum": [
-                                "eq",
-                                "ne",
-                                "lt",
-                                "le",
-                                "gt",
-                                "ge",
-                                "in",
-                                "contains",
-                                "null",
-                                "notnull"
-                              ],
-                              "type": "string"
-                            },
-                            "value": {}
-                          },
-                          "required": [
-                            "col",
-                            "op"
-                          ],
-                          "type": "object"
-                        },
-                        {
-                          "additionalProperties": false,
-                          "properties": {
-                            "action": {
-                              "type": "string"
-                            }
-                          },
-                          "required": [
-                            "action"
-                          ],
-                          "type": "object"
-                        }
-                      ]
-                    },
-                    "type": "array"
-                  },
-                  "group": {
-                    "items": {
-                      "enum": [
-                        "id",
-                        "label"
-                      ],
-                      "type": "string"
-                    },
-                    "type": "array"
-                  },
-                  "limit": {
-                    "maximum": 5000,
-                    "minimum": 1,
-                    "type": "integer"
-                  },
-                  "offset": {
-                    "minimum": 0,
-                    "type": "integer"
-                  },
-                  "params": {
-                    "additionalProperties": false,
-                    "type": "object"
-                  },
-                  "sort": {
-                    "items": {
-                      "additionalProperties": false,
-                      "properties": {
-                        "col": {
-                          "type": "string"
-                        },
-                        "dir": {
-                          "enum": [
-                            "asc",
-                            "desc"
-                          ],
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "col"
-                      ],
-                      "type": "object"
-                    },
-                    "type": "array"
-                  }
-                },
-                "type": "object"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "additionalProperties": false,
-                    "properties": {
-                      "id": {
-                        "format": "int64",
-                        "type": "integer"
-                      },
-                      "label": {
-                        "type": [
-                          "string",
-                          "null"
-                        ]
-                      }
-                    },
-                    "required": [
-                      "id",
-                      "label"
-                    ],
-                    "type": "object"
-                  },
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Rows"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Error"
-          }
-        },
-        "summary": "invoice_expense.lookup",
-        "tags": [
-          "views"
-        ]
-      }
-    },
-    "/api/v/invoice_line": {
-      "post": {
-        "description": "An activity billed on an invoice, with the values of its projection when the invoice was marked invoiced.",
-        "operationId": "view_invoice_line",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "additionalProperties": false,
-                "properties": {
-                  "agg": {
-                    "items": {
-                      "additionalProperties": false,
-                      "properties": {
-                        "col": {
-                          "enum": [
-                            "id",
-                            "invoice_id",
-                            "activity_id",
-                            "rate",
-                            "billed_min",
-                            "amount"
-                          ],
-                          "type": "string"
-                        },
-                        "fn": {
-                          "enum": [
-                            "sum",
-                            "count",
-                            "min",
-                            "max",
-                            "avg"
-                          ],
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "fn"
-                      ],
-                      "type": "object"
-                    },
-                    "type": "array"
-                  },
-                  "filter": {
-                    "items": {
-                      "oneOf": [
-                        {
-                          "additionalProperties": false,
-                          "properties": {
-                            "col": {
-                              "enum": [
-                                "id",
-                                "invoice_id",
-                                "activity_id",
-                                "rate",
-                                "billed_min",
-                                "amount"
-                              ],
-                              "type": "string"
-                            },
-                            "op": {
-                              "enum": [
-                                "eq",
-                                "ne",
-                                "lt",
-                                "le",
-                                "gt",
-                                "ge",
-                                "in",
-                                "contains",
-                                "null",
-                                "notnull"
-                              ],
-                              "type": "string"
-                            },
-                            "value": {}
-                          },
-                          "required": [
-                            "col",
-                            "op"
-                          ],
-                          "type": "object"
-                        },
-                        {
-                          "additionalProperties": false,
-                          "properties": {
-                            "action": {
-                              "type": "string"
-                            }
-                          },
-                          "required": [
-                            "action"
-                          ],
-                          "type": "object"
-                        }
-                      ]
-                    },
-                    "type": "array"
-                  },
-                  "group": {
-                    "items": {
-                      "enum": [
-                        "id",
-                        "invoice_id",
-                        "activity_id",
-                        "rate",
-                        "billed_min",
-                        "amount"
-                      ],
-                      "type": "string"
-                    },
-                    "type": "array"
-                  },
-                  "limit": {
-                    "maximum": 5000,
-                    "minimum": 1,
-                    "type": "integer"
-                  },
-                  "offset": {
-                    "minimum": 0,
-                    "type": "integer"
-                  },
-                  "params": {
-                    "additionalProperties": false,
-                    "type": "object"
-                  },
-                  "sort": {
-                    "items": {
-                      "additionalProperties": false,
-                      "properties": {
-                        "col": {
-                          "type": "string"
-                        },
-                        "dir": {
-                          "enum": [
-                            "asc",
-                            "desc"
-                          ],
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "col"
-                      ],
-                      "type": "object"
-                    },
-                    "type": "array"
-                  }
-                },
-                "type": "object"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "additionalProperties": false,
-                    "properties": {
-                      "activity_id": {
-                        "description": "Activity billed; on one invoice at most.",
-                        "format": "int64",
-                        "type": "integer"
-                      },
-                      "amount": {
-                        "description": "Amount billed.",
-                        "type": "number"
-                      },
-                      "billed_min": {
-                        "description": "Duration billed.",
-                        "format": "int64",
-                        "type": "integer"
-                      },
-                      "id": {
-                        "format": "int64",
-                        "type": "integer"
-                      },
-                      "invoice_id": {
-                        "description": "Invoice.",
-                        "format": "int64",
-                        "type": "integer"
-                      },
-                      "rate": {
-                        "description": "Hourly rate billed.",
-                        "type": "number"
-                      }
-                    },
-                    "required": [
-                      "id",
-                      "invoice_id",
-                      "activity_id",
-                      "rate",
-                      "billed_min",
-                      "amount"
-                    ],
-                    "type": "object"
-                  },
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Rows"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Error"
-          }
-        },
-        "summary": "invoice_line",
-        "tags": [
-          "views"
-        ]
-      }
-    },
-    "/api/v/invoice_line.lookup": {
-      "post": {
-        "operationId": "view_invoice_line.lookup",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "additionalProperties": false,
-                "properties": {
-                  "agg": {
-                    "items": {
-                      "additionalProperties": false,
-                      "properties": {
-                        "col": {
-                          "enum": [
-                            "id",
-                            "label"
-                          ],
-                          "type": "string"
-                        },
-                        "fn": {
-                          "enum": [
-                            "sum",
-                            "count",
-                            "min",
-                            "max",
-                            "avg"
-                          ],
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "fn"
-                      ],
-                      "type": "object"
-                    },
-                    "type": "array"
-                  },
-                  "filter": {
-                    "items": {
-                      "oneOf": [
-                        {
-                          "additionalProperties": false,
-                          "properties": {
-                            "col": {
-                              "enum": [
-                                "id",
-                                "label"
-                              ],
-                              "type": "string"
-                            },
-                            "op": {
-                              "enum": [
-                                "eq",
-                                "ne",
-                                "lt",
-                                "le",
-                                "gt",
-                                "ge",
-                                "in",
-                                "contains",
-                                "null",
-                                "notnull"
-                              ],
-                              "type": "string"
-                            },
-                            "value": {}
-                          },
-                          "required": [
-                            "col",
-                            "op"
-                          ],
-                          "type": "object"
-                        },
-                        {
-                          "additionalProperties": false,
-                          "properties": {
-                            "action": {
-                              "type": "string"
-                            }
-                          },
-                          "required": [
-                            "action"
-                          ],
-                          "type": "object"
-                        }
-                      ]
-                    },
-                    "type": "array"
-                  },
-                  "group": {
-                    "items": {
-                      "enum": [
-                        "id",
-                        "label"
-                      ],
-                      "type": "string"
-                    },
-                    "type": "array"
-                  },
-                  "limit": {
-                    "maximum": 5000,
-                    "minimum": 1,
-                    "type": "integer"
-                  },
-                  "offset": {
-                    "minimum": 0,
-                    "type": "integer"
-                  },
-                  "params": {
-                    "additionalProperties": false,
-                    "type": "object"
-                  },
-                  "sort": {
-                    "items": {
-                      "additionalProperties": false,
-                      "properties": {
-                        "col": {
-                          "type": "string"
-                        },
-                        "dir": {
-                          "enum": [
-                            "asc",
-                            "desc"
-                          ],
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "col"
-                      ],
-                      "type": "object"
-                    },
-                    "type": "array"
-                  }
-                },
-                "type": "object"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "additionalProperties": false,
-                    "properties": {
-                      "id": {
-                        "format": "int64",
-                        "type": "integer"
-                      },
-                      "label": {
-                        "type": [
-                          "string",
-                          "null"
-                        ]
-                      }
-                    },
-                    "required": [
-                      "id",
-                      "label"
-                    ],
-                    "type": "object"
-                  },
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Rows"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Error"
-          }
-        },
-        "summary": "invoice_line.lookup",
         "tags": [
           "views"
         ]
@@ -17995,7 +17085,7 @@
     },
     "/api/v/profitability": {
       "post": {
-        "description": "Per folder and its project, over the activities of a period: durations, services, expenses billed and reimbursed, realized (services and expenses billed), invoiced, balance (realized minus invoiced). Invoiced activities use the values of their invoice line.",
+        "description": "Per folder and its project, over the activities of a period: durations, services, expenses billed and reimbursed, realized (services and expenses billed), invoiced, balance (realized minus invoiced). Invoiced activities use their frozen values.",
         "operationId": "view_profitability",
         "requestBody": {
           "content": {
@@ -18730,7 +17820,6 @@
                         "type": "boolean"
                       },
                       "entry_open": {
-                        "description": "Activities can be entered: the project is open and not archived.",
                         "type": [
                           "boolean",
                           "null"
@@ -18957,7 +18046,6 @@
                         "type": "integer"
                       },
                       "entry_open": {
-                        "description": "Activities can be entered: the project is open and not archived.",
                         "type": [
                           "boolean",
                           "null"
@@ -20989,16 +20077,17 @@
                     "additionalProperties": false,
                     "properties": {
                       "amount": {
-                        "description": "Amount: that of its invoice line, else rate times billed hours, weighted by the rate coefficients of the hour classes touched.",
                         "type": [
                           "number",
                           "null"
                         ]
                       },
                       "billed_min": {
-                        "description": "Billed duration: that of its invoice line, else the real duration (always), the entered one or the real one (sometimes), 0 (never).",
                         "format": "int64",
-                        "type": "integer"
+                        "type": [
+                          "integer",
+                          "null"
+                        ]
                       },
                       "billing": {
                         "description": "Billed duration: always the real duration, sometimes an entered duration, never.",
@@ -21013,7 +20102,6 @@
                         ]
                       },
                       "counted_min": {
-                        "description": "Minutes counted in the hours done: 0 for a task not counting hours, else weighted by the hours coefficients of the hour classes touched.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -21022,7 +20110,6 @@
                         "type": "string"
                       },
                       "day_type": {
-                        "description": "ISO weekday 1 to 7, or 8 on a full public holiday.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -21034,7 +20121,6 @@
                         "type": "integer"
                       },
                       "entry_open": {
-                        "description": "The folder and its project accept activities.",
                         "type": [
                           "boolean",
                           "null"
@@ -21049,7 +20135,6 @@
                         "type": "integer"
                       },
                       "invoice_id": {
-                        "description": "Invoice of its invoice line.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -21057,14 +20142,12 @@
                         ]
                       },
                       "is_validated": {
-                        "description": "Validated.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "kind": {
-                        "description": "Kind of the task.",
                         "enum": [
                           "service",
                           "absence",
@@ -21076,28 +20159,24 @@
                         ]
                       },
                       "not_invoiced": {
-                        "description": "On no invoice line.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "not_locked": {
-                        "description": "The date is in no locked period of the user or of all.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "not_validated": {
-                        "description": "Not validated.",
                         "type": [
                           "boolean",
                           "null"
                         ]
                       },
                       "project_id": {
-                        "description": "Project of the folder.",
                         "format": "int64",
                         "type": [
                           "integer",
@@ -21105,11 +20184,9 @@
                         ]
                       },
                       "rate": {
-                        "description": "Hourly rate: that of its invoice line, else user and task, folder, project, task, 0.",
                         "type": "number"
                       },
                       "span_tod": {
-                        "description": "Minutes of the day worked: from the start, for the duration.",
                         "type": "string"
                       },
                       "start_tod": {
@@ -21117,7 +20194,6 @@
                         "type": "integer"
                       },
                       "task_allowed": {
-                        "description": "The task is allowed in the folder.",
                         "type": [
                           "boolean",
                           "null"
@@ -21128,7 +20204,6 @@
                         "type": "integer"
                       },
                       "to_validate": {
-                        "description": "Needs a manager validation: the task, an hour class touched, or the folder estimate exceeded.",
                         "type": [
                           "boolean",
                           "null"

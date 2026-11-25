@@ -719,7 +719,7 @@ export interface paths {
         put?: never;
         /**
          * invoice.back_to_draft
-         * @description Deletes the expense lines of invoices. Deletes the activity lines of invoices. Returns invoices to draft.
+         * @description Clears the stamps of the expenses of the activities of invoices. Clears the stamps of the activities of invoices. Returns invoices to draft.
          */
         post: operations["command_invoice.back_to_draft"];
         delete?: never;
@@ -793,7 +793,7 @@ export interface paths {
         put?: never;
         /**
          * invoice.mark_invoiced
-         * @description Locks the candidate activities of draft invoices, by id: the following statements write the lines of these only. Writes a line per locked activity on its invoice, with rate, billed duration and amount read in its projection. Writes a line per expense of the locked activities on the invoice of its activity, with the amounts read in its projection. Marks invoices invoiced by the principal, now.
+         * @description Locks the candidate activities of draft invoices, by id: the following statements stamp these only. Stamps each locked activity with its invoice and the rate, billed duration and amount of its projection. Stamps the expenses of the locked activities with the amounts of their projection. Marks invoices invoiced by the principal, now.
          */
         post: operations["command_invoice.mark_invoiced"];
         delete?: never;
@@ -2286,80 +2286,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v/invoice_expense": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * invoice_expense
-         * @description An expense billed on an invoice, with the amounts of its projection when the invoice was marked invoiced.
-         */
-        post: operations["view_invoice_expense"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v/invoice_expense.lookup": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** invoice_expense.lookup */
-        post: operations["view_invoice_expense.lookup"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v/invoice_line": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * invoice_line
-         * @description An activity billed on an invoice, with the values of its projection when the invoice was marked invoiced.
-         */
-        post: operations["view_invoice_line"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v/invoice_line.lookup": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** invoice_line.lookup */
-        post: operations["view_invoice_line.lookup"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v/invoice_run_candidates": {
         parameters: {
             query?: never;
@@ -2428,7 +2354,7 @@ export interface paths {
         put?: never;
         /**
          * profitability
-         * @description Per folder and its project, over the activities of a period: durations, services, expenses billed and reimbursed, realized (services and expenses billed), invoiced, balance (realized minus invoiced). Invoiced activities use the values of their invoice line.
+         * @description Per folder and its project, over the activities of a period: durations, services, expenses billed and reimbursed, realized (services and expenses billed), invoiced, balance (realized minus invoiced). Invoiced activities use their frozen values.
          */
         post: operations["view_profitability"];
         delete?: never;
@@ -6889,10 +6815,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /**
-                         * Format: int64
-                         * @description Number of attempts.
-                         */
+                        /** Format: int64 */
                         attempts: number;
                         /** Format: int64 */
                         connection_id: number;
@@ -6900,22 +6823,12 @@ export interface operations {
                         created_at: string;
                         /** Format: int64 */
                         id: number;
-                        /**
-                         * Format: date-time
-                         * @description Instant of the last attempt.
-                         */
+                        /** Format: date-time */
                         last_at: string;
-                        /** @description Detail of the last attempt. */
                         last_detail: string | null;
-                        /**
-                         * Format: int64
-                         * @description HTTP status of the last attempt.
-                         */
+                        /** Format: int64 */
                         last_status: number | null;
-                        /**
-                         * @description Exported once accepted; failed if the last attempt failed; created before any attempt.
-                         * @enum {string}
-                         */
+                        /** @enum {string} */
                         state: "none" | "created" | "exported" | "failed";
                     }[];
                 };
@@ -6976,68 +6889,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** @description Amount: that of its invoice line, else rate times billed hours, weighted by the rate coefficients of the hour classes touched. */
                         amount: number | null;
-                        /**
-                         * Format: int64
-                         * @description Billed duration: that of its invoice line, else the real duration (always), the entered one or the real one (sometimes), 0 (never).
-                         */
+                        /** Format: int64 */
                         billed_min: number | null;
-                        /**
-                         * Format: int64
-                         * @description Minutes counted in the hours done: 0 for a task not counting hours, else weighted by the hours coefficients of the hour classes touched.
-                         */
+                        /** Format: int64 */
                         counted_min: number | null;
                         /** Format: date */
                         date: string;
-                        /**
-                         * Format: int64
-                         * @description ISO weekday 1 to 7, or 8 on a full public holiday.
-                         */
+                        /** Format: int64 */
                         day_type: number | null;
                         description: string;
                         /** Format: int64 */
                         duration_min: number;
-                        /** @description The folder and its project accept activities. */
                         entry_open: boolean | null;
                         /** Format: int64 */
                         folder_id: number;
                         /** Format: int64 */
                         id: number;
-                        /**
-                         * Format: int64
-                         * @description Invoice of its invoice line.
-                         */
+                        /** Format: int64 */
                         invoice_id: number | null;
-                        /** @description Validated. */
                         is_validated: boolean | null;
-                        /**
-                         * @description Kind of the task.
-                         * @enum {string|null}
-                         */
+                        /** @enum {string|null} */
                         kind: "service" | "absence" | "vacation" | null;
-                        /** @description On no invoice line. */
                         not_invoiced: boolean | null;
-                        /** @description The date is in no locked period of the user or of all. */
                         not_locked: boolean | null;
-                        /** @description Not validated. */
                         not_validated: boolean | null;
-                        /**
-                         * Format: int64
-                         * @description Project of the folder.
-                         */
+                        /** Format: int64 */
                         project_id: number | null;
-                        /** @description Hourly rate: that of its invoice line, else user and task, folder, project, task, 0. */
                         rate: number | null;
-                        /** @description Minutes of the day worked: from the start, for the duration. */
                         span_tod: string | null;
                         /** Format: int64 */
                         start_tod: number;
-                        /** @description The task is allowed in the folder. */
                         task_allowed: boolean | null;
                         /** Format: int64 */
                         task_id: number;
-                        /** @description Needs a manager validation: the task, an hour class touched, or the folder estimate exceeded. */
                         to_validate: boolean | null;
                         /** Format: int64 */
                         user_id: number;
@@ -7170,24 +7055,13 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /**
-                         * Format: int64
-                         * @description Activity.
-                         */
+                        /** Format: int64 */
                         activity_id: number;
-                        /** @description Share of the amount, weighted by the rate coefficient. */
                         amount: number | null;
-                        /** @description Minutes counted, weighted by the hours coefficient. */
                         counted_min: number | null;
-                        /**
-                         * Format: int64
-                         * @description Real minutes in the class.
-                         */
+                        /** Format: int64 */
                         duration_min: number | null;
-                        /**
-                         * Format: int64
-                         * @description Hour class; empty = outside any class.
-                         */
+                        /** Format: int64 */
                         hour_class_id: number;
                         /** Format: int64 */
                         user_id: number;
@@ -7255,68 +7129,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** @description Amount: that of its invoice line, else rate times billed hours, weighted by the rate coefficients of the hour classes touched. */
                         amount: number | null;
-                        /**
-                         * Format: int64
-                         * @description Billed duration: that of its invoice line, else the real duration (always), the entered one or the real one (sometimes), 0 (never).
-                         */
-                        billed_min: number;
-                        /**
-                         * Format: int64
-                         * @description Minutes counted in the hours done: 0 for a task not counting hours, else weighted by the hours coefficients of the hour classes touched.
-                         */
+                        /** Format: int64 */
+                        billed_min: number | null;
+                        /** Format: int64 */
                         counted_min: number;
                         /** Format: date */
                         date: string;
-                        /**
-                         * Format: int64
-                         * @description ISO weekday 1 to 7, or 8 on a full public holiday.
-                         */
+                        /** Format: int64 */
                         day_type: number;
                         description: string;
                         /** Format: int64 */
                         duration_min: number;
-                        /** @description The folder and its project accept activities. */
                         entry_open: boolean | null;
                         /** Format: int64 */
                         folder_id: number;
                         /** Format: int64 */
                         id: number;
-                        /**
-                         * Format: int64
-                         * @description Invoice of its invoice line.
-                         */
+                        /** Format: int64 */
                         invoice_id: number | null;
-                        /** @description Validated. */
                         is_validated: boolean | null;
-                        /**
-                         * @description Kind of the task.
-                         * @enum {string|null}
-                         */
+                        /** @enum {string|null} */
                         kind: "service" | "absence" | "vacation" | null;
-                        /** @description On no invoice line. */
                         not_invoiced: boolean | null;
-                        /** @description The date is in no locked period of the user or of all. */
                         not_locked: boolean | null;
-                        /** @description Not validated. */
                         not_validated: boolean | null;
-                        /**
-                         * Format: int64
-                         * @description Project of the folder.
-                         */
+                        /** Format: int64 */
                         project_id: number | null;
-                        /** @description Hourly rate: that of its invoice line, else user and task, folder, project, task, 0. */
                         rate: number;
-                        /** @description Minutes of the day worked: from the start, for the duration. */
                         span_tod: string;
                         /** Format: int64 */
                         start_tod: number;
-                        /** @description The task is allowed in the folder. */
                         task_allowed: boolean | null;
                         /** Format: int64 */
                         task_id: number;
-                        /** @description Needs a manager validation: the task, an hour class touched, or the folder estimate exceeded. */
                         to_validate: boolean | null;
                         /** Format: int64 */
                         user_id: number;
@@ -7388,68 +7234,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** @description Amount: that of its invoice line, else rate times billed hours, weighted by the rate coefficients of the hour classes touched. */
                         amount: number | null;
-                        /**
-                         * Format: int64
-                         * @description Billed duration: that of its invoice line, else the real duration (always), the entered one or the real one (sometimes), 0 (never).
-                         */
-                        billed_min: number;
-                        /**
-                         * Format: int64
-                         * @description Minutes counted in the hours done: 0 for a task not counting hours, else weighted by the hours coefficients of the hour classes touched.
-                         */
+                        /** Format: int64 */
+                        billed_min: number | null;
+                        /** Format: int64 */
                         counted_min: number;
                         /** Format: date */
                         date: string;
-                        /**
-                         * Format: int64
-                         * @description ISO weekday 1 to 7, or 8 on a full public holiday.
-                         */
+                        /** Format: int64 */
                         day_type: number;
                         description: string;
                         /** Format: int64 */
                         duration_min: number;
-                        /** @description The folder and its project accept activities. */
                         entry_open: boolean | null;
                         /** Format: int64 */
                         folder_id: number;
                         /** Format: int64 */
                         id: number;
-                        /**
-                         * Format: int64
-                         * @description Invoice of its invoice line.
-                         */
+                        /** Format: int64 */
                         invoice_id: number | null;
-                        /** @description Validated. */
                         is_validated: boolean | null;
-                        /**
-                         * @description Kind of the task.
-                         * @enum {string|null}
-                         */
+                        /** @enum {string|null} */
                         kind: "service" | "absence" | "vacation" | null;
-                        /** @description On no invoice line. */
                         not_invoiced: boolean | null;
-                        /** @description The date is in no locked period of the user or of all. */
                         not_locked: boolean | null;
-                        /** @description Not validated. */
                         not_validated: boolean | null;
-                        /**
-                         * Format: int64
-                         * @description Project of the folder.
-                         */
+                        /** Format: int64 */
                         project_id: number | null;
-                        /** @description Hourly rate: that of its invoice line, else user and task, folder, project, task, 0. */
                         rate: number;
-                        /** @description Minutes of the day worked: from the start, for the duration. */
                         span_tod: string;
                         /** Format: int64 */
                         start_tod: number;
-                        /** @description The task is allowed in the folder. */
                         task_allowed: boolean | null;
                         /** Format: int64 */
                         task_id: number;
-                        /** @description Needs a manager validation: the task, an hour class touched, or the folder estimate exceeded. */
                         to_validate: boolean | null;
                         /** Format: int64 */
                         user_id: number;
@@ -7876,34 +7694,21 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /**
-                         * Format: int64
-                         * @description Number of attempts.
-                         */
+                        /** Format: int64 */
                         attempts: number;
                         /** Format: date-time */
                         created_at: string;
                         /** Format: int64 */
                         id: number;
-                        /**
-                         * Format: date-time
-                         * @description Instant of the last attempt.
-                         */
+                        /** Format: date-time */
                         last_at: string;
-                        /** @description Detail of the last attempt. */
                         last_detail: string | null;
-                        /**
-                         * Format: int64
-                         * @description HTTP status of the last attempt.
-                         */
+                        /** Format: int64 */
                         last_status: number | null;
                         /** Format: int64 */
                         root_id: number;
                         root_table: string;
-                        /**
-                         * @description Exported once accepted; failed if the last attempt failed; created before any attempt.
-                         * @enum {string}
-                         */
+                        /** @enum {string} */
                         state: "none" | "created" | "exported" | "failed";
                     }[];
                 };
@@ -8396,12 +8201,8 @@ export interface operations {
                         /** Format: int64 */
                         activity_id: number;
                         amount: number | null;
-                        /** @description Amount billed: that of its invoice line, else 0 (user only), quantity times billing unit price, or the amount. */
                         billed_amount: number | null;
-                        /**
-                         * @description Mode of the expense, else of its type.
-                         * @enum {string|null}
-                         */
+                        /** @enum {string|null} */
                         effective_mode: "both" | "user_only" | "billing_only" | null;
                         /** Format: int64 */
                         expense_type_id: number;
@@ -8413,12 +8214,8 @@ export interface operations {
                         quantity: number | null;
                         /** Format: int64 */
                         receipt_file_id: number | null;
-                        /** @description Amount reimbursed to the user: that of its invoice line, else 0 (billing only), quantity times unit price, or the amount. */
                         user_amount: number | null;
-                        /**
-                         * Format: int64
-                         * @description User of the activity.
-                         */
+                        /** Format: int64 */
                         user_id: number | null;
                     }[];
                 };
@@ -8547,14 +8344,10 @@ export interface operations {
                         /** Format: int64 */
                         activity_id: number;
                         amount: number | null;
-                        /** @description Amount billed: that of its invoice line, else 0 (user only), quantity times billing unit price, or the amount. */
                         billed_amount: number | null;
                         /** @description Entered as a quantity priced by the type, instead of an amount. */
                         by_quantity: boolean | null;
-                        /**
-                         * @description Mode of the expense, else of its type.
-                         * @enum {string}
-                         */
+                        /** @enum {string} */
                         effective_mode: "both" | "user_only" | "billing_only";
                         /** Format: int64 */
                         expense_type_id: number;
@@ -8566,12 +8359,8 @@ export interface operations {
                         quantity: number | null;
                         /** Format: int64 */
                         receipt_file_id: number | null;
-                        /** @description Amount reimbursed to the user: that of its invoice line, else 0 (billing only), quantity times unit price, or the amount. */
                         user_amount: number | null;
-                        /**
-                         * Format: int64
-                         * @description User of the activity.
-                         */
+                        /** Format: int64 */
                         user_id: number | null;
                     }[];
                 };
@@ -8981,7 +8770,6 @@ export interface operations {
                 content: {
                     "application/json": {
                         entry_closed: boolean;
-                        /** @description Activities can be entered: the folder is open and so is its project. */
                         entry_open: boolean | null;
                         /** Format: int64 */
                         estimated_min: number | null;
@@ -9052,7 +8840,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** @description Activities can be entered: the folder is open and so is its project. */
                         entry_open: boolean | null;
                         /** Format: int64 */
                         id: number;
@@ -9687,33 +9474,19 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /**
-                         * Format: int64
-                         * @description Client: the account of the project.
-                         */
+                        /** Format: int64 */
                         account_id: number | null;
-                        /**
-                         * Format: int64
-                         * @description Number of activities.
-                         */
+                        /** Format: int64 */
                         activity_count: number | null;
-                        /**
-                         * Format: int64
-                         * @description Billed duration of its activities.
-                         */
+                        /** Format: int64 */
                         billed_min: number | null;
                         /** Format: date */
                         date_from: string;
                         /** Format: date */
                         date_to: string;
-                        /** @description Amount billed of the expenses of its activities. */
                         expenses_amount: number | null;
-                        /**
-                         * @description State of the last export to the accounting system.
-                         * @enum {string|null}
-                         */
+                        /** @enum {string|null} */
                         export_state: "none" | "created" | "exported" | "failed" | null;
-                        /** @description Has at least one activity. */
                         has_activities: boolean | null;
                         /** Format: int64 */
                         id: number;
@@ -9721,24 +9494,16 @@ export interface operations {
                         invoiced_at: string | null;
                         /** Format: int64 */
                         invoiced_by: number | null;
-                        /** @description Draft. */
                         is_draft: boolean | null;
-                        /** @description Invoiced. */
                         is_invoiced: boolean | null;
-                        /** @description Never sent to the accounting system. */
                         not_exported: boolean | null;
                         /** Format: int64 */
                         pdf_file_id: number | null;
                         /** Format: int64 */
                         project_id: number;
-                        /** @description Amount of its activities. */
                         services_amount: number | null;
-                        /**
-                         * @description Draft or invoiced.
-                         * @enum {string|null}
-                         */
+                        /** @enum {string|null} */
                         state: "draft" | "invoiced" | null;
-                        /** @description Services plus expenses. */
                         total_amount: number | null;
                     }[];
                 };
@@ -9864,68 +9629,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** @description Amount: that of its invoice line, else rate times billed hours, weighted by the rate coefficients of the hour classes touched. */
                         amount: number | null;
-                        /**
-                         * Format: int64
-                         * @description Billed duration: that of its invoice line, else the real duration (always), the entered one or the real one (sometimes), 0 (never).
-                         */
-                        billed_min: number;
-                        /**
-                         * Format: int64
-                         * @description Minutes counted in the hours done: 0 for a task not counting hours, else weighted by the hours coefficients of the hour classes touched.
-                         */
+                        /** Format: int64 */
+                        billed_min: number | null;
+                        /** Format: int64 */
                         counted_min: number;
                         /** Format: date */
                         date: string;
-                        /**
-                         * Format: int64
-                         * @description ISO weekday 1 to 7, or 8 on a full public holiday.
-                         */
+                        /** Format: int64 */
                         day_type: number;
                         description: string;
                         /** Format: int64 */
                         duration_min: number;
-                        /** @description The folder and its project accept activities. */
                         entry_open: boolean | null;
                         /** Format: int64 */
                         folder_id: number;
                         /** Format: int64 */
                         id: number;
-                        /**
-                         * Format: int64
-                         * @description Invoice of its invoice line.
-                         */
+                        /** Format: int64 */
                         invoice_id: number | null;
-                        /** @description Validated. */
                         is_validated: boolean | null;
-                        /**
-                         * @description Kind of the task.
-                         * @enum {string|null}
-                         */
+                        /** @enum {string|null} */
                         kind: "service" | "absence" | "vacation" | null;
-                        /** @description On no invoice line. */
                         not_invoiced: boolean | null;
-                        /** @description The date is in no locked period of the user or of all. */
                         not_locked: boolean | null;
-                        /** @description Not validated. */
                         not_validated: boolean | null;
-                        /**
-                         * Format: int64
-                         * @description Project of the folder.
-                         */
+                        /** Format: int64 */
                         project_id: number | null;
-                        /** @description Hourly rate: that of its invoice line, else user and task, folder, project, task, 0. */
                         rate: number;
-                        /** @description Minutes of the day worked: from the start, for the duration. */
                         span_tod: string;
                         /** Format: int64 */
                         start_tod: number;
-                        /** @description The task is allowed in the folder. */
                         task_allowed: boolean | null;
                         /** Format: int64 */
                         task_id: number;
-                        /** @description Needs a manager validation: the task, an hour class touched, or the folder estimate exceeded. */
                         to_validate: boolean | null;
                         /** Format: int64 */
                         user_id: number;
@@ -9995,292 +9732,9 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** @description The document. */
                         document: unknown;
-                        /**
-                         * Format: int64
-                         * @description Invoice.
-                         */
+                        /** Format: int64 */
                         invoice_id: number;
-                    }[];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    view_invoice_expense: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": {
-                    agg?: {
-                        /** @enum {string} */
-                        col?: "id" | "invoice_id" | "expense_id" | "user_amount" | "billed_amount";
-                        /** @enum {string} */
-                        fn: "sum" | "count" | "min" | "max" | "avg";
-                    }[];
-                    filter?: ({
-                        /** @enum {string} */
-                        col: "id" | "invoice_id" | "expense_id" | "user_amount" | "billed_amount";
-                        /** @enum {string} */
-                        op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
-                        value?: unknown;
-                    } | {
-                        action: string;
-                    })[];
-                    group?: ("id" | "invoice_id" | "expense_id" | "user_amount" | "billed_amount")[];
-                    limit?: number;
-                    offset?: number;
-                    params?: Record<string, never>;
-                    sort?: {
-                        col: string;
-                        /** @enum {string} */
-                        dir?: "asc" | "desc";
-                    }[];
-                };
-            };
-        };
-        responses: {
-            /** @description Rows */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @description Amount billed. */
-                        billed_amount: number;
-                        /**
-                         * Format: int64
-                         * @description Expense billed; on one invoice at most.
-                         */
-                        expense_id: number;
-                        /** Format: int64 */
-                        id: number;
-                        /**
-                         * Format: int64
-                         * @description Invoice.
-                         */
-                        invoice_id: number;
-                        /** @description Amount reimbursed to the user. */
-                        user_amount: number;
-                    }[];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    "view_invoice_expense.lookup": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": {
-                    agg?: {
-                        /** @enum {string} */
-                        col?: "id" | "label";
-                        /** @enum {string} */
-                        fn: "sum" | "count" | "min" | "max" | "avg";
-                    }[];
-                    filter?: ({
-                        /** @enum {string} */
-                        col: "id" | "label";
-                        /** @enum {string} */
-                        op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
-                        value?: unknown;
-                    } | {
-                        action: string;
-                    })[];
-                    group?: ("id" | "label")[];
-                    limit?: number;
-                    offset?: number;
-                    params?: Record<string, never>;
-                    sort?: {
-                        col: string;
-                        /** @enum {string} */
-                        dir?: "asc" | "desc";
-                    }[];
-                };
-            };
-        };
-        responses: {
-            /** @description Rows */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Format: int64 */
-                        id: number;
-                        label: string | null;
-                    }[];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    view_invoice_line: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": {
-                    agg?: {
-                        /** @enum {string} */
-                        col?: "id" | "invoice_id" | "activity_id" | "rate" | "billed_min" | "amount";
-                        /** @enum {string} */
-                        fn: "sum" | "count" | "min" | "max" | "avg";
-                    }[];
-                    filter?: ({
-                        /** @enum {string} */
-                        col: "id" | "invoice_id" | "activity_id" | "rate" | "billed_min" | "amount";
-                        /** @enum {string} */
-                        op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
-                        value?: unknown;
-                    } | {
-                        action: string;
-                    })[];
-                    group?: ("id" | "invoice_id" | "activity_id" | "rate" | "billed_min" | "amount")[];
-                    limit?: number;
-                    offset?: number;
-                    params?: Record<string, never>;
-                    sort?: {
-                        col: string;
-                        /** @enum {string} */
-                        dir?: "asc" | "desc";
-                    }[];
-                };
-            };
-        };
-        responses: {
-            /** @description Rows */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /**
-                         * Format: int64
-                         * @description Activity billed; on one invoice at most.
-                         */
-                        activity_id: number;
-                        /** @description Amount billed. */
-                        amount: number;
-                        /**
-                         * Format: int64
-                         * @description Duration billed.
-                         */
-                        billed_min: number;
-                        /** Format: int64 */
-                        id: number;
-                        /**
-                         * Format: int64
-                         * @description Invoice.
-                         */
-                        invoice_id: number;
-                        /** @description Hourly rate billed. */
-                        rate: number;
-                    }[];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    "view_invoice_line.lookup": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": {
-                    agg?: {
-                        /** @enum {string} */
-                        col?: "id" | "label";
-                        /** @enum {string} */
-                        fn: "sum" | "count" | "min" | "max" | "avg";
-                    }[];
-                    filter?: ({
-                        /** @enum {string} */
-                        col: "id" | "label";
-                        /** @enum {string} */
-                        op: "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "in" | "contains" | "null" | "notnull";
-                        value?: unknown;
-                    } | {
-                        action: string;
-                    })[];
-                    group?: ("id" | "label")[];
-                    limit?: number;
-                    offset?: number;
-                    params?: Record<string, never>;
-                    sort?: {
-                        col: string;
-                        /** @enum {string} */
-                        dir?: "asc" | "desc";
-                    }[];
-                };
-            };
-        };
-        responses: {
-            /** @description Rows */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Format: int64 */
-                        id: number;
-                        label: string | null;
                     }[];
                 };
             };
@@ -10727,7 +10181,6 @@ export interface operations {
                         account_id: number;
                         archived: boolean;
                         entry_closed: boolean;
-                        /** @description Activities can be entered: the project is open and not archived. */
                         entry_open: boolean | null;
                         external_id: string;
                         /** Format: int64 */
@@ -10797,7 +10250,6 @@ export interface operations {
                     "application/json": {
                         /** Format: int64 */
                         account_id: number;
-                        /** @description Activities can be entered: the project is open and not archived. */
                         entry_open: boolean | null;
                         /** Format: int64 */
                         id: number;
@@ -11457,73 +10909,45 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** @description Amount: that of its invoice line, else rate times billed hours, weighted by the rate coefficients of the hour classes touched. */
                         amount: number | null;
-                        /**
-                         * Format: int64
-                         * @description Billed duration: that of its invoice line, else the real duration (always), the entered one or the real one (sometimes), 0 (never).
-                         */
-                        billed_min: number;
+                        /** Format: int64 */
+                        billed_min: number | null;
                         /**
                          * @description Billed duration: always the real duration, sometimes an entered duration, never.
                          * @enum {string|null}
                          */
                         billing: "always" | "sometimes" | "never" | null;
-                        /**
-                         * Format: int64
-                         * @description Minutes counted in the hours done: 0 for a task not counting hours, else weighted by the hours coefficients of the hour classes touched.
-                         */
+                        /** Format: int64 */
                         counted_min: number;
                         /** Format: date */
                         date: string;
-                        /**
-                         * Format: int64
-                         * @description ISO weekday 1 to 7, or 8 on a full public holiday.
-                         */
+                        /** Format: int64 */
                         day_type: number;
                         description: string;
                         /** Format: int64 */
                         duration_min: number;
-                        /** @description The folder and its project accept activities. */
                         entry_open: boolean | null;
                         /** Format: int64 */
                         folder_id: number;
                         /** Format: int64 */
                         id: number;
-                        /**
-                         * Format: int64
-                         * @description Invoice of its invoice line.
-                         */
+                        /** Format: int64 */
                         invoice_id: number | null;
-                        /** @description Validated. */
                         is_validated: boolean | null;
-                        /**
-                         * @description Kind of the task.
-                         * @enum {string|null}
-                         */
+                        /** @enum {string|null} */
                         kind: "service" | "absence" | "vacation" | null;
-                        /** @description On no invoice line. */
                         not_invoiced: boolean | null;
-                        /** @description The date is in no locked period of the user or of all. */
                         not_locked: boolean | null;
-                        /** @description Not validated. */
                         not_validated: boolean | null;
-                        /**
-                         * Format: int64
-                         * @description Project of the folder.
-                         */
+                        /** Format: int64 */
                         project_id: number | null;
-                        /** @description Hourly rate: that of its invoice line, else user and task, folder, project, task, 0. */
                         rate: number;
-                        /** @description Minutes of the day worked: from the start, for the duration. */
                         span_tod: string;
                         /** Format: int64 */
                         start_tod: number;
-                        /** @description The task is allowed in the folder. */
                         task_allowed: boolean | null;
                         /** Format: int64 */
                         task_id: number;
-                        /** @description Needs a manager validation: the task, an hour class touched, or the folder estimate exceeded. */
                         to_validate: boolean | null;
                         /** Format: int64 */
                         user_id: number;
